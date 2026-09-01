@@ -27,6 +27,19 @@ routine, not "when someone remembers".
 5. **Gate**: the kit's own link integrity (`grep` every relative `.md` link resolves) + the
    gate script's two-direction test must pass before push.
 
+## The research leg (also daily)
+
+Mirroring the factory is only half the job. A second daily pass looks OUTWARD and forward:
+
+1. **Upstream watch** — new [github/spec-kit](https://github.com/github/spec-kit) releases or
+   command changes worth absorbing (`gh api repos/github/spec-kit/releases/latest`).
+2. **Adopter feedback** — new issues/PRs/stars on this repo; every real adopter question is a
+   candidate doc fix.
+3. **Self-check** — link integrity + the gate script's two-direction test still pass.
+4. **Proposals, not stealth edits** — the routine posts 2–3 concrete upgrade proposals (with
+   S/M/L effort) to the maintainer; changes land only after approval, through the same commit
+   discipline as everything else. "Nothing worth doing" is a valid, honest report.
+
 ## What an adopter should do
 
 Nothing. `git pull` when you want the latest lessons; `CHANGELOG.md` tells you what changed and
