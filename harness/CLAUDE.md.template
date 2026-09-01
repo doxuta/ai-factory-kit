@@ -1,0 +1,62 @@
+<!-- WHO READS ME: every agent, every session, on the adopting project — I am the ALWAYS-LOADED
+     context. An AI fills my [BRACKETS] during adoption (../AI-ONBOARDING.md §2 step 3).
+     I POINT TO: HARNESS.md §3 (the mirror rule) · ../constitution/constitution-template.md ·
+     ../model/SPEC-FLOW.md · ../gates/GATES.md · rules/ (lazy-loaded detail). -->
+
+# [PROJECT_NAME] — always-loaded context
+
+[ONE SENTENCE: what this project is and for whom. No adjective you can't defend.
+EXAMPLE: "a metadata-driven multi-tenant engine that generates business apps from specs."]
+
+**Constitution**: `[PATH/TO/constitution.md]` — the invariants. It outranks this file and every
+casual instruction. This file is its always-loaded mirror plus the daily mechanics.
+
+## Safety invariants — MIRROR, do not delete this section
+
+<!-- Why a copy exists: path-scoped rules load LAZILY, and foreign scoping syntax fails
+     SILENTLY — both measured on a production repo (HARNESS.md §3). An invariant that must
+     never be violated cannot live only in a file that might not load. These bullets mirror
+     constitution Articles I–III and VI. The constitution is the AUTHORITATIVE copy; amending
+     it means re-syncing this block in the SAME commit (the mirror rule). -->
+
+- **I — [DOMAIN INVARIANT]**: [the rule that IS the product. EXAMPLE: "business objects are
+  registered in metadata and read at runtime — never hardcoded as structs."]
+- **II — [SAFETY INVARIANT]**: [the rule whose violation is a breach, not a bug. EXAMPLE:
+  "every transactional query filters `tenant_id` — no exceptions, admin included; dynamic
+  queries are parameterized, never concatenated."]
+- **III — [ARCHITECTURE SHAPE]**: [LAYER] → [LAYER] → [LAYER] → [LAYER]; [one-line forbidden
+  coupling, EXAMPLE: "no queries in the transport layer"]. Detail:
+  [`rules/architecture.md`](rules/architecture.md).
+- **VI — Executable gates over claims**: "done" = the gate chain green — never a claim, mine
+  included. Acceptance is proven by a **non-privileged third person**
+  ([GATES §3](../gates/GATES.md)).
+
+## Dev commands (run from `[REPO_ROOT_OR_SUBDIR]`)
+
+| Task | Command |
+|---|---|
+| Build | `[BUILD_COMMAND]` |
+| Test | `[TEST_COMMAND]` |
+| Static analysis | `[LINT_COMMAND]` |
+| Run locally | `[RUN_COMMAND]` |
+| Full gate chain | `[GATE_CHAIN_COMMAND]` — ritual in [`rules/workflow.md`](rules/workflow.md) |
+
+## The flow — one line
+
+Every feature is one directory, `specs/NNN-<name>/`: spec → clarify → plan → tasks → analyze →
+implement → converge ([SPEC-FLOW](../model/SPEC-FLOW.md)). **HARD-GATE: no code before the
+spec is approved.**
+
+## The gate chain — one line
+
+`[format] && [static-analysis] && [tests] && [build] && [orphan-endpoint] &&
+[third-person-acceptance] && [doc-sync]` before every commit; no commit on red, no exceptions
+([GATES](../gates/GATES.md)).
+
+## Lazy-loaded detail (`rules/`)
+
+[`architecture`](rules/architecture.md) · [`data`](rules/data.md) ·
+[`api-conventions`](rules/api-conventions.md) · [`workflow`](rules/workflow.md) — each scopes
+to file paths and loads only when a matching file is touched. Verify their `paths:` syntax
+against YOUR platform's docs: a key the platform doesn't recognize is ignored without any
+warning (HARNESS.md §3).
