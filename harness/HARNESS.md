@@ -52,7 +52,32 @@ delete it or wire it into [the daily sync](../sync/DAILY-SYNC.md).
 - HARD-GATE: no code before an approved spec.
 - Review findings: fixed or refuted with evidence, never shelved (GATES §2).
 
-## 5) Verification discipline in one table
+## 5) Extending with the upstream ecosystem
+
+Spec Kit v1.x ships an official **community extension catalog**
+([browse](https://speckit-community.github.io/extensions/) ·
+[`catalog.community.json`](https://github.com/github/spec-kit/blob/main/extensions/catalog.community.json) ·
+`specify extension info <name>`), tagged by category and effect. Map it onto the three levels
+before shopping, so an extension lands where the model already has a socket:
+
+| Upstream category | Slots into | Examples ↔ this kit's native part |
+|---|---|---|
+| `docs` / `visibility` | **Level 1 artifacts** — readers/reporters over spec/plan/tasks | architecture maps, diagram renderers ↔ the spec corpus is already the source of truth |
+| `code` | the **implement** step | checkpoint commits, cleanup gates ↔ [plan-and-tdd](skills/plan-and-tdd/SKILL.md) + [GATES](../gates/GATES.md) |
+| `process` | **Level 2 orchestration** | agent-assign ≈ [task-orchestra](agents/task-orchestra.md) · BDD/V-Model feed [tester-e2e](agents/tester-e2e.md) · CI-guard/blueprint-index ≈ executable gates · brownfield-bootstrap ≈ the [retro-fit playbook](../model/RETROFIT-PLAYBOOK.md) |
+| `integration` | task-orchestra's external edge (Jira/DevOps sync, dashboards) |
+
+Selection discipline (upstream's own warning: catalog entries are **not reviewed or audited**):
+
+1. **Read the extension's source before installing** — it runs inside your agent's context.
+2. Prefer `read-only` first; promote to `read-write` only after it earns trust.
+3. One overlap rule: if the kit already has the native part (gates, roles, playbooks), the
+   extension must REPLACE or FEED it — never run a second copy of the same duty in parallel
+   (two sources claiming one duty is the routing disease the adoption audit hunts).
+4. Record adopted extensions in the constitution's **Platform Constraints** so the next AI knows
+   they exist.
+
+## 6) Verification discipline in one table
 
 | You are tempted to… | Instead |
 |---|---|

@@ -45,6 +45,15 @@ in the code that the doc never knew (post-freeze features, changed gates, rename
   months late, found a HIGH: a validation probe wired into one branch of a function but not its
   twin. The joint-nobody-wired class hides exactly where mandates went unpaid.
 
+## 1c. Re-measure every number the doc states (scale-creep debts)
+
+Docs record quantified debts ("1,774 unstyled cases", "N TODO sites") at freeze time. During the
+retro-fit, **re-measure each number against today's tree**. Observed twice on one production
+corpus: a deferred debt had GROWN ~30% between freeze and retro-fit — and nothing was watching.
+A grown debt escalates: file it as its own task/chip **in the same wave** (with both numbers, so
+the growth rate is visible), and where cheap, add a gate that blocks NEW instances so the debt
+can only shrink.
+
 ## 2. Write the spec with anchor-stable geometry
 
 Code comments cite `docs/foo.md §4` or `§"#7" MUST-FIX 2`. Keep those tokens meaningful:

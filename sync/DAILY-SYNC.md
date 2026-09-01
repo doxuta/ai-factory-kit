@@ -42,9 +42,17 @@ Mirroring the factory is only half the job. A second daily pass looks OUTWARD an
 
 ## What an adopter should do
 
-Nothing. `git pull` when you want the latest lessons; `CHANGELOG.md` tells you what changed and
-why it matters. Pin a commit if you need stability — the kit follows semver-ish discipline:
-breaking restructures bump a `vN` tag.
+Nothing, by default: `git pull` when you want the latest lessons; `CHANGELOG.md` tells you what
+changed and why it matters.
+
+**Pinning** (recommended for teams): pin a release tag, not a moving branch —
+`git -C factory checkout v1.2.0` (or a submodule pinned SHA). The kit follows semver-ish
+discipline: content additions bump MINOR tags, breaking restructures bump MAJOR.
+
+**Watching upstream Spec Kit** (now a real semver project): once a week or in your own daily
+routine, check `gh api repos/github/spec-kit/releases/latest` — bump your installed CLI
+deliberately (`uv tool upgrade specify-cli`), read its release notes for new/renamed commands
+first, and re-run the [adoption audit](../AI-ONBOARDING.md) §4 after any CLI major bump.
 
 ## The standing rule this encodes
 

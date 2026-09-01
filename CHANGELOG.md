@@ -3,6 +3,20 @@
 All kit updates land here via the [daily-ship sync](sync/DAILY-SYNC.md) — one entry per sync,
 newest first.
 
+## 2026-09-01 (night) — v1.2.0 (first ROUTINE-PROPOSED upgrade — the loop closed)
+
+The daily research routine ran end-to-end for the first time, proposed three upgrades, and the
+maintainer approved all three ("UPGRADE KIT 1 2 3"). What got smarter:
+
+- **HARNESS §5 (new)**: map of the upstream community-extension catalog (categories docs/code/
+  process/integration/visibility, effect read-only/read-write, `specify extension info`) onto the
+  3-level model, with a 4-rule selection discipline — incl. the no-two-copies-of-one-duty rule.
+- **RETROFIT-PLAYBOOK §1c (new)**: re-measure every number a doc states — scale-creep debts grow
+  silently between freeze and retro-fit (observed twice, ~30% growth); file grown debts in the
+  same wave with both numbers + a block-new-instances gate where cheap.
+- **DAILY-SYNC**: adopter pinning guidance (pin release tags) + upstream release watch
+  (`gh api .../releases/latest`, deliberate CLI bumps, re-run the adoption audit after majors).
+
 ## 2026-09-01 (evening) — v1.1.0 (first daily-ship sync)
 
 Factory commits absorbed: `a8448782` (36-finding framework audit), `4d725882` (owed dual-review
