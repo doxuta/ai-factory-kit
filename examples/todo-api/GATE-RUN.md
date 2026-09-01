@@ -56,7 +56,7 @@ $ make gate
       filter check: pattern matched 43 tests (≥1 — not a vacuous green)
 [4/6] build .......................... ok (artifact built)
 [5/6] orphan endpoints ............... ok (3 routes, 3 callers, 0 unexplained)
-[6/6] doc-sync ....................... ✅ Docs in sync — 0 plans in format (blueprint checks still ran)
+[6/6] doc-sync ....................... ✅ Docs in sync — 0 plans in format (blueprint checks skipped — no ARCHITECTURE.md)
 GATE GREEN
 
 $ git commit -m "feat(tasks): workspace-filtered list endpoint (fix: store query filters workspace_id, Article II)"
@@ -70,9 +70,13 @@ $ git commit -m "feat(tasks): workspace-filtered list endpoint (fix: store query
 2. **Gate 3 prints its match count.** A test filter matching zero tests exits 0 — the
    *vacuous green* ([GATES §1](../../gates/GATES.md)). A green you can't count is not a green.
 3. **Gate 6 is the shipped [`check-plan-sync.sh`](../../gates/check-plan-sync.sh)** and its
-   output line is verbatim: this repo has no `*-plan.md` views yet, so it reports
-   `0 plans in format` and still runs — self-globbing, never hostage to a missing file
-   ([GATES §6](../../gates/GATES.md)).
+   output line above is verbatim — reproduce it with
+   `bash gates/check-plan-sync.sh examples/todo-api`. This example has no `*-plan.md` views
+   and no `ARCHITECTURE.md`, so *both* halves of the gate report an empty scope and it still
+   exits 0: self-globbing, never hostage to a missing file ([GATES §6](../../gates/GATES.md)).
+   Note what that costs — a gate whose scope is empty is green because it checked nothing.
+   The line says so out loud rather than printing a bare ✅, because a green you cannot
+   attribute is the same vacuous green as point 2.
 4. **Green ≠ done.** The chain proves mechanics; acceptance still requires
    [quickstart.md](specs/001-task-crud/quickstart.md) run by a non-privileged member
    ([GATES §3](../../gates/GATES.md)) — gate 3's isolation test and quickstart step 3 check
