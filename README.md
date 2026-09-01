@@ -1,5 +1,7 @@
 # 🏭 AI Factory Kit
 
+**English** · [Tiếng Việt](README.vi.md)
+
 **A complete, battle-tested operating system for AI-driven software development.**
 Spec-first · executable gates · adversarial verification · one atom of work.
 
@@ -7,12 +9,6 @@ Spec-first · executable gates · adversarial verification · one atom of work.
 > This kit is the **whole factory**: the constitution above the specs, the agents beside them,
 > the gates below them, and the daily discipline that keeps all of it honest. Every rule in here
 > was forged (and paid for) on a real production platform built ~100% by AI across 730+ commits.
-
-**🇻🇳** *Bộ khung vận hành đầy đủ cho phát triển phần mềm bằng AI: spec trước code, cổng chạy được
-thắng lời khai, review đối kháng, một nguyên tử công việc duy nhất. Mọi luật ở đây đều được tôi
-luyện trên một platform production thật do AI viết ~100%.*
-
----
 
 ## Why this exists
 
