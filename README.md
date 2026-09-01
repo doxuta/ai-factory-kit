@@ -82,6 +82,12 @@ You are an AI agent connected to a project that uses this kit. **Read
 [`AI-ONBOARDING.md`](AI-ONBOARDING.md) first** — it is written for you, tells you the exact
 reading order, the invariants you must never break, and how every file here links to the others.
 
+## Using it day-to-day
+
+The full command table (what each `/speckit-*` command writes, when to run it, which agent and
+skill plug in where) lives in [`model/SPEC-FLOW.md`](model/SPEC-FLOW.md) — the kit's equivalent
+of Spec Kit's command reference, extended with the roles and gates around each step.
+
 ## What's inside
 
 ```

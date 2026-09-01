@@ -22,6 +22,38 @@ flowchart LR
     CV --> DONE([gates green + third-person acceptance])
 ```
 
+## Command reference (what each command writes, and when)
+
+| Command | Writes | When to run | Note |
+|---|---|---|---|
+| `/speckit-constitution` | `.specify/memory/constitution.md` | once at adoption; then amendments | fill from [the template](../constitution/constitution-template.md) |
+| `/speckit-specify <desc>` | `specs/NNN-<name>/spec.md` | every new feature | WHAT/WHY only; numbers the directory, **no git branch** |
+| `/speckit-clarify` | Q&A **back into** `spec.md` | when the spec has holes | never a separate clarify file — one contract, one file |
+| `/speckit-plan` | `plan.md` · `research.md` · `data-model.md` · `contracts/` · `quickstart.md` | after spec approval | quickstart = the acceptance script |
+| `/speckit-tasks` | `tasks.md` | after plan | dependency-ordered, checkbox format |
+| `/speckit-analyze` | nothing — a report | before large implementation | cross-artifact consistency gate |
+| `/speckit-implement` | code | after analyze is clean | TDD + [gate chain](../gates/GATES.md) per commit |
+| `/speckit-converge` | new tasks in `tasks.md` | when code and spec may have drifted | the brownfield heartbeat |
+| `/speckit-checklist` | a quality checklist | optional, after plan | requirement completeness |
+| `/speckit-taskstoissues` | GitHub issues | optional | replaces Jira/Linear webhooks with what the repo already has |
+
+Roles from [`../harness/agents/`](../harness/agents/) plug in around these: `requirement-researcher`
+feeds `specify`; `task-orchestra` runs `implement`; `tester-e2e` executes `quickstart.md`;
+`tech-lead-review` blocks the commit. Skills in [`../harness/skills/`](../harness/skills/)
+(spec-first, plan-and-tdd, careful, caveman, ponytail) shape HOW each step is performed.
+
+### Roadmap as a view (not a file that rots)
+
+There is deliberately no `roadmap.md` to hand-maintain. The roadmap is **generated** from spec
+frontmatter, so it can never drift from the work:
+
+```bash
+grep -H "^status:\|^epic:\|^feature:" specs/*/spec.md | paste - - -   # crude but honest
+```
+
+Group by `epic:`, sort by `NNN` — that IS the roadmap. If you want it pretty, generate a page;
+never hand-edit a second copy of the truth.
+
 ## The steps, with the rules that make them work
 
 1. **specify** — WHAT/WHY only. User stories are prioritized (P1/P2/P3) and each must be
