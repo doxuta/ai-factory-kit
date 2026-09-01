@@ -28,26 +28,36 @@ Most "AI coding setups" die from the same five diseases:
 
 ## The model at a glance
 
+**Three levels.** The constitution rules everything; every feature is one directory; agents
+verify but scripts decide.
+
 ```mermaid
 flowchart TB
-    subgraph L0["LEVEL 0 — Constitution (per project, rarely changes)"]
-        C[constitution.md<br/>invariants · non-goals · governance]
-        V[vision · platform constraints<br/>constitution sections]
-        G[GATES.md<br/>definition-of-done as SCRIPTS, not prose]
-    end
-    subgraph L1["LEVEL 1 — Feature flow (per feature, the daily loop)"]
-        S[spec.md<br/>WHAT / WHY] --> CL[clarify<br/>Q&A into spec] --> P[plan.md + data-model + contracts + quickstart<br/>HOW] --> T[tasks.md] --> AN{analyze<br/>cross-artifact<br/>consistency} --> I[implement] --> CV{converge<br/>code vs spec drift<br/>→ new tasks}
-    end
-    subgraph L2["LEVEL 2 — Automation (agents & verification)"]
-        RR[requirement-researcher] -.cleans raw input.-> S
-        TO[task-orchestra] -.dispatches.-> I
-        TL[tech-lead-review<br/>adversarial, multi-lens] -.blocks.-> CM[commit]
-        TE[tester-e2e<br/>drives quickstart.md] -.proves.-> CM
-    end
-    C -->|HARD-GATE: no code without approved spec| S
-    G -->|every commit| CM
-    I --> CM
+    L0["🏛️ LEVEL 0 — CONSTITUTION<br/><i>invariants · non-goals · gates-as-scripts</i>"]
+    L1["🔁 LEVEL 1 — FEATURE FLOW<br/><i>specs/NNN-feature/ — the only atom of work</i>"]
+    L2["🤖 LEVEL 2 — AUTOMATION<br/><i>agents build & review · gates decide</i>"]
+    L0 ==>|"HARD-GATE: no code<br/>without an approved spec"| L1
+    L1 ==>|"every commit"| L2
+    L2 ==>|"lessons become amendments"| L0
+    style L0 fill:#fdf6e3,stroke:#b58900,stroke-width:2px
+    style L1 fill:#eef6fc,stroke:#268bd2,stroke-width:2px
+    style L2 fill:#f2f0fa,stroke:#6c71c4,stroke-width:2px
 ```
+
+**One feature, end to end** — the Level-1 loop ([full walkthrough](model/SPEC-FLOW.md)):
+
+```mermaid
+flowchart LR
+    S["📄 spec<br/>WHAT/WHY"] --> C["❓ clarify<br/>Q&A into spec"] --> P["📐 plan<br/>+ contracts<br/>+ quickstart"] --> T["☑️ tasks"]
+    T --> A{"🔍 analyze"} --> I["⚙️ implement<br/>TDD + gates"] --> V{"🔄 converge"} --> D(["✅ shipped"])
+    style D fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+```
+
+**Who does what** — the Level-2 roles ([definitions](harness/agents/)):
+
+| 🕵️ [requirement-researcher](harness/agents/requirement-researcher.md) | 🎼 [task-orchestra](harness/agents/task-orchestra.md) | 🧪 [tester-e2e](harness/agents/tester-e2e.md) | 🧨 [tech-lead-review](harness/agents/tech-lead-review.md) |
+|---|---|---|---|
+| raw request → 80%-clean draft spec | file-disjoint dispatch, owns the merge | drives `quickstart.md` as a **non-privileged** user | adversarial multi-lens; findings fixed or refuted |
 
 Three levels, one rule: **the spec directory `specs/NNN-<feature>/` is the only atom of work.**
 Roadmaps are *views* over specs. Backlogs are *pointers* into specs. Nothing else holds content.
