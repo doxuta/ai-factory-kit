@@ -34,6 +34,17 @@ in the code that the doc never knew (post-freeze features, changed gates, rename
 > changed after the doc froze, and a UI string pointing at the doc scheduled for deletion.
 > **A retro-fit that finds no drift probably didn't look.**
 
+## 1b. Two more places docs lie (both bit on production retro-fits)
+
+- **The doc's own status table vs git log.** Docs freeze MID-DELIVERY: one shipped doc marked
+  three phases "remaining" that git showed landing the same evening it froze. Always diff the
+  doc's status claims against `git log --oneline --since=<doc date>` before writing the spec.
+- **Unpaid mandates inside the doc.** If the source doc mandates something it never received
+  ("adversarial review REQUIRED", "integration test required") — **pay that debt during the
+  retro-fit**, don't just copy the mandate forward. On a real run the owed review, paid two
+  months late, found a HIGH: a validation probe wired into one branch of a function but not its
+  twin. The joint-nobody-wired class hides exactly where mandates went unpaid.
+
 ## 2. Write the spec with anchor-stable geometry
 
 Code comments cite `docs/foo.md §4` or `§"#7" MUST-FIX 2`. Keep those tokens meaningful:

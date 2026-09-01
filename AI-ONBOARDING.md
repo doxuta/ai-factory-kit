@@ -59,7 +59,26 @@ Same as above, plus: inventory existing docs by **code-anchor count** (`grep -rn
 then absorb them into `specs/` using [`model/RETROFIT-PLAYBOOK.md`](model/RETROFIT-PLAYBOOK.md).
 Never move or delete a doc before its anchors are repointed **in the same commit**.
 
-## 4. The seven things you never do
+## 4. After adopting: audit that the machine agrees with itself
+
+Adoption is not done when the files are copied — it is done when **no two loaded sources give
+opposite instructions**. Within a day of adopting (and after every process change), run a
+four-lens self-audit; on a real production adoption this caught two HIGH conflicts on day one:
+
+1. **Redundant/dead files** — anything the new process orphaned (measure code anchors + inbound
+   links; re-measure old "safe to delete" lists — files GAIN anchors over time).
+2. **Cross-file consistency** — walk every ALWAYS-LOADED file (context, rules, constitution):
+   do they all describe the SAME entry point for a new feature? The classic failure: a legacy
+   rule file still mandating the old artifact (e.g. "write the tech doc into docs/") while the
+   constitution says spec-first — a fresh agent follows whichever it read last.
+3. **Agent/skill routing** — for each canonical prompt ("new feature", "fix bug", "review",
+   "migrate schema", "e2e acceptance"), exactly ONE skill/agent must claim it. Legacy skills must
+   be rewritten as *discipline INSIDE the new flow*, never left claiming the entry role.
+4. **Spec corpus shape** — mandatory sections present, frontmatter present (the roadmap view
+   needs it), every acceptance test filter matches ≥1 real test (vacuous green), quantified
+   debts RE-MEASURED (a debt that grew since it was recorded escalates).
+
+## 5. The seven things you never do
 
 1. Never write feature code before the spec for it is approved (constitution HARD-GATE).
 2. Never claim "done" — run the gates and paste their output. A test filter (e.g. `-run` /
@@ -74,7 +93,7 @@ Never move or delete a doc before its anchors are repointed **in the same commit
 7. Never trust a doc over the code. When they disagree, the code is the truth and the doc gets
    fixed — with the discrepancy **marked** so readers see the correction.
 
-## 5. When you and the human disagree
+## 6. When you and the human disagree
 
 State your concern once, with evidence. If the human reaffirms, follow their decision and record
 it (constitution amendment or spec clarification, dated). You are the engine; they are the owner.

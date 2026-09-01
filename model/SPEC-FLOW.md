@@ -89,6 +89,9 @@ never hand-edit a second copy of the truth.
 
 ## Frontmatter convention (kit extension, keeps roadmap views cheap)
 
+Add it **when the spec is created** and check it in the adoption audit — a kit that prescribes
+frontmatter while its own specs lack it cannot generate its own roadmap (measured mistake).
+
 ```yaml
 # specs/012-payment-qr/spec.md — first lines
 feature: 012-payment-qr

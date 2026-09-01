@@ -33,6 +33,12 @@ Every feature flows through `specs/NNN-<name>/`: spec → plan → tasks → imp
 that point into specs, never a second home for content. The spec corpus is a reusable asset:
 specs regenerate products, documents, and upgrades.
 
+*RETRO-FIT mode* (name it — don't leave brownfield implicit): work shipped BEFORE this
+constitution is spec'd with a `spec.md` **verified against current code** (never transcribed
+from old docs) plus runnable Success Criteria; `plan.md`/`tasks.md` are optional — `converge`
+generates tasks when code↔spec drift appears. The [deletion condition](../model/RETROFIT-PLAYBOOK.md)
+for legacy docs stays unchanged.
+
 ### V. Reachability — a capability is not done until someone can reach it
 A backend capability is unfinished until it is operable in the real interface, or the gap is a
 named task in the feature's `tasks.md`. *API-only ≠ done.* Before believing a slice is finished,
