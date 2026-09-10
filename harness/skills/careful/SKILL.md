@@ -35,11 +35,15 @@ Two rules fall out, and they are the portable part of this whole document:
 
 1. **A guard is not verified until you verify the CONSUMER.** Producing the right bytes proves
    nothing. Trigger a real destructive command in a live session and watch the host stop it.
-2. **`ask` is only a wall if someone is at the wall.** A host running in a skip-permissions /
-   auto-approve mode answers every `ask` for you, instantly, forever. Find out which mode your
-   unattended runs actually use before you count `ask` as protection. On the factory repo the
-   answer was `defaultMode: bypassPermissions` for every session — so `ask` had never once
-   stopped anything, and only a hard `deny` was real.
+2. **How strong `ask` is depends on the SURFACE, and one measurement does not settle it.**
+   With the factory host in a skip-permissions mode, a hook `ask` was auto-approved on the
+   desktop/terminal surface — measured — and that produced the confident rule "only `deny` is
+   real", which stood in this file for a day. Then the same hook, same mode, raised a genuine
+   *Allow once / Deny* dialog on mobile/remote control. Corrected rule: **`deny` is a wall
+   everywhere; `ask` is a wall wherever a human is actually looking.** Two consequences, and you
+   need both: do not rely on `ask` for unattended runs, and do not scatter `ask` freely either —
+   where someone IS looking it is a real dialog, and a guard that interrupts routine cleanup
+   gets switched off, after which it guards nothing.
 
 Correct shape (Claude Code; find your own host's contract before porting):
 
@@ -133,7 +137,7 @@ let one allowed command erase the guard itself.
   unreachable by any rule. Before adding a name, ask what it does with a `>` or an `-i`.
 - **Test in both directions, then test the consumer** ([GATES §6](../../../gates/GATES.md)):
   every dangerous pattern → the right tier fires; a set of safe commands → passes untouched;
-  garbage input → the documented polarity. Shipped table: `hooks/check-careful.test.sh`, 116
+  garbage input → the documented polarity. Shipped table: `hooks/check-careful.test.sh`, 127
   cases, pinning the decision, the envelope, every escape family an adversary found, the
   guardrail-file tier, and the heredoc rule.
   Then the live checks below.
@@ -166,6 +170,11 @@ it. The legitimate way to edit is a human, or a session run with the escape-hatc
 > raises the bar and makes the ordinary path loud; it does not seal the box. Per
 > [GATES §4](../../../gates/GATES.md), say what a gate is blind to in the gate's own text.
 
+**Recursive delete INSIDE a temp root** (`/tmp/`, `/private/tmp/`, `/var/folders/`, `$TMPDIR`)
+passes silently; deleting the **root itself** still asks, a `..` segment still asks, and one
+non-scratch target taints the whole command. Added after removing the old `bin`/`tmp` allowlist
+entries — correct in itself — turned every scratch cleanup into a confirmation dialog.
+
 **Heredoc bodies are data, not shell syntax**, and must be stripped before scanning — a
 command whose heredoc merely *contains* redirect-shaped text is not performing that
 redirect. (Found the honest way: the command installing this very fix was refused by it.)
@@ -175,7 +184,7 @@ Keep the rest of the heredoc's own command line, though — that is where a real
 ## Verification — two steps, and step 2 is the one that was skipped
 
 ```bash
-bash hooks/check-careful.test.sh     # step 1: 116/116
+bash hooks/check-careful.test.sh     # step 1: 127/127
 ```
 
 **Step 2, in a live session.** Two probes, both with zero blast radius:

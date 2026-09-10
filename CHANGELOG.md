@@ -3,6 +3,25 @@
 All kit updates land here via the [daily-ship sync](sync/DAILY-SYNC.md) — one entry per sync,
 newest first.
 
+## 2026-09-11 (later) — v1.3.1 (a screenshot refuted the doctrine written yesterday)
+
+- **The guard stopped interrupting housekeeping.** Dropping the old `bin`/`tmp` allowlist entries
+  was right — written as `*/bin`/`*/tmp`, they swallowed `rm -rf /usr/bin` and `rm -rf /tmp` — but
+  it left every `rm -rf /tmp/<scratch>` asking, dozens of times a session. Recursive delete
+  strictly INSIDE a temp root now passes silently; the root itself, a `..` segment, or one
+  non-scratch target in the same command still stops it. **A guard that cries wolf on routine
+  cleanup gets switched off, and then guards nothing** — that is now a design rule here, not an
+  afterthought.
+- **GATES §6's auto-answer rule was WRONG and is rewritten.** Yesterday's entry stated, from a
+  desktop measurement, that a host in skip-permissions mode auto-approves every "ask", therefore
+  "only a hard refusal is real". A photograph of the same hook, same host mode, raising a genuine
+  *Allow once / Deny* dialog on **mobile** refuted it inside a day. Corrected: **deny is a wall
+  everywhere; ask is a wall wherever a human is actually looking** — and the rule now carries the
+  method lesson that produced the error, that one surface is not the system. Both consequences
+  bind: do not lean on `ask` unattended, and do not scatter it either.
+- Test table 116 → 127 cases: five scratch-cleanup cases that must stay silent, six temp-root and
+  climb-out cases that must not.
+
 ## 2026-09-11 — v1.3.0 (the adoption path was broken; an audit of the kit itself)
 
 An 8-dimension adversarial audit of this repo (129 agents, every finding put through two

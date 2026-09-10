@@ -85,10 +85,13 @@ findings by hand. See [`../harness/agents/tech-lead-review.md`](../harness/agent
   regression — when an audit contradicts a test, settle which is right before editing
   either. Pin each escape family as its own row afterwards; that is what stops the next
   rewrite from quietly reopening it.
-- **A gate whose verdict is auto-answered is not a gate.** Before counting a
-  confirm/approve/review step as protection, check what your unattended runs do with it. The
-  same measurement found the host set to auto-approve every confirmation prompt for every
-  session — so the "ask" tier had never stopped anything, and only a hard refusal was real.
-  Ask of every gate: *who answers this when nobody is watching?*
+- **Ask of every gate: who answers this when nobody is watching — and does that answer differ
+  by surface?** A confirm/approve step is only protection where someone is present to refuse.
+  Measured on a production host in skip-permissions mode: the same hook's "ask" was
+  auto-approved on the desktop surface and raised a real dialog on mobile. The first
+  measurement alone produced a confident, WRONG rule ("only a hard refusal is real") that stood
+  in the doctrine for a day. One surface is not the system — and the corollary cuts both ways:
+  a soft verdict you scatter freely becomes a dialog somebody has to dismiss, and a gate that
+  interrupts routine work gets switched off, after which it gates nothing.
 - When a fix turns out to be "needed on every install", promote it from a repair path to a
   numbered migration — reconcilers don't replace versioned baselines.

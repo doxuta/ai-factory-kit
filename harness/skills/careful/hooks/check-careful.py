@@ -14,8 +14,10 @@ inert from 2026-06-25 to 2026-09-10 while its own test stayed green — the test
 script's stdout and never asked whether Claude Code honoured it. Upstream gstack hit the
 same bug (CHANGELOG 1.64.0.0: "deny meant allow"). Do not "simplify" the envelope.
 
-DENY MAY BE THE ONLY WALL. If the host runs in a skip-permissions / auto-approve mode,
-every "ask" is answered for you. Treat an escape from deny into ask as a real hole, not a
+HOW STRONG "ask" IS DEPENDS ON THE SURFACE — do not generalise from one measurement.
+Measured on the source factory: with the host in a skip-permissions mode, a hook "ask" was
+auto-approved on the desktop/terminal surface and DID raise a real dialog on mobile/remote
+control. So deny is a wall everywhere; ask is a wall wherever a human is actually looking. Treat an escape from deny into ask as a real hole, not a
 cosmetic one — that is the standard the 2026-09-10 adversarial audit applied, and it
 found six. Their fixes are marked AUDIT below; the escape families they name are pinned
 in check-careful.test.sh so a later rewrite cannot quietly reopen them.
@@ -277,6 +279,29 @@ def is_recursive(opts):
     return False
 
 
+# Scratch roots. Deleting INSIDE one is ordinary housekeeping; deleting the root itself is
+# not, and is still asked about.
+#
+# WHY: removing the old `bin`/`tmp` allowlist entries was right — they were written as the
+# globs `*/bin`/`*/tmp` and swallowed `rm -rf /usr/bin` and `rm -rf /tmp`. But it left every
+# `rm -rf /tmp/<scratch>` asking, and on a surface where a hook's `ask` really does prompt
+# (mobile / remote control) that is a confirmation dialog on routine cleanup, several times a
+# session. A guard that cries wolf on housekeeping gets switched off, and then guards nothing.
+SCRATCH_ROOTS = tuple(r for r in (
+    "/tmp/", "/private/tmp/", "/var/folders/", "/private/var/folders/",
+    (os.environ.get("TMPDIR") or "").rstrip("/") + "/" if os.environ.get("TMPDIR") else "",
+) if r and r != "/")
+
+
+def in_scratch(t):
+    """True for a path strictly INSIDE a temp root, with no way to climb out of it."""
+    t = normalize_target(t)
+    for root in SCRATCH_ROOTS:
+        if t.startswith(root) and len(t) > len(root):
+            return ".." not in t.split("/")
+    return False
+
+
 def safe_target(t):
     return bool(SAFE_ONE.match(t)) and ".." not in t.split("/")
 
@@ -433,7 +458,7 @@ def inspect_segment(segment, decisive, depth=0):
                                 "home directory. There is no undo." % " ".join(targets))
             return ("ask", "recursive delete of a root/home path, inside a command whose "
                            "expansion cannot be read.")
-        if targets and all(safe_target(t) for t in targets):
+        if targets and all(safe_target(t) or in_scratch(t) for t in targets):
             return None
         return ("ask", "recursive delete (rm -r) — permanently removes files.")
 

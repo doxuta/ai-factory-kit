@@ -129,6 +129,22 @@ check ask "sed -i '' 's/.*//' internal/services/record_service.go"
 check ask 'sed --in-place s/a/b/ go.mod'
 check ask 'tee /etc/hosts'
 
+echo "== scratch housekeeping must be silent, its roots must not =="
+# Found the way findings should be found: the Founder photographed an "Allow once" dialog for
+# `rm -rf /tmp/adopt-final` — routine cleanup, several times a session. A guard that prompts on
+# housekeeping gets switched off, and then guards nothing.
+check allow 'rm -rf /tmp/adopt-final'
+check allow 'rm -rf /tmp/adopt-final && mkdir -p /tmp/adopt-final/factory'
+check allow 'rm -rf /private/tmp/sess/scratchpad/build'
+check allow 'rm -rf /var/folders/ab/T/tmpxyz'
+check allow 'rm -rf /tmp/a /tmp/b'
+check ask   'rm -rf /tmp'                      # the root itself is not housekeeping
+check ask   'rm -rf /tmp/'
+check ask   'rm -rf /private/tmp'
+check ask   'rm -rf /var/folders'
+check ask   'rm -rf /tmp/../etc'               # no climbing out of the scratch root
+check ask   'rm -rf /tmp/x /etc'               # one non-scratch target taints the whole command
+
 echo "== ALLOW: must not nag =="
 check allow 'ls -la'
 check allow 'go build ./cmd/server/'
@@ -183,7 +199,7 @@ filecheck allow Edit  .claude/skills/careful/SKILL.md      # the doc is not the 
 filecheck allow Write myapp.claude/hooks/x.py              # lookalike dir must not match
 filecheck allow Read  .claude/hooks/check-careful.py                              # reading a guard is harmless
 check deny "echo '' > .claude/hooks/check-careful.py"                            # ...and neither may a redirect
-check deny "cat /dev/null > .claude/settings.local.json"
+check deny "cat /dev/null > .claude/settings.json"
 
 echo "== heredoc bodies are data, not shell syntax =="
 # Hit for real while writing the fix above: a command whose heredoc merely CONTAINED
