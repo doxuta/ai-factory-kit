@@ -93,5 +93,11 @@ findings by hand. See [`../harness/agents/tech-lead-review.md`](../harness/agent
   in the doctrine for a day. One surface is not the system — and the corollary cuts both ways:
   a soft verdict you scatter freely becomes a dialog somebody has to dismiss, and a gate that
   interrupts routine work gets switched off, after which it gates nothing.
+- **Count what a gate costs on real traffic, not on its own fixtures.** A gate that fires on
+  ordinary work gets dismissed unread and then disabled, which is indistinguishable from having
+  no gate. Measured: this kit's guardrail passed 127/127 of its own cases while interrupting one
+  in eight of 6,638 real commands, 85% of it from three over-broad rules of its own. Replay a
+  real corpus through any gate that interrupts a human, and treat the false-positive rate as a
+  safety number.
 - When a fix turns out to be "needed on every install", promote it from a repair path to a
   numbered migration — reconcilers don't replace versioned baselines.

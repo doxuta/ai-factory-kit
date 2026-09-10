@@ -103,6 +103,34 @@ let one allowed command erase the guard itself.
 4. **Pin every escape family, one line each**, so the next rewrite cannot quietly reopen
    them. The table went 63 → 97 cases; the additions are the escapes, not new features.
 
+## 🔴 The third lesson: measure the FALSE POSITIVES, or the guard gets switched off
+
+The guard was correct and it was still failing, because nobody had counted what it cost.
+Replaying **6,638 real shell commands** from 48 hours of work through it: **800 asks, 2 denies**
+— one interruption every eight commands, and the two denies were both deliberate probes. Three
+rules of ours produced 85% of it:
+
+| Interruptions | Cause |
+|---:|---|
+| 594 | `-i` was listed as a "writes in place" flag to catch `sed -i`, so **`grep -i`** — case-insensitive search, the commonest flag in the shell — read as a write |
+| 89 | a redirect onto any absolute or home path was flagged, i.e. `cat > ~/notes.md`: **writing a file is the work** |
+| 9 | SQL keywords matched the word "Update" in a grep pattern and in paths like `specs/029-audit-log/` |
+
+After fixing those and teaching the matcher to resolve `VAR=` and `cd <scratch>` declared in the
+same command: **800 → 77**, from 12% of commands to 1.2%. What remains is genuine — in-place
+rewrites and deletes whose target cannot be resolved.
+
+**The rules:**
+
+1. **A guard's false-positive rate is a safety property, not an ergonomics one.** One dialog per
+   eight commands does not make anyone safer; it trains them to dismiss without reading, and
+   then to switch the guard off. At that point it protects nothing — the same end state as the
+   inert version above, reached by a different road.
+2. **Measure it against real traffic, not against your test table.** The table said 127/127. The
+   corpus said one in eight. Both were true; only one of them was about the guard's actual cost.
+3. **Precision beats scope.** Every fix above made the matcher narrower, and one of them made it
+   *stronger* by accident: resolving variables turned `R=/ ; rm -rf "$R"` from ask into deny.
+
 ## Design rules (each one paid for)
 
 - **Warn by default, deny for the two shapes nothing undoes.** The original rule here was
@@ -137,7 +165,7 @@ let one allowed command erase the guard itself.
   unreachable by any rule. Before adding a name, ask what it does with a `>` or an `-i`.
 - **Test in both directions, then test the consumer** ([GATES §6](../../../gates/GATES.md)):
   every dangerous pattern → the right tier fires; a set of safe commands → passes untouched;
-  garbage input → the documented polarity. Shipped table: `hooks/check-careful.test.sh`, 127
+  garbage input → the documented polarity. Shipped table: `hooks/check-careful.test.sh`, 142
   cases, pinning the decision, the envelope, every escape family an adversary found, the
   guardrail-file tier, and the heredoc rule.
   Then the live checks below.
@@ -184,7 +212,7 @@ Keep the rest of the heredoc's own command line, though — that is where a real
 ## Verification — two steps, and step 2 is the one that was skipped
 
 ```bash
-bash hooks/check-careful.test.sh     # step 1: 127/127
+bash hooks/check-careful.test.sh     # step 1: 142/142
 ```
 
 **Step 2, in a live session.** Two probes, both with zero blast radius:

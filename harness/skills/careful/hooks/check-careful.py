@@ -43,6 +43,11 @@ import sys
 
 PROTECTED_BRANCHES = {"main", "master"}
 
+# Something in the command must be able to EXECUTE SQL before SQL-shaped text means anything.
+# Listing the client by name also covers `docker exec <container> mysql -e "..."`.
+DB_CLIENTS = {"mysql", "mariadb", "psql", "sqlite3", "sqlite", "mongo", "mongosh",
+              "clickhouse-client", "cockroach", "sqlcmd", "mysqladmin", "pg_dump", "usql"}
+
 # AUDIT: was a bare set of literals, so `rm -rf ~/*` and `rm -rf $HOME/*` — the ordinary
 # way to empty a home directory — scored only "ask". Roots are now normalized and expanded
 # into their equivalent spellings.
@@ -99,14 +104,15 @@ READONLY_ARGV0 = {
 # ...and even then, only while the invocation stays read-only. AUDIT: `awk 'BEGIN{system("rm -rf /")}'`
 # rode the skip list. Matched against the tool's own ARGV, never the raw segment text —
 # `grep -rn "sed -i" docs/` mentions a flag, it does not use one.
-WRITEFUL_FLAGS = {"-i", "--in-place", "-delete", "-exec", "-execdir", "-ok"}
+# Deliberately carries NO flag names. The first draft listed `-i` to catch `sed -i`, and so
+# flagged `grep -i` — case-insensitive search, the most common flag in the shell. Measured over
+# 48h of real commands: 594 of 802 interruptions came from that single entry. sed, find and tee
+# are not in READONLY_ARGV0 and each has its own branch below, so their flags were never needed
+# here. What remains is what a genuinely read-only tool can still do: execute, or redirect.
 EXECUTORS = {"awk", "gawk", "mawk", "nawk"}  # these can spawn a shell from their program text
 
 
 def is_writeful(tokens, segment):
-    for t in tokens[1:]:
-        if t in WRITEFUL_FLAGS or t.startswith("--in-place="):
-            return True
     if argv0(tokens) in EXECUTORS:
         joined = " ".join(tokens[1:]).replace(" ", "")
         if "system(" in joined or "ENVIRON" in joined or "|getline" in joined:
@@ -155,6 +161,14 @@ OPAQUE = re.compile(r"\$\(|`|\$\{[^}]*\[")
 # Redirection over a path that is not scratch. AUDIT: the guard could be erased by one
 # allowed Bash command (`echo '' > .claude/hooks/check-careful.py`) with no Write tool and
 # no prompt — a self-disabling primitive.
+# A dot-entry sitting directly in $HOME is configuration (.zshrc, .ssh, .gitconfig):
+# overwriting one changes what later sessions do, silently. Anything else under $HOME
+# is ordinary work.
+# ...but .claude/projects/ holds session memory and notes, which are written constantly.
+HOME_DOTFILE = re.compile(
+    r"(?:~|\$\{?HOME\}?|" + re.escape(os.path.expanduser("~"))
+    + r")/\.(?!claude/projects/)[A-Za-z]")
+
 REDIRECT_OVER_REAL_PATH = re.compile(
     r">>?\s*(?:/(?!tmp/|dev/null|dev/stderr|dev/stdout)\S+|~/\S+|\$\{?HOME\}?/\S+|\S*\.claude/\S+)")
 
@@ -404,7 +418,34 @@ def inspect_git(tokens, opts, targets):
     return None
 
 
-def inspect_segment(segment, decisive, depth=0):
+def command_context(cmd):
+    """(vars, cwd) declared earlier in the same command line.
+
+    `cd /tmp && rm -rf build` and `H=/tmp/bk; rm -rf "$H"` are the two commonest scratch
+    cleanups in practice, and a matcher that reads one segment at a time sees a bare relative
+    name or an unexpanded $H and has to ask. Measured over 48h of real commands, those two
+    shapes were 76 of the 122 remaining interruptions.
+    """
+    variables, cwd = {}, None
+    for seg in SEGMENT_SPLIT.split(cmd):
+        seg = seg.strip()
+        if not seg:
+            continue
+        for m in re.finditer(r"(?:^|\s)([A-Za-z_][A-Za-z0-9_]*)=([^\s;&|]+)", seg):
+            variables[m.group(1)] = m.group(2).strip("\"'")
+        t = tokens_of(seg)
+        if t and argv0(t) == "cd" and len(t) > 1 and not t[1].startswith("-"):
+            cwd = t[1]
+    return variables, cwd
+
+
+def expand(t, variables):
+    def sub(m):
+        return variables.get(m.group(1) or m.group(2), m.group(0))
+    return re.sub(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}|\$([A-Za-z_][A-Za-z0-9_]*)", sub, t)
+
+
+def inspect_segment(segment, decisive, depth=0, ctx=(None, None)):
     tokens = strip_wrappers(tokens_of(segment))
     a0 = argv0(tokens)
 
@@ -412,7 +453,7 @@ def inspect_segment(segment, decisive, depth=0):
     if depth < 2 and a0 in SHELLS and "-c" in tokens:
         i = tokens.index("-c")
         if i + 1 < len(tokens):
-            inner = inspect_segment(tokens[i + 1], decisive, depth + 1)
+            inner = inspect_segment(tokens[i + 1], decisive, depth + 1, ctx)
             if inner:
                 return inner
 
@@ -427,29 +468,35 @@ def inspect_segment(segment, decisive, depth=0):
             return ("ask", "a read-only tool (%s) invoked with an in-place, delete, exec, "
                            "system() or redirect form — it is writing, not reading." % a0)
 
+    # Writing a file IS the work. The first draft asked about any redirect onto an absolute or
+    # home path, which made 89 of 802 interruptions in 48h out of `cat > ~/notes.md` and its
+    # relatives. Only two targets are worth stopping for.
     m = REDIRECT_OVER_REAL_PATH.search(segment)
     if m:
-        # ask is auto-approved wherever the host skips prompts, so a redirect that erases the
-        # guard has to be refused outright, not merely announced.
         if GUARDED_PATH.search(m.group(0)):
             return ("deny", "output redirected over a guardrail file — this would disable the "
                             "very check reading this command.")
-        return ("ask", "output redirected over an absolute, home, or .claude path — this "
-                       "overwrites the file, including the guardrails themselves.")
+        if HOME_DOTFILE.search(m.group(0)):
+            return ("ask", "output redirected over a config dot-entry in $HOME — it changes how "
+                           "later sessions behave, quietly.")
 
-    for rx, reason in TEXT_RULES:
-        if rx.search(segment):
-            return ("ask", reason)
-
-    low = segment.lower()
-    if re.search(r"\b(delete\s+from|update)\b", low) and not re.search(r"\bwhere\b", low):
-        return ("ask", "SQL DELETE/UPDATE without WHERE — affects every row in the table.")
+    # Without the client check, the word "Update" inside a grep pattern, or a path such as
+    # specs/029-audit-log/, tripped the DELETE/UPDATE rule.
+    if any(os.path.basename(t) in DB_CLIENTS for t in tokens):
+        for rx, reason in TEXT_RULES:
+            if rx.search(segment):
+                return ("ask", reason)
+        low = segment.lower()
+        if re.search(r"\b(delete\s+from|update)\b", low) and not re.search(r"\bwhere\b", low):
+            return ("ask", "SQL DELETE/UPDATE without WHERE — affects every row in the table.")
 
     if a0 == "rm":
         opts, targets = split_flags(tokens)
         targets = [t for t in targets if t != "--"]
         if not is_recursive(opts):
             return None
+        # expand BEFORE the root check as well: `R=/ ; rm -rf "$R"` must still be caught
+        targets = [expand(t, (ctx[0] or {})) for t in targets]
         # AUDIT: this was `all(...)`, so `rm -rf / /home` — strictly worse than `rm -rf /` —
         # was downgraded to ask by ADDING a target. Any root target is catastrophic.
         if any(normalize_target(t) in ROOT_TARGETS for t in targets):
@@ -458,7 +505,13 @@ def inspect_segment(segment, decisive, depth=0):
                                 "home directory. There is no undo." % " ".join(targets))
             return ("ask", "recursive delete of a root/home path, inside a command whose "
                            "expansion cannot be read.")
-        if targets and all(safe_target(t) or in_scratch(t) for t in targets):
+        variables, cwd = ctx
+        resolved = [expand(t, variables or {}) for t in targets]
+        # A relative target is scratch only when the command itself cd'd into a scratch dir.
+        if cwd and in_scratch(cwd.rstrip("/") + "/x"):
+            resolved = [t if t.startswith(("/", "~", "$")) else cwd.rstrip("/") + "/" + t
+                        for t in resolved]
+        if resolved and all(safe_target(t) or in_scratch(t) for t in resolved):
             return None
         return ("ask", "recursive delete (rm -r) — permanently removes files.")
 
@@ -555,13 +608,14 @@ def main():
         if rx.search(cmd):
             emit("ask", reason)
 
+    ctx = command_context(cmd)
     worst = None  # ("deny"|"ask", reason); deny outranks ask
     for segment in SEGMENT_SPLIT.split(cmd):
         if not segment.strip():
             continue
         # Decisiveness is per SEGMENT and only opacity forfeits it — appending `; true`
         # must never soften a verdict.
-        verdict = inspect_segment(segment.strip(), not OPAQUE.search(segment))
+        verdict = inspect_segment(segment.strip(), not OPAQUE.search(segment), ctx=ctx)
         if verdict is None:
             continue
         if verdict[0] == "deny":

@@ -3,6 +3,19 @@
 All kit updates land here via the [daily-ship sync](sync/DAILY-SYNC.md) — one entry per sync,
 newest first.
 
+## 2026-09-11 (evening) — v1.3.2 (the guard was interrupting one command in eight)
+
+Replaying **6,638 real shell commands** from 48h of work through the guard: **800 asks**, one
+interruption every eight commands. Three of our own rules caused 85% of it — `-i` listed as a
+write-flag so **`grep -i`** counted as writing; any redirect onto an absolute or home path
+flagged, i.e. `cat > ~/notes.md`; and SQL keywords matching the word "Update" in grep patterns
+and in paths like `specs/029-audit-log/`. All three narrowed, plus the matcher now resolves
+`VAR=` and `cd <scratch>` declared in the same command. **800 → 77 (12% → 1.2%)**, and the
+variable resolution made the guard *stronger* by accident: `R=/ ; rm -rf "$R"` went from ask to
+deny. GATES §6 gains the rule this paid for: **a gate's false-positive rate is a safety number**
+— one that fires on ordinary work gets dismissed unread, then switched off, which ends exactly
+where the inert version did. Table 127 → 142 cases.
+
 ## 2026-09-11 (later) — v1.3.1 (a screenshot refuted the doctrine written yesterday)
 
 - **The guard stopped interrupting housekeeping.** Dropping the old `bin`/`tmp` allowlist entries

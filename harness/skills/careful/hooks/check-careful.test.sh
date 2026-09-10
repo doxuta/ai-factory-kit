@@ -111,7 +111,13 @@ check ask 'git reset --hard HEAD~3'
 check ask 'git checkout .'
 check ask 'kubectl delete pod nexus-api'
 check ask 'docker system prune -a'
-check ask 'echo x > /etc/profile'              # redirect could erase the guard itself
+check ask   'echo x > ~/.zshrc'            # a config dot-entry in $HOME still asks
+check allow 'cat > ~/work/notes.md'  # an ordinary file under $HOME is just work
+check allow 'ls ~/Downloads | grep -i "CV_2026"'        # grep -i is case-insensitive, not in-place
+check allow 'grep -n "svc.Update\|svc.Delete" x.go'     # SQL words with no client to run them
+check allow 'git add specs/029-audit-log/spec.md'       # ...including in a path
+check ask   'mysql -e "DELETE FROM t"'                  # a client IS present
+check ask   'docker exec db mysql -e "DROP TABLE t"' 
 check ask "awk 'BEGIN{system(\"rm -rf /\")}'"          # read-only tool used to execute
 check ask 'git clean -xfd'                              # deletes uncommitted, untracked work
 check ask 'git branch -D main'
@@ -144,6 +150,18 @@ check ask   'rm -rf /private/tmp'
 check ask   'rm -rf /var/folders'
 check ask   'rm -rf /tmp/../etc'               # no climbing out of the scratch root
 check ask   'rm -rf /tmp/x /etc'               # one non-scratch target taints the whole command
+
+echo "== scratch reached through cd or a variable is still scratch =="
+check allow 'cd /tmp && rm -rf twapcheck && mkdir twapcheck'
+check allow 'H=/tmp/nexus-bk; rm -rf "$H"'
+check allow 'A=/private/tmp/x/scratchpad/audit; rm -rf "$A"'
+check allow 'echo x >> ~/.claude/projects/p/memory/MEMORY.md'
+# ...and resolving them must never SOFTEN a verdict — these got stronger, not weaker
+check deny  'R=/ ; rm -rf "$R"'
+check deny  'R=$HOME; rm -rf "$R"'
+check ask   'cd / && rm -rf etc'
+check ask   'cd /tmp && rm -rf /etc'
+check ask   'H=/tmp/x; rm -rf "$H" /etc'
 
 echo "== ALLOW: must not nag =="
 check allow 'ls -la'
