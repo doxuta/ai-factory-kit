@@ -47,8 +47,11 @@ delete it or wire it into [the daily sync](../sync/DAILY-SYNC.md).
 
 - The [gate chain](../gates/GATES.md) on every commit; no commit on red.
 - Third-person acceptance for anything touching authorization (GATES §3).
-- A destructive-command guard (confirm before `rm -r` / `DROP` / force-push / migrate-down —
-  see [`skills/careful/`](skills/careful/SKILL.md)) — the last line for autonomous runs.
+- A destructive-command guard — asks before `rm -r` / `DROP` / force-push / migrate-down, and
+  **hard-denies** the shapes nothing undoes (recursive delete of `/` `~` `$HOME`, force-push or
+  branch-delete against a protected branch) plus any edit to the guard's own files. See
+  [`skills/careful/`](skills/careful/SKILL.md). Ask is only a wall where someone answers it:
+  check what your unattended runs do with a prompt before counting it as protection.
 - HARD-GATE: no code before an approved spec.
 - Review findings: fixed or refuted with evidence, never shelved (GATES §2).
 

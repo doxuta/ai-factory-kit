@@ -14,6 +14,19 @@
 #     file is absent these checks SKIP (plan checks above still run).
 #
 # Exit 1 on any mismatch. Usage:  bash gates/check-plan-sync.sh [docs-dir]
+#
+# BLIND TO (GATES.md §4 — a green gate is evidence only of what it actually checks):
+#   * PLAN CONTENT. It compares a header count with a table count. Two numbers that agree
+#     about work nobody did still pass. It never reads code.
+#   * PLANS WITHOUT THE FORMAT. A *-plan.md missing the "M2 [✅⬜] 1/4" header bars is
+#     SKIPPED, not failed. Renaming a plan out of `*-plan.md` removes it from the gate
+#     entirely, and the gate says nothing.
+#   * MILESTONES NOT IN THE TABLE. Only milestones the table mentions are counted.
+#   * EVERY OTHER DOC. specs/, README, CHANGELOG, the constitution: unchecked.
+#   * ITSELF. Its own two-direction test is gates/check-plan-sync.test.sh — run it after
+#     any edit here, or you are shipping a gate whose red direction nobody has seen.
+# It DOES fail loudly when the docs dir is missing or mistyped, so a wrong path can no
+# longer look like a clean bill of health.
 set -euo pipefail
 DOCS="${1:-docs}"   # pass your docs dir; default ./docs
 
@@ -21,6 +34,15 @@ python3 - "$DOCS" <<'PY'
 import glob, os, re, sys
 
 docs_dir = sys.argv[1]
+# A mistyped or moved docs dir used to exit 0 with "0 plans in format" — indistinguishable
+# from a clean run, and GATES.md §1 shows this gate last in an && chain, which reads exit
+# status only. An adopter whose docs live in `doc/` or a monorepo subdir would have wired a
+# gate that is green forever. "Dir exists but holds no formatted plan" stays green and says
+# so; "dir is not there" is a wiring error and fails.
+if not os.path.isdir(docs_dir):
+    print(f"❌ docs dir not found: {docs_dir!r} — check the argument you wired into the gate chain")
+    sys.exit(1)
+
 problems = []
 summary = []
 

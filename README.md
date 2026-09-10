@@ -107,7 +107,8 @@ built spec-first by AI under human direction. Standing on: [github/spec-kit](htt
 (MIT) · [obra/superpowers](https://github.com/obra/superpowers) (MIT) ·
 [juliusbrussee/caveman](https://github.com/juliusbrussee/caveman) (MIT) ·
 [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail) (MIT) ·
-[agentskills.io](https://agentskills.io) skill standard.
+[garrytan/gstack](https://github.com/garrytan/gstack) (MIT — the `careful` guard's matcher
+logic and its two-tier design) · [agentskills.io](https://agentskills.io) skill standard.
 
 MIT — see [LICENSE](LICENSE). Kit updates flow in via the [daily-ship sync](sync/DAILY-SYNC.md);
 see [CHANGELOG.md](CHANGELOG.md).

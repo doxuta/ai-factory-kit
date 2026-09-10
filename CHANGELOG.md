@@ -3,7 +3,50 @@
 All kit updates land here via the [daily-ship sync](sync/DAILY-SYNC.md) — one entry per sync,
 newest first.
 
-## 2026-09-10 — v1.3.0 (the shipped guard was inert; the lesson is bigger than the fix)
+## 2026-09-11 — v1.3.0 (the adoption path was broken; an audit of the kit itself)
+
+An 8-dimension adversarial audit of this repo (129 agents, every finding put through two
+independent refuters) returned **23 surviving findings — 3 blockers, 6 majors**. One dimension
+came back `not-ready`, seven `usable-with-gaps`, none `solid`. The theme: the doctrine is
+sound and the **delivery** was broken. Everything below is fixed, with a runnable check.
+
+- **`bin/adopt.py` (new)** replaces the hand-run copy-and-sed recipe in AI-ONBOARDING §2, which
+  was wrong three independent ways: it sed-ed `.claude/CLAUDE.md`, a file the copy never creates
+  (hard error on step 2 of 6, every adoption); its single global substitution mangled depth-3
+  skill links while never touching depth-1 files — **20 of 82 links dead, silently**; and
+  `sed -i ''` is BSD-only. The rule it missed: only the prefix that ESCAPES the harness tree may
+  be rewritten, and that depth differs per file. The script rewrites per depth, installs the
+  hooks, copies the gate **and its test**, then resolves every link and **exits non-zero if any
+  is dead** — README says broken cross-links are bugs, so now the kit proves it. Measured on a
+  clean adoption: 82 links, 0 broken.
+- **The guardrail is now actually installed.** Nothing in the adoption path mentioned `careful`
+  at all (`grep careful AI-ONBOARDING.md` → 0 hits), and the only wiring snippet registered the
+  `Bash` matcher alone, so v1.3.0's guard-file tier could never fire. New
+  `harness/settings.json.template` carries **both** `PreToolUse` matchers, adopt.py copies the
+  hooks, and AI-ONBOARDING gains a step that ends at the skill's two live probes.
+- **`gates/check-plan-sync.test.sh` (new)** — 8 cases, both directions. The kit shipped this
+  gate with no test while CHANGELOG called it "two-direction-tested"; GATES §6 calls an
+  untested gate decoration. Writing it immediately paid: the first fixture put the progress bar
+  mid-line, where the gate's `^(M\d+)` cannot see it, so all three RED cases were passing
+  **for the wrong reason** — the drift comparison they exist to test never ran.
+- **The gate no longer passes vacuously on a wiring error.** A missing or mistyped docs dir
+  exited 0, indistinguishable from a clean run, and GATES §1 shows the gate last in an `&&`
+  chain that reads exit status only. It now exits 1 and says so; "dir exists, no formatted
+  plan" stays green. Its docstring gained the `BLIND TO` block GATES §4 requires of every gate.
+- **The `~65%` figure is gone.** Upstream withdrew it as a measured aggregate; the kit repeated
+  it *and* added a corroboration of its own that was never measured. GATES §2 — claims are not
+  evidence — has to bind the kit's own headline number first.
+- **Lineage now credits gstack** (both READMEs), the source of the `careful` matcher and its
+  two-tier design, previously missing while the guard it produced is the kit's headline artifact.
+- Absorbed from the upstream backlog: caveman gains negation-safety and never-add-words;
+  task-orchestra gains no-nested-dispatch and every-owned-file-appears-in-the-diff. HARNESS §4
+  and the skills README no longer describe the guard as confirm-only.
+- **Two audit findings were themselves wrong and were NOT applied**: README.vi.md does carry the
+  graph-not-a-pile rule (README.vi.md:100), and no file assigns the tasks step a number 6 —
+  neither README nor HARNESS mentions step numbers at all. The real defect there was a heading
+  citing a positional number the SPEC-FLOW table does not carry; it now names the command.
+
+## 2026-09-10 — v1.3.0-dev (the shipped guard was inert; the lesson is bigger than the fix)
 
 The daily routine's second leg — an audit of all 11 upstream repos this kit was distilled from
 (1,869 commits since we adapted them, 82 findings) — turned up a defect in **this kit's own

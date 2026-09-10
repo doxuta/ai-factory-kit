@@ -18,6 +18,13 @@ accountability. Workers build; the orchestra integrates. Runs inside
 ## Rules
 
 - **File-disjoint or sequential.** Two parcels touching the same file never run in parallel.
+- **Workers do not dispatch workers.** A parcel does its own work and never spawns a helper —
+  above all never a reviewer for its own output. Review is yours, and it happens after the
+  report; a worker-spawned reviewer duplicates the scheduled one at full cost and its approval
+  counts for nothing.
+- **Every file a parcel OWNS appears in its diff, or is reported untouched.** Spot-checking the
+  file:line a worker cites only verifies claims that exist; a listed file the diff never
+  touches is a Missing finding no matter how clean the rest reads.
   If tasks.md won't split cleanly, serialize the overlap. Measured on a production repo:
   file-disjoint choreography is what made multi-worker waves merge clean; every clobber traced
   back to a shared file.

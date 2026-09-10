@@ -35,22 +35,37 @@ never anyone's claim, including yours.
 
 1. **Vendor the kit** into the project at `factory/` (clone or git submodule) — the kit's
    internal links assume it stays whole.
-2. Copy `factory/harness/` into the project as `.claude/` (adapt the dir name to your platform —
-   skills follow the [agentskills.io](https://agentskills.io) portable format), then fix the
-   copied files' relative links for the new depth:
+2. **Vendor the harness** — one command, and it checks its own work:
    ```bash
-   grep -rl '\.\./\.\./' .claude/ | xargs sed -i '' 's|\.\./\.\./|../../factory/|g'   # rules/, skills/
-   sed -i '' 's|\.\./|factory/|g' .claude/CLAUDE.md                                  # top-level template
+   python3 factory/bin/adopt.py
    ```
-   Also copy the gate: `mkdir -p gates && cp factory/gates/check-plan-sync.sh gates/`.
+   It copies `factory/harness/` to `.claude/`, renames the template to `.claude/CLAUDE.md`,
+   rewrites the copied files' relative links **per depth** (only the prefix that escapes the
+   harness tree gets `factory/`; intra-harness links are already correct and are left alone),
+   installs the guardrail hooks to `.claude/hooks/` with `settings.json.template`, copies the
+   gate and its test to `gates/`, then resolves every relative link and **exits non-zero if any
+   is dead**. `README.md` says broken cross-links are bugs; this is where the kit proves it.
+
+   *(The hand-run `sed` recipe this replaces was wrong three ways — it targeted a file that did
+   not exist yet, its one global substitution mangled depth-3 skill links while missing depth-1
+   files entirely (20 of 82 links dead, silently), and `sed -i ''` is BSD-only. Adapt the
+   `.claude/` directory name to your platform if it differs — skills follow the portable
+   [agentskills.io](https://agentskills.io) format.)*
 3. Interview the human briefly, then fill `factory/constitution/constitution-template.md` →
    save as **`.specify/memory/constitution.md`** (so `/speckit-constitution` amends the same
    file). **Do not invent principles** — distill what the human already believes and what their
    stack demands. Get explicit approval. This is a HARD-GATE.
-4. Fill `.claude/CLAUDE.md` (from the template) — the project's always-loaded context. Safety invariants
-   from the constitution MUST be mirrored here (see the loading trap in `harness/HARNESS.md` §3).
-5. Install Spec Kit for Level-1 commands: `specify init --here --integration <your-agent>`.
-6. Run the first feature through the full flow — small, end-to-end, gates green — before
+4. Fill `.claude/CLAUDE.md` (already renamed from the template in step 2) — the project's
+   always-loaded context. Safety invariants from the constitution MUST be mirrored here (see the
+   loading trap in `harness/HARNESS.md` §3).
+5. **Register the guardrail, then prove it fires.** Merge `.claude/settings.json.template` into
+   your host's settings file — **both** `PreToolUse` matchers, the `Bash` one and the
+   `Write|Edit|…` one. Then run the two live probes in
+   [`harness/skills/careful/SKILL.md`](harness/skills/careful/SKILL.md): one proves the wall
+   stands, one proves the door still opens. A green `check-careful.test.sh` is **not** evidence
+   your host enforces anything — that mistake is why this guard shipped inert for 2.5 months.
+6. Install Spec Kit for Level-1 commands: `specify init --here --integration <your-agent>`.
+7. Run the first feature through the full flow — small, end-to-end, gates green — before
    accepting anything bigger.
 
 ## 3. Applying the kit to an EXISTING project (brownfield)

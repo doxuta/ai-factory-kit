@@ -1,0 +1,46 @@
+{
+  "_comment": [
+    "Host settings fragment for the careful guardrail. Merge into your host's settings file",
+    "(Claude Code: .claude/settings.json) — do not replace it wholesale.",
+    "",
+    "BOTH matchers are required and they do different jobs:",
+    "  Bash                            — the destructive-command matcher.",
+    "  Write|Edit|MultiEdit|NotebookEdit — refuses edits to the guard files themselves.",
+    "Registering only the first leaves the guard deletable by one edit that nothing watches,",
+    "which is how it stays inert while looking installed.",
+    "",
+    "$CLAUDE_PROJECT_DIR is a Claude Code variable. On another host, substitute an absolute",
+    "path, and find that host's own PreToolUse decision contract before trusting the hook —",
+    "the wrong JSON envelope is silently ignored, which is exactly how this guard shipped",
+    "inert for 2.5 months. See skills/careful/SKILL.md.",
+    "",
+    "Verify with the two live probes in skills/careful/SKILL.md. A green test table is not",
+    "evidence the host enforces anything."
+  ],
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/check-careful.sh\"",
+            "timeout": 10,
+            "statusMessage": "careful: checking for a destructive command"
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/check-careful.sh\"",
+            "timeout": 10,
+            "statusMessage": "careful: checking for an edit to a guardrail file"
+          }
+        ]
+      }
+    ]
+  }
+}

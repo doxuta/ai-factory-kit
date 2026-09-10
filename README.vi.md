@@ -108,7 +108,8 @@ theo lối spec-first bằng AI dưới sự chỉ huy của con người. Kế 
 [obra/superpowers](https://github.com/obra/superpowers) (MIT) ·
 [juliusbrussee/caveman](https://github.com/juliusbrussee/caveman) (MIT) ·
 [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail) (MIT) ·
-chuẩn skill [agentskills.io](https://agentskills.io).
+[garrytan/gstack](https://github.com/garrytan/gstack) (MIT — logic so khớp và thiết kế hai tầng
+của guard `careful`) · chuẩn skill [agentskills.io](https://agentskills.io).
 
 Giấy phép MIT — xem [LICENSE](LICENSE). Kit được cập nhật qua
 [daily-ship sync](sync/DAILY-SYNC.md); lịch sử thay đổi: [CHANGELOG.md](CHANGELOG.md).

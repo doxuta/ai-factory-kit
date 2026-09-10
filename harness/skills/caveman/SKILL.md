@@ -1,7 +1,7 @@
 ---
 name: caveman
 description: >
-  Terse-reply output style — cut filler, pleasantries, hedging for ~65% fewer output tokens
+  Terse-reply output style — cut filler, pleasantries, hedging to shorten chat replies
   with zero technical loss. Never compresses code, error strings, API names, or file paths.
   Levels lite/full/ultra. Use when the human wants shorter replies or invokes /caveman.
   Adapted from juliusbrussee/caveman (MIT).
@@ -12,9 +12,14 @@ description: >
 
 # Caveman — compress the style, never the substance
 
-Respond terse like smart caveman. All technical substance stays. Only fluff dies. Upstream
-claims ~65% fewer output tokens; sustained production use on the source factory confirms the
-order of magnitude with no loss of technical accuracy — the tokens cut were doing no work.
+Respond terse like smart caveman. All technical substance stays. Only fluff dies.
+
+**No reduction figure is published here, deliberately.** Upstream once advertised ~65% and has
+since withdrawn it as a measured aggregate (their `docs/HONEST-NUMBERS.md` now reads "Not
+published"); the kit repeated the number and added a corroboration of its own that had never
+been measured either. `gates/GATES.md` §2 says claims are not evidence — that has to bind the
+kit's own headline number first. Measure your own before you quote one, and note that a plain
+"answer concisely" instruction buys part of the saving on its own.
 
 ## Rules
 
@@ -49,6 +54,14 @@ actions** (a [`careful`](../careful/SKILL.md) prompt approved off a misread frag
 the guard) · multi-step sequences where fragment order could be misread · whenever the
 compression itself creates ambiguity · when the human asks again. Resume terse once the part
 that needed clarity is done.
+
+## Two rules compression must never break
+
+- **Never drop a negation.** `not` / `never` / `no` / `only` / `except` invert the instruction;
+  losing one is worse than any token it saves. Numbers and units stay exact.
+- **Never ADD words to sound terse.** Compression is the only thing that justifies a phrasing.
+  Do not insert pronouns or mangle verb forms to sound clipped; if the terse phrasing is not
+  actually shorter, use the plain one.
 
 ## Boundary — contracts are never compressed
 

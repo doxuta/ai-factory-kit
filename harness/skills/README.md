@@ -24,8 +24,8 @@ they port across agent platforms.
 |---|---|---|
 | [`spec-first/`](spec-first/SKILL.md) | HARD-GATE: clarify → design options → approval → only then code | [SPEC-FLOW](../../model/SPEC-FLOW.md) steps 1–5 |
 | [`plan-and-tdd/`](plan-and-tdd/SKILL.md) | approved spec → verifiable tasks → red/green → one concern per commit | SPEC-FLOW step 6 |
-| [`careful/`](careful/SKILL.md) | deterministic confirm-before-destructive-command guard | [HARNESS](../HARNESS.md) §4 guardrails |
-| [`caveman/`](caveman/SKILL.md) | terse chat replies, ~65% fewer tokens; contracts stay verbatim | every chat reply |
+| [`careful/`](careful/SKILL.md) | deterministic guard: asks before destructive commands, denies the un-undoable ones | [HARNESS](../HARNESS.md) §4 guardrails |
+| [`caveman/`](caveman/SKILL.md) | terse chat replies, no published reduction figure; contracts stay verbatim | every chat reply |
 | [`ponytail/`](ponytail/SKILL.md) | lazy-senior code ladder; the constitution outranks laziness | every code change |
 
 Pairing that matters: **ponytail compresses the code, caveman compresses the talk** — and

@@ -15,7 +15,7 @@ description: >
 Entry condition: an approved spec ([`spec-first`](../spec-first/SKILL.md)). No spec, or spec
 not approved → stop and go get one. This is the constitution's HARD-GATE, not a preference.
 
-## Plan (SPEC-FLOW step 4)
+## Plan (the `/speckit-tasks` step of [SPEC-FLOW](../../../model/SPEC-FLOW.md))
 
 - Break into tasks **small enough that each is independently verifiable** — every task
   carries a measurable "done = …" line.
