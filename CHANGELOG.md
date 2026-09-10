@@ -3,6 +3,46 @@
 All kit updates land here via the [daily-ship sync](sync/DAILY-SYNC.md) — one entry per sync,
 newest first.
 
+## 2026-09-10 — v1.3.0 (the shipped guard was inert; the lesson is bigger than the fix)
+
+The daily routine's second leg — an audit of all 11 upstream repos this kit was distilled from
+(1,869 commits since we adapted them, 82 findings) — turned up a defect in **this kit's own
+reference guardrail**. It is fixed here, and the two rules it teaches are now in the gate
+doctrine.
+
+- **`careful` hook rewritten** (`harness/skills/careful/hooks/`). It printed its decision as a
+  top-level `permissionDecision`, which Claude Code drops — so the shipped guard blocked
+  nothing, on this kit and on the factory it came from, for 2.5 months, while its own "7/7
+  dangerous commands asked" check stayed green the entire time. Upstream gstack shipped and
+  measured the identical bug (CHANGELOG `1.64.0.0`: *"deny meant allow"*). Also fixed, each
+  reproduced before the change: the detector's lowercase-only `r` class let `rm -Rf /` past;
+  the unanchored allowlist let `rm -rf / && rm -rf node_modules`, a `#`-commented twin, and a
+  `$(…)` substitution ride the safe list; `bin`/`tmp` entries written as `*/bin`/`*/tmp`
+  swallowed `rm -rf /usr/bin` and `rm -rf /tmp`; and `git push origin +main`,
+  `git worktree remove --force`, `${IFS}` and `base64 -d | sh` matched nothing at all.
+- **New `deny` tier**, covering exactly two shapes (recursive delete of `/` `~` `$HOME`;
+  force-push to a protected branch), simple commands only, with a never-commit escape hatch.
+  This **amends** the kit's own "warn, never hard-block" rule, and the amendment is recorded
+  in the skill rather than quietly applied — see the next bullet for why it had to change.
+- **GATES §6 gains two rules**, both paid for by the above: *test the CONSUMER, not just the
+  emitter* (both directions of a table prove the bytes, not the enforcement), and *a gate whose
+  verdict is auto-answered is not a gate* — the factory host ran `defaultMode:
+  bypassPermissions` for every session, so its `ask` tier had never once stopped anything.
+- **Then an adversarial audit broke the fixed version too** — six confirmed escapes from the
+  new `deny` tier, worst of which (`sudo rm -rf /`) returned a silent `allow`: argv[0] read
+  off token 0 so any wrapper hid the command; `; true` appended to anything downgraded the
+  verdict; remote-branch **deletion** needs no `--force` and was unguarded; `git -C`'s operand
+  posed as the subcommand; the root-target test was `all()` so adding a target softened it;
+  and the root set was bare literals, missing `~/*` and `$HOME/*`. Plus exponential backtracking
+  in the allowlist (17s against a 10s timeout) and a redirect that let one allowed command
+  erase the guard. All fixed; table 63 → 97 cases with every escape family pinned.
+- **GATES §6 gains a third rule** from that second round: *a green table proves its rows,
+  never its coverage* — and two of those rows had encoded the vulnerability as expected
+  behavior, so the correct fix first read as a regression.
+- **`hooks/check-careful.test.sh` (new)**: 97 cases pinning decision **and** envelope **and**
+  the pass-through direction, plus two zero-blast-radius live probes documented in the skill —
+  one proving the wall stands, one proving the door still opens.
+
 ## 2026-09-01 (night) — v1.2.0 (first ROUTINE-PROPOSED upgrade — the loop closed)
 
 The daily research routine ran end-to-end for the first time, proposed three upgrades, and the

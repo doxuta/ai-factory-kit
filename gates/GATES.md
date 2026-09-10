@@ -70,5 +70,25 @@ findings by hand. See [`../harness/agents/tech-lead-review.md`](../harness/agent
 - **Test the gate itself in both directions**: green stays green through legitimate change
   (file deleted → skip, not red) and red still bites (inject drift → must fail). A gate proven
   in only one direction is decoration.
+- **Both directions is not enough when a gate hands its verdict to someone else — test the
+  CONSUMER.** A gate that only *emits* a verdict has a second half you did not test: the thing
+  that reads it. Measured: this kit's own `careful` hook printed a correct-looking "ask" that
+  its host silently ignored, because the decision sat at the wrong nesting level. Both
+  directions of its table passed for 2.5 months while the guard blocked nothing. Producing the
+  right bytes is not evidence; trigger the real condition end-to-end and watch the consumer
+  act. Upstream gstack found the identical bug by the identical route.
+- **A green table proves its rows, never its coverage — buy an adversary.** The same guard,
+  once fixed and passing 63/63 in both directions, still let `sudo rm -rf /` through as a
+  silent allow: the table pinned only the spellings its author thought of. An agent tasked
+  with *breaking* it found six confirmed escapes in one pass. Two of those table rows turned
+  out to assert the vulnerable behavior as correct, so the fix first looked like a
+  regression — when an audit contradicts a test, settle which is right before editing
+  either. Pin each escape family as its own row afterwards; that is what stops the next
+  rewrite from quietly reopening it.
+- **A gate whose verdict is auto-answered is not a gate.** Before counting a
+  confirm/approve/review step as protection, check what your unattended runs do with it. The
+  same measurement found the host set to auto-approve every confirmation prompt for every
+  session — so the "ask" tier had never stopped anything, and only a hard refusal was real.
+  Ask of every gate: *who answers this when nobody is watching?*
 - When a fix turns out to be "needed on every install", promote it from a repair path to a
   numbered migration — reconcilers don't replace versioned baselines.
