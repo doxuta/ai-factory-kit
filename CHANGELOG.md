@@ -39,7 +39,17 @@ doctrine.
 - **GATES §6 gains a third rule** from that second round: *a green table proves its rows,
   never its coverage* — and two of those rows had encoded the vulnerability as expected
   behavior, so the correct fix first read as a regression.
-- **`hooks/check-careful.test.sh` (new)**: 97 cases pinning decision **and** envelope **and**
+- **Third tier: the guard can no longer be switched off.** The hook was wired only to the
+  shell tool, so the matcher file — and the settings that register it — could be rewritten by
+  the file-editing tool, which no gate watched. Now denied there too, with redirects onto the
+  same paths raised from ask to deny. Reading a guard stays allowed (the first draft denied
+  it; the table caught that). The interpreter-writes-a-file limit is written into the skill
+  rather than papered over.
+- **Heredoc bodies are stripped before scanning** — a command whose heredoc merely *contains*
+  redirect-shaped text is not performing that redirect. Found when the command installing the
+  fix was refused by it; the rest of the heredoc's command line is kept, since that is where a
+  real redirect lives.
+- **`hooks/check-careful.test.sh` (new)**: 116 cases pinning decision **and** envelope **and**
   the pass-through direction, plus two zero-blast-radius live probes documented in the skill —
   one proving the wall stands, one proving the door still opens.
 

@@ -153,6 +153,58 @@ check allow 'find . -name "*.go" -type f'              # find without -delete/-e
 check allow 'git push origin main --dry-run'           # the door must still open
 check allow 'echo "rm -rf / is dangerous"'
 
+echo "== guardrail files: nothing may disable the guard =="
+# `ask` is auto-approved on this machine, so these must DENY. The audit filed this as the
+# standing THEORETICAL bypass: nothing watched Write/Edit, so a guard that refused
+# `rm -rf /` could be deleted by one Edit call no gate ever saw.
+filecheck() { # filecheck <expected> <tool> <path>
+  local want="$1" tool="$2" fp="$3" got
+  got=$(printf '{"tool_name":"%s","tool_input":{"file_path":"%s","content":"x"}}' "$tool" "$fp" \
+        | bash "$HOOK" | python3 -c '
+import sys, json
+out = sys.stdin.read().strip()
+if out in ("{}", ""):
+    print("allow"); raise SystemExit
+print(json.loads(out).get("hookSpecificOutput", {}).get("permissionDecision", "BADSHAPE"))
+')
+  if [ "$got" = "$want" ]; then PASS=$((PASS+1))
+  else FAIL=$((FAIL+1)); printf '  FAIL  want=%-5s got=%-5s  %s %s\n' "$want" "$got" "$tool" "$fp"; fi
+}
+filecheck deny  Write .claude/hooks/check-careful.py
+filecheck deny  Write .claude/hooks/check-careful.sh
+filecheck deny  Edit  .claude/settings.json
+filecheck deny  Edit  .claude/settings.local.json
+filecheck deny  Write ~/.claude/settings.json
+filecheck deny  Edit  .specify/scripts/bash/setup-plan.sh
+filecheck allow Write src/services/record_service.go
+filecheck allow Edit  loop/STATE.md
+filecheck allow Edit  .claude/rules/caveman-output.md      # a rule file is not the guard
+filecheck allow Edit  .claude/skills/careful/SKILL.md      # the doc is not the guard
+filecheck allow Write myapp.claude/hooks/x.py              # lookalike dir must not match
+filecheck allow Read  .claude/hooks/check-careful.py                              # reading a guard is harmless
+check deny "echo '' > .claude/hooks/check-careful.py"                            # ...and neither may a redirect
+check deny "cat /dev/null > .claude/settings.local.json"
+
+echo "== heredoc bodies are data, not shell syntax =="
+# Hit for real while writing the fix above: a command whose heredoc merely CONTAINED
+# redirect-shaped text naming a guard file was refused as if it performed that redirect.
+check allow "python3 - <<'PY'
+s = 'echo x > .claude/hooks/check-careful.py'
+print(s)
+PY"
+check allow "python3 - <<'PY'
+print('rm -rf /')
+PY"
+check deny "cat <<'EOF' > .claude/hooks/check-careful.py
+x
+EOF"
+check deny "rm -rf / <<'EOF'
+x
+EOF"
+check allow "cat <<'EOF' > /tmp/notes.txt
+hello
+EOF"
+
 echo "== payload edge cases =="
 raw() { printf '%s' "$1" | bash "$HOOK" | tr -d '\n'; }
 [ "$(raw '{"tool_name":"Bash","tool_input":{}}')" = "{}" ] \

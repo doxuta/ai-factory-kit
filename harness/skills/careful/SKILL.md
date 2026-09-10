@@ -133,16 +133,49 @@ let one allowed command erase the guard itself.
   unreachable by any rule. Before adding a name, ask what it does with a `>` or an `-i`.
 - **Test in both directions, then test the consumer** ([GATES §6](../../../gates/GATES.md)):
   every dangerous pattern → the right tier fires; a set of safe commands → passes untouched;
-  garbage input → the documented polarity. Shipped table: `hooks/check-careful.test.sh`, 97
-  cases, pinning the decision, the envelope, and every escape family an adversary found.
+  garbage input → the documented polarity. Shipped table: `hooks/check-careful.test.sh`, 116
+  cases, pinning the decision, the envelope, every escape family an adversary found, the
+  guardrail-file tier, and the heredoc rule.
   Then the live checks below.
 - **Opt-in, explicitly.** The hook touches every shell command of every session — enable it as
   a deliberate config change, never silently. For unattended runs, enabled is the sane default.
 
+## The third tier: nothing may switch the guard off
+
+A hook wired only to the shell tool has an obvious hole: the guard file itself can be
+rewritten by the file-editing tool, which that hook never sees. A guard that refuses
+`rm -rf /` and can be deleted by one Edit call is not a guard. Wire the same hook to your
+host's write-family tools as well, and **deny** on:
+
+| Path | Why |
+|---|---|
+| the hook/matcher files themselves | this is the guard |
+| the settings file(s) that register hooks | where it gets unregistered, or disabled wholesale |
+| scripts your gate chain shells out to | same reasoning, one step removed |
+
+On the shell side, a redirect (`>`) onto those same paths rises from `ask` to **deny** —
+where `ask` is auto-approved it stops nothing.
+
+**Reading** a guard file stays allowed. Denying the read blocks the ordinary "look at what
+this thing does" step and buys nothing; the first draft here denied it and the table caught
+it. The legitimate way to edit is a human, or a session run with the escape-hatch variable.
+
+> ⚠️ **Limit, stated rather than hidden.** This matcher judges **command shapes**, not
+> program semantics. An interpreter handed a script still writes any file it likes —
+> `python3 -c "open(...,'w')..."` is not a redirect and is not caught. The write-tool tier
+> raises the bar and makes the ordinary path loud; it does not seal the box. Per
+> [GATES §4](../../../gates/GATES.md), say what a gate is blind to in the gate's own text.
+
+**Heredoc bodies are data, not shell syntax**, and must be stripped before scanning — a
+command whose heredoc merely *contains* redirect-shaped text is not performing that
+redirect. (Found the honest way: the command installing this very fix was refused by it.)
+Keep the rest of the heredoc's own command line, though — that is where a real redirect sits
+(`cat <<EOF > file`).
+
 ## Verification — two steps, and step 2 is the one that was skipped
 
 ```bash
-bash hooks/check-careful.test.sh     # step 1: 97/97
+bash hooks/check-careful.test.sh     # step 1: 116/116
 ```
 
 **Step 2, in a live session.** Two probes, both with zero blast radius:

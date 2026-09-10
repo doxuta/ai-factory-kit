@@ -123,6 +123,27 @@ SAFE_DIR = r"(?:\./)?(?:[\w.@+-]+/)*(?:node_modules|\.next|dist|build|__pycache_
 # so `node_modules/../../..` cannot climb out.
 SAFE_ONE = re.compile(r"\A" + SAFE_DIR + r"\Z")
 
+# A heredoc body is DATA handed to a program on stdin, not shell syntax. Scanning it caused
+# a real false positive: a command whose heredoc merely CONTAINED redirect-shaped text
+# naming a guardrail file was refused as if it were performing that redirect — the same
+# "mentioning a flag is not using it" error as grep -rn "sed -i". It was hit while writing
+# this very fix, which is the tidiest proof it was real.
+# LIMIT, stated rather than hidden: stripping the body also means a program run FROM a
+# heredoc (python3 - <<PY ... PY) is not inspected. This matcher judges command shapes, not
+# program semantics; an interpreter handed a script can still write any file. The Write/Edit
+# denial raises the bar and makes the ordinary path loud, it does not seal the box.
+# The body starts on the NEXT line — everything after the tag on the same line is still
+# command line, and that is exactly where a redirect lives (`cat <<EOF >file`). Keep it.
+HEREDOC = re.compile(
+    r"<<-?\s*(['\"]?)([A-Za-z_][A-Za-z0-9_]*)\1(?P<rest>[^\n]*)\n"
+    r"(?P<body>.*?)^\s*\2\s*$",
+    re.S | re.M)
+
+
+def strip_heredocs(cmd):
+    return HEREDOC.sub(lambda m: "<<" + m.group(2) + m.group("rest") + "\n", cmd)
+
+
 SEGMENT_SPLIT = re.compile(r"&&|\|\||[;&|\n]")
 # AUDIT: `simple` used to be computed over the WHOLE command, so appending `; true` to
 # anything downgraded deny to ask. Only genuine opacity — a substitution whose expansion we
@@ -152,6 +173,43 @@ OBFUSCATION = [
     (re.compile(r"\b(curl|wget)\b[^\n|]*\|\s*(sudo\s+)?(sh|bash|zsh)\b"),
      "remote script piped straight into a shell — the payload is never seen before it runs."),
 ]
+
+
+# Files whose whole purpose is to stop the agent. Editing one turns the guard off, so they
+# are the one path set this hook denies on the Write/Edit side too.
+#
+# WHY THIS EXISTS: the Bash matcher below can be erased by editing it, and the hook itself can
+# be unregistered by editing settings.json (or neutered wholesale with disableAllHooks). Until
+# 2026-09-10 nothing watched Write/Edit at all, so a guard that refused `rm -rf /` could be
+# deleted by a single Edit call that no gate saw — the audit filed this as the standing
+# THEORETICAL bypass and it was real.
+# Lookbehind, not (?:^|/): the Bash side matches against redirect text like
+# `> .claude/hooks/x.py`, where the dot follows a space. `[\w.-]` still blocks a false hit
+# on something like `myapp.claude/`.
+GUARDED_PATH = re.compile(
+    r"(?<![\w.-])\.claude/(?:hooks/|settings(?:\.local)?\.json\b)"
+    r"|(?<![\w.-])\.specify/scripts/"
+)
+
+
+# Only tools that MUTATE a file. Reading a guardrail is harmless — and denying the read
+# would break the ordinary "look at what the guard does" step.
+WRITE_TOOLS = {"Write", "Edit", "MultiEdit", "NotebookEdit", "StrReplace", "ApplyPatch"}
+
+
+def guarded_paths(tool_input):
+    """Every path a Write/Edit-family payload would touch."""
+    out = []
+    for key in ("file_path", "notebook_path", "path"):
+        v = tool_input.get(key)
+        if isinstance(v, str):
+            out.append(v)
+    edits = tool_input.get("edits")
+    if isinstance(edits, list):
+        for e in edits:
+            if isinstance(e, dict) and isinstance(e.get("file_path"), str):
+                out.append(e["file_path"])
+    return [p for p in out if GUARDED_PATH.search(p)]
 
 
 def emit(decision, reason=None):
@@ -344,7 +402,13 @@ def inspect_segment(segment, decisive, depth=0):
             return ("ask", "a read-only tool (%s) invoked with an in-place, delete, exec, "
                            "system() or redirect form — it is writing, not reading." % a0)
 
-    if REDIRECT_OVER_REAL_PATH.search(segment):
+    m = REDIRECT_OVER_REAL_PATH.search(segment)
+    if m:
+        # ask is auto-approved wherever the host skips prompts, so a redirect that erases the
+        # guard has to be refused outright, not merely announced.
+        if GUARDED_PATH.search(m.group(0)):
+            return ("deny", "output redirected over a guardrail file — this would disable the "
+                            "very check reading this command.")
         return ("ask", "output redirected over an absolute, home, or .claude path — this "
                        "overwrites the file, including the guardrails themselves.")
 
@@ -443,9 +507,24 @@ def main():
         emit("ask", "unexpected tool payload shape — asking instead of allowing.")
 
     tool_input = payload.get("tool_input")
-    cmd = tool_input.get("command", "") if isinstance(tool_input, dict) else ""
+    if not isinstance(tool_input, dict):
+        emit("allow")
+
+    # Write/Edit/MultiEdit/NotebookEdit carry a path, not a command.
+    hit = guarded_paths(tool_input) if payload.get("tool_name") in WRITE_TOOLS else []
+    if hit:
+        decision = "deny"
+        if os.environ.get("CAREFUL_ALLOW_HIGH") == "1":
+            decision = "ask"
+        emit(decision, "edit to a guardrail file (%s) — changing it disables the protection "
+                       "itself. Have a human make this edit, or set CAREFUL_ALLOW_HIGH=1 "
+                       "for the session." % ", ".join(hit))
+
+    cmd = tool_input.get("command", "")
     if not isinstance(cmd, str) or not cmd.strip():
         emit("allow")
+
+    cmd = strip_heredocs(cmd)
 
     for rx, reason in OBFUSCATION:
         if rx.search(cmd):
