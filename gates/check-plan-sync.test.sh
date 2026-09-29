@@ -43,9 +43,16 @@ plan() { # plan <dir> <header-done>/<header-total> <table-rows-done> <table-rows
     echo
     echo "| done | task |"
     echo "|---|---|"
-    for i in $(seq 1 "$tdone");   do echo "| ✅ | M1-T$i |"; done
-    for i in $(seq $((tdone+1)) "$ttotal"); do echo "| ⬜ | M1-T$i |"; done
+    # A counter, not `seq`: BSD seq counts DOWN when first > last, so on macOS `seq 5 4`
+    # printed two phantom ⬜ rows for every all-done plan (4/4 became 4/6) — measured on the
+    # macOS CI runner, where "blueprint agrees" went red and "blueprint still marks M1 ⬜"
+    # stayed red for the wrong reason. GNU seq prints nothing, so Linux never saw it.
+    i=1; while [ "$i" -le "$tdone" ]; do echo "| ✅ | M1-T$i |"; i=$((i+1)); done
+    while [ "$i" -le "$ttotal" ]; do echo "| ⬜ | M1-T$i |"; i=$((i+1)); done
   } > "$dir/demo-plan.md"
+  # Guard the fixture itself: a wrong row count makes every case after it test the wrong thing.
+  local rows; rows=$(grep -c '| M1-T[0-9]' "$dir/demo-plan.md" || true)
+  [ "$rows" -eq "$ttotal" ] || { echo "FIXTURE BUG: $dir has $rows rows, want $ttotal" >&2; exit 2; }
 }
 
 echo "== GREEN direction: it must not cry wolf =="
