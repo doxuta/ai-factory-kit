@@ -407,6 +407,20 @@ specify init --here --force --integration claude
 specify check
 uv tool install specify-cli==1.0.12
 
+# --- a directory named gates that is not the gate chain (feature-flag code; review 2 of
+# v1.4.0: each of these was denied), and .github work next to the CI job ------------------------
+git mv src/gates src/feature_gates
+mv src/gates/hooks src/gates/react-hooks
+git restore src/gates/hooks/useGate.ts
+git rm src/gates/hooks/legacyGate.ts
+git checkout HEAD~1 -- src/gates/hooks/useGate.ts
+echo 'export {}' > src/gates/hooks/index.ts
+cp src/gates/hooks/useGate.ts src/gates/hooks/useGate.bak.ts
+git rm -r .github/ISSUE_TEMPLATE
+cp -r templates/ISSUE_TEMPLATE .github
+git update-index --chmod=+x scripts/deploy.sh
+git config --get include.path
+
 # --- shell housekeeping -----------------------------------------------------------------------
 cd frontend && npm ci && npm run build
 cd /tmp && rm -rf build-check && mkdir build-check

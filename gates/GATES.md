@@ -64,14 +64,15 @@ wired, and feature 001 then installs the hook and CI
 Two mechanisms enforce the rule, both installed by feature 001 once its slots are wired, never
 at adoption (before that they would refuse every commit): [`hooks/pre-commit`](hooks/pre-commit)
 (`adopt.py --install-git-hook`, **once in every clone**: `core.hooksPath` is per clone, so a
-teammate's fresh clone refuses nothing until it runs that) refuses the commit locally —
-`git commit --no-verify` skips it, and the careful guard asks before an agent does that — and
+teammate's fresh clone refuses nothing until it runs that) refuses the commit locally — `git
+commit --no-verify` skips it, and the careful guard asks before an agent does that — and
 [`ci/github-actions.yml`](ci/github-actions.yml) (`adopt.py --ci github`) runs the same chain on
 every push and pull request, where no `--no-verify` reaches it. `gates/chain.conf` decides what
 "green" means and the installed CI job decides whether CI runs it at all, so the careful guard
-asks before an agent edits, moves or deletes either; the gate scripts themselves are denied to
-agent edits. The guard sees only an agent's tool calls: a human, or a change merged without
-review, can still weaken the CI job — what catches that is review, and on the git host a
+asks before an agent edits, moves or deletes either — the job's directory included (`git rm -r
+.github`) — and `adopt.py --check` fails while the job is gone; the gate scripts themselves are
+denied to agent edits. The guard sees only an agent's tool calls: a human, or a change merged
+without review, can still weaken the CI job — what catches that is review, and on the git host a
 protected branch's required review ([`../model/PHASE-0.md`](../model/PHASE-0.md) §10).
 
 ## 2. Claims are not evidence
@@ -170,7 +171,7 @@ findings by hand. See [`../harness/agents/tech-lead-review.md`](../harness/agent
   no gate. Measured: this kit's guardrail passed 127/127 of its own cases while interrupting one
   in eight of 6,638 real commands, 85% of it from three over-broad rules of its own. Replay a
   real corpus through any gate that interrupts a human, and treat the false-positive rate as a
-  safety number. Since 1.4.0 the guard's own test enforces it: 384 ordinary commands in
+  safety number. Since 1.4.0 the guard's own test enforces it: 395 ordinary commands in
   `careful-corpus.txt` must pass uninterrupted, so a rule that starts crying wolf fails the
   build instead of a user's patience.
 - **A hook does not run in your shell's environment.** Measured with git 2.43: committing from a

@@ -54,6 +54,13 @@ mkrepo() { # mkrepo <dir> <branch> <commit|unborn|detached>
            hooks/pre-commit chain.conf; do echo '#' > "$WORK/repo-main/gates/$f"; done
   ln -s / "$WORK/repo-main/rootlink"
   mkdir -p "$WORK/repo-main/.claude/hooks" && echo '#' > "$WORK/repo-main/.claude/hooks/check-careful.sh"
+  # review 2: the CI job on disk (a directory holding it is wiring), feature-flag code in a
+  # directory named gates (not a chain), and a vendored kit copy whose gates/ holds run-chain.sh
+  mkdir -p "$WORK/repo-main/.github/workflows" "$WORK/repo-main/.github/ISSUE_TEMPLATE" \
+           "$WORK/repo-main/src/gates/hooks" "$WORK/repo-main/vendor/kit/gates/hooks" "$WORK/fresh"
+  echo 'on: push' > "$WORK/repo-main/.github/workflows/factory-gates.yml"
+  echo '#' > "$WORK/repo-main/src/gates/hooks/useGate.ts"
+  echo '#' > "$WORK/repo-main/vendor/kit/gates/run-chain.sh"
 ) || { echo "FAIL  could not build git fixtures"; exit 1; }
 
 # hookset <name> [careful.json content | -] — a clean copy of the hook under test.
@@ -573,6 +580,116 @@ check ask 'git -c core.hooksPath=/dev/null commit -m x'
 check ask 'GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.hooksPath GIT_CONFIG_VALUE_0=/x git commit -m y'
 check ask 'python3 factory/bin/adopt.py --upgrade'
 
+section "hooksPath through the side doors (review 2: each returned {} and a red commit landed)"
+check ask  'git --config-env=core.hooksPath=H commit -m x'
+check ask  'git --config-env core.hooksPath=H commit -m x'
+check ask  'git config --remove-section core'
+check ask  'git config --rename-section core x'
+check ask  'git config --remove-sec core'                        # parse-options prefix
+check ask  'git config --edit'                                   # $GIT_EDITOR can be any command
+check ask  'git config -e'
+check ask  'git -c include.path=/tmp/x.cfg commit -m x'          # an include can set hooksPath
+check ask  'git config include.path /tmp/x.cfg'
+check ask  'git config --add includeIf.gitdir:~/src/.path /tmp/x.cfg'
+check ask  'GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=include.path GIT_CONFIG_VALUE_0=/tmp/x git commit -m y'
+check allow 'git --config-env=user.name=GIT_AUTHOR commit -m x'
+check allow 'git config --remove-section alias'
+check allow 'git config --global --edit'                         # not where the clone's hooksPath is
+check allow 'git config --get include.path'
+
+section "git update-index is chmod by another name (review 2: -x passed, clones ignored the hook)"
+check deny 'git update-index --chmod=-x gates/hooks/pre-commit'
+check deny 'git update-index --chmod=-x .claude/hooks/check-careful.sh'
+check deny 'git update-index --chm=-x gates/run-chain.sh'
+check deny 'git update-index --cacheinfo 100644,e69de29bb2d1d6434b8b29ae775ad8c2e48c5391,gates/run-chain.sh'
+check deny 'git update-index --cacheinfo 100644 e69de29bb2d1d6434b8b29ae775ad8c2e48c5391 gates/run-chain.sh'
+check ask  'git update-index --assume-unchanged gates/chain.conf'
+check ask  'git update-index --skip-worktree .github/workflows/factory-gates.yml'
+check ask  'git ls-files gates | git update-index --chmod=-x --stdin'
+check allow 'git update-index --chmod=+x gates/run-chain.sh'     # restores what adopt.py --check asks for
+check allow 'git update-index --chmod=-x scripts/build.sh'
+check allow 'git update-index --skip-worktree src/app.py'
+check allow 'git update-index --refresh'
+
+section "a directory holding the CI job (review 2: git rm -r .github landed and CI stopped)"
+check ask  'git rm -r .github'
+check ask  'git rm -r -q .github/workflows'
+check ask  'git rm -r --cached .github'
+check ask  'git mv .github .gh-off'
+check ask  'git mv .github/workflows .github/off'
+check ask  'mv .github .github-old'
+check ask  'mv .github/workflows/ /tmp/'
+check ask  'git checkout HEAD~5 -- .github'
+check ask  'git restore --source=HEAD~5 .github'
+check ask  'cp -r newci/. .github'
+check ask  'cp -r workflows .github'
+check ask  'rsync -a ci/ .github/'
+check ask  'tar -xf ci.tar -C .github'
+check ask  "find .github -name '*.yml' -exec sed -i s/a/b/ {} +"
+pscheck ask 'Move-Item .github .gh-off'
+check allow 'git rm -r .github/ISSUE_TEMPLATE'
+check allow 'mv .github/ISSUE_TEMPLATE /tmp/'
+check allow 'cp -r ISSUE_TEMPLATE .github'
+check allow 'rsync -a ISSUE_TEMPLATE .github/'
+CWD="$WORK/repo-feat"
+check allow 'git rm -r .github'                                  # no CI job on disk: ordinary
+check allow 'mv .github .github-old'
+CWD="$WORK/repo-main"
+
+section "force beats a lease (review 2: --force-with-lease --force overwrote a moved remote)"
+check deny 'git push --force --force-with-lease origin main'
+check deny 'git push --force-with-lease --force origin main'
+check deny 'git push origin main --force-if-includes --force'
+check deny 'git push -f --force-if-includes origin main'
+check ask  'git push --force-with-lease --force-if-includes origin main'
+check ask  'git push -f --force-with-lease origin feat/x'        # force wins; not a protected branch
+check allow 'git push --force-if-includes origin feat/x'         # a no-op without a lease
+
+section "a gates/ directory is the chain only when it is one (review 2: feature-flag code was denied)"
+filecheck allow Edit  src/gates/hooks/useFeatureGate.ts
+filecheck allow Edit  packages/flags/src/gates/hooks/index.ts
+filecheck allow Edit  src/features/gates/check-eligibility.py
+filecheck allow Edit  services/approval/gates/run-chain.sh
+filecheck allow Write web/src/gates/hooks/useGate.test.ts
+filecheck allow Edit  src/gates/flags.conf                        # not gate configuration either
+check allow 'git mv src/gates src/feature_gates'
+check allow 'mv src/gates src/feature_gates'
+check allow 'git restore src/gates/hooks/useGate.ts'
+check allow "echo 'export {}' > src/gates/hooks/index.ts"
+check ask   'rm -r src/gates/hooks'                               # an ordinary rm -r, no more
+check ask   'perl -pi -e s/a/b/ $(git ls-files src/gates)'        # perl -i, not the guard
+filecheck deny Edit  vendor/kit/gates/hooks/pre-commit            # holds run-chain.sh on disk
+check deny  'rm -rf vendor/kit/gates'
+check deny  'git -C vendor rm -r kit/gates'                       # pathspecs resolve against -C
+filecheck deny Edit  factory/gates/run-chain.sh                   # the kit copy, documented path
+check deny  'rm "$CLAUDE_PROJECT_DIR/gates/run-chain.sh"'         # built at runtime: cannot look
+check deny  'perl -pi -e s/a/b/ $(git ls-files gates)'
+check deny  'git rm -r :/gates'                                   # pathspec magic names the path
+check deny  "git rm -r ':(top)gates'"
+check allow "git rm -r ':!gates' src/old"                         # an exclusion removes nothing
+PROJ="$WORK/fresh"
+filecheck deny  Write "$WORK/fresh/gates/run-chain.sh"            # the project's own, before it exists
+PROJ="$FAKE_PROJECT"
+filecheck allow Write "$WORK/fresh/gates/run-chain.sh"            # not the project's, nothing on disk
+
+section "every documented deny shape on a guarded file, pinned (review 2)"
+check deny 'chown nobody .claude/hooks/careful.json'
+check deny 'chgrp nobody .claude/hooks/careful.json'
+check deny 'chattr +i .claude/hooks/careful.json'
+check deny 'setfacl -m u:nobody:r .claude/hooks/careful.json'
+check deny 'shred -u gates/run-chain.sh'
+check deny 'vi .claude/hooks/careful.json'
+check deny 'nano gates/run-chain.sh'
+check deny 'git mv .claude/hooks/careful.json x.json'
+check allow 'chown dev src/app.py'
+check allow 'chgrp staff src/app.py'
+check allow 'chattr +i build/release.bin'
+check allow 'setfacl -m u:dev:r src/app.py'
+check allow 'shred -u secrets.tmp'
+check allow 'vi src/app.py'
+check allow 'nano README.md'
+check allow 'git mv src/a.py src/b.py'
+
 section "abbreviated long options are the option (F32: each returned {} and ran)"
 check deny 'rm --recurs --forc ~'              # GNU getopt_long accepts unique prefixes
 check deny 'rm --recur -f /'
@@ -988,6 +1105,49 @@ else:
     passed, failed = passed + ok, failed + (not ok)
     if n < 300:
         print("  FAIL  corpus has %d commands; it must hold at least 300" % n)
+
+# -- ARCHETYPES.md: every careful.json stanza it recommends loads, and does what it says -------
+# Review 2 loaded the CLI stanza into careful.json: its tag rule asked on `git push origin
+# v2-api-cleanup`, a branch. The stanzas are adopters' first careful.json, so they are pinned.
+print("== ARCHETYPES careful.json stanzas load, and the CLI tag rule asks on tags only ==")
+arch = next((p for p in (os.path.join(hookdir, "..", "..", "..", "..", "model", "ARCHETYPES.md"),
+                         os.path.join(hookdir, "..", "..", "factory", "model", "ARCHETYPES.md"))
+             if os.path.exists(p)), None)
+if arch is None:
+    print("  SKIP  model/ARCHETYPES.md not found next to the kit or under factory/")
+else:
+    import re as re_
+    stanzas = re_.findall(r'`(\s*"extra_(?:ask|deny)"\s*:[^`]*)`', open(arch, encoding="utf-8").read())
+    tagcfg = None
+    for i, st in enumerate(stanzas):
+        cfgp = os.path.join(work, "arch-%d.json" % i)
+        try:
+            open(cfgp, "w").write(json.dumps(json.loads("{" + st + "}")))
+            cfg, err = m.load_config(cfgp)
+        except ValueError as exc:
+            err = "not JSON: %s" % exc
+        ok = err is None
+        passed, failed = passed + ok, failed + (not ok)
+        if not ok:
+            print("  FAIL  stanza %d: %s  <- %s" % (i, err, st[:80]))
+        elif "refs/tags/" in st:
+            tagcfg = cfg
+    rows = [("ask", "git push origin v0.3.0"), ("ask", "git push origin v1.2.3-rc1"),
+            ("ask", "git push --tags"), ("ask", "git push --follow-tags origin main"),
+            ("allow", "git push origin v2-api-cleanup"),
+            ("allow", "git push -u origin feature/012-payment-qr")]
+    ok = tagcfg is not None
+    passed, failed = passed + ok, failed + (not ok)
+    if not ok:
+        print("  FAIL  no stanza with a refs/tags/ rule (the CLI archetype's)")
+    for want, cmd in rows if tagcfg else []:
+        d, r = m.decide({"tool_name": "Bash", "tool_input": {"command": cmd},
+                         "cwd": os.path.join(work, "repo-feat")}, cfg=tagcfg)
+        ok = d == want
+        passed, failed = passed + ok, failed + (not ok)
+        if not ok:
+            print("  FAIL  CLI stanza: want=%-5s got=%-5s %s" % (want, d, cmd))
+    print("  %d stanzas in %s" % (len(stanzas), os.path.relpath(arch, hookdir)))
 
 print()
 print("passed %d, failed %d" % (passed, failed))

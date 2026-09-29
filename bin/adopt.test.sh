@@ -254,8 +254,9 @@ contains "manifest: CLAUDE.md is adopter-filled" "$M" '"adopter-filled"'
 contains "manifest records the kit commit" "$M" "\"kit_commit\": \"$(git -C "$FX" rev-parse HEAD)\""
 contains ".gitattributes pins hooks" "$p/.gitattributes" '.claude/hooks/*.sh text eol=lf'
 contains ".gitattributes pins gates" "$p/.gitattributes" 'gates/*.sh text eol=lf'
-contains ".gitattributes pins the git hook" "$p/.gitattributes" 'gates/hooks/* text eol=lf'
+contains ".gitattributes pins the git hook" "$p/.gitattributes" 'gates/hooks/pre-commit text eol=lf'
 lacks ".gitattributes never pins a whole tree (binaries)" "$p/.gitattributes" 'gates/** text'
+lacks ".gitattributes never pins a whole directory (review 2)" "$p/.gitattributes" 'gates/hooks/* text'
 absent "settings template not installed (register-guard reads the kit's)" \
   "$p/.claude/settings.json.template"
 contains "careful skill links the kit's template" "$C/skills/careful/SKILL.md" \
@@ -600,7 +601,11 @@ adopt "$p" factory; rc 0 "re-run keeps it"; present "kept" "$p/.github/workflows
 rm "$p/.github/workflows/factory-gates.yml"
 adopt "$p" factory; rc 0 "re-run after the adopter deleted it"
 absent "a deleted flag-installed file is not re-created" "$p/.github/workflows/factory-gates.yml"
-adopt "$p" factory --check; rc 0 "--check agrees"
+adopt "$p" factory --check; rc 1 "--check fails: CI no longer runs the chain (review 2)"
+has "names the gap" "CI no longer runs the gate chain"
+printf 'on: push\njobs:\n  g:\n    runs-on: ubuntu-latest\n    steps:\n      - run: ./gates/run-chain.sh\n' > "$p/.github/workflows/ci.yml"
+adopt "$p" factory --check; rc 0 "another workflow that runs the chain replaces it"
+has "the replacement is named" "ci.yml runs the gate chain in its place"
 p="$TMP/ci2"; mkdir -p "$p/.github/workflows"; vendor "$FX" "$p"
 echo "ours: true" > "$p/.github/workflows/factory-gates.yml"
 adopt "$p" factory --ci github; rc 0 "--ci github next to an existing workflow"
@@ -695,12 +700,29 @@ printf '%s\n' "# ai-factory-kit: installed scripts stay LF - a CRLF checkout mak
   "# PreToolUse hook that exits 2 blocks every tool call." ".claude/hooks/** text eol=lf" \
   "gates/** text eol=lf" > "$p/.gitattributes"
 adopt "$p" factory; rc 0 "adopt over a pre-release .gitattributes block"
-has "migrated" "replaced the earlier gates/"
+has "migrated" "replaced an earlier block"
 lacks "old tree rule gone" "$p/.gitattributes" "gates/** text"
 mkdir -p "$p/gates/visual"; printf '\211PNG\r\n\032\n\000\000\000\rIHDR' > "$p/gates/visual/baseline.png"
 (cd "$p" && git add -A) >/dev/null 2>&1
 t "the PNG is committed byte for byte" sh -c "cd '$p' && git show :gates/visual/baseline.png | cmp -s - gates/visual/baseline.png"
 adopt "$p" factory --check; hasnt "a binary is not a CRLF script" "baseline.png"
+# review 2: the next pre-release block pinned `gates/hooks/*`, which rewrote a binary there too
+p="$TMP/bin2"; git init -q "$p"; vendor "$FX" "$p"
+printf '%s\n' "# ai-factory-kit: installed scripts stay LF - a CRLF checkout makes bash exit 2, and a" \
+  "# PreToolUse hook that exits 2 blocks every tool call. Pinned by extension, so a binary" \
+  "# under gates/ is never touched." ".claude/hooks/*.sh text eol=lf" "gates/*.sh text eol=lf" \
+  "gates/hooks/* text eol=lf" > "$p/.gitattributes"
+t "before: the old block makes a binary under gates/hooks/ text" \
+  sh -c "cd '$p' && git check-attr text -- gates/hooks/logo.png | grep -q 'text: set'"
+adopt "$p" factory; rc 0 "adopt over the round-1 .gitattributes block"
+has "migrated (round 1)" "replaced an earlier block"
+lacks "gates/hooks/* rule gone" "$p/.gitattributes" "gates/hooks/* text"
+t "one kit comment block, not two" test "$(grep -c '^# ai-factory-kit:' "$p/.gitattributes")" = 1
+mkdir -p "$p/gates/hooks"; printf '\211PNG\r\n\032\n\000\000\000\rIHDR' > "$p/gates/hooks/logo.png"
+(cd "$p" && git add -A) >/dev/null 2>&1
+t "a PNG under gates/hooks/ is committed byte for byte" sh -c "cd '$p' && git show :gates/hooks/logo.png | cmp -s - gates/hooks/logo.png"
+t "the hook itself is still pinned LF" \
+  sh -c "cd '$p' && git check-attr eol -- gates/hooks/pre-commit | grep -q 'eol: lf'"
 
 echo "== flag-installed files and the per-clone hook are audited (review 2026-09-29) =="
 p="$TMP/flags"; git init -q "$p"; vendor "$FX" "$p"
@@ -714,7 +736,7 @@ adopt "$p" factory --install-git-hook; rc 0 "wire this clone"
 adopt "$p" factory --check; hasnt "wired" "does not run it"
 rm "$p/.github/workflows/factory-gates.yml"
 adopt "$p" factory; rc 0 "re-run after the CI job was deleted"
-adopt "$p" factory --check; rc 0 "a deleted CI job is a warning, not silence"
+adopt "$p" factory --check; rc 1 "a deleted CI job is a failure, not a warning (review 2)"
 has "deleted CI" "factory-gates.yml: installed by adopt.py --ci github, now deleted"
 
 echo "== next steps never mark the live probes done (review 2026-09-29) =="

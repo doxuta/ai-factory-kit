@@ -93,7 +93,9 @@ ENFORCEMENT = re.compile(
     r"^(?:\.claude/hooks/check-careful\.(?:sh|py)"
     r"|gates/(?:run-chain\.sh|check-[^/]+\.(?:sh|py)|hooks/pre-commit))$")
 # Installed only when their flag asks. One the adopter deletes is not re-created, but --check
-# keeps saying it is gone: CI and the hook are the two things that enforce "no commit on red".
+# FAILS while it is gone (review 2: a WARN let `git rm -r .github` end CI enforcement with
+# "check: OK"): CI and the hook are the two things that enforce "no commit on red". A CI job
+# replaced by another workflow that runs gates/run-chain.sh is a note, not a failure.
 FLAG_FILES = (("gates/hooks/pre-commit", "git-hook"),
               (".github/workflows/factory-gates.yml", "ci-github"))
 # The constitution override is what /speckit-constitution drafts .specify/memory/constitution.md
@@ -103,13 +105,13 @@ CONST_OVERRIDE = ".specify/templates/overrides/constitution-template.md"
 CONST_MEMORY = ".specify/memory/constitution.md"
 
 LINK_SCOPE = (".claude", "gates", ".specify/memory", ".specify/templates/overrides")
-# By extension and by directory, never `gates/**`: `text` on a whole tree also normalises the
+# By extension, or by name, never a whole directory: `text` on `gates/**` also normalises the
 # CRLF bytes inside every binary under it (review 2026-09-29: a PNG committed under gates/
-# lost its signature, \r\n -> \n).
+# lost its signature, \r\n -> \n), and so did `gates/hooks/*` under gates/hooks/ (review 2).
 GITATTRIBUTES = (
     "# ai-factory-kit: installed scripts stay LF - a CRLF checkout makes bash exit 2, and a",
-    "# PreToolUse hook that exits 2 blocks every tool call. Pinned by extension, so a binary",
-    "# under gates/ is never touched.",
+    "# PreToolUse hook that exits 2 blocks every tool call. Pinned by extension or by name,",
+    "# so a binary under gates/ is never touched.",
     ".claude/hooks/*.sh text eol=lf",
     ".claude/hooks/*.py text eol=lf",
     ".claude/hooks/*.json text eol=lf",
@@ -118,14 +120,29 @@ GITATTRIBUTES = (
     "gates/*.py text eol=lf",
     "gates/*.conf text eol=lf",
     "gates/*.example text eol=lf",
-    "gates/hooks/* text eol=lf",
+    "gates/hooks/pre-commit text eol=lf",
 )
-# What a pre-release 1.4.0 adopt.py appended; replaced when found under our comment.
-GITATTRIBUTES_OLD = (
-    "# ai-factory-kit: installed scripts stay LF - a CRLF checkout makes bash exit 2, and a",
-    "# PreToolUse hook that exits 2 blocks every tool call.",
-    ".claude/hooks/** text eol=lf",
-    "gates/** text eol=lf",
+# What pre-release 1.4.0 adopt.py versions appended, each with the whole-directory rule that
+# identifies it; a block found under our comment is replaced.
+GITATTRIBUTES_SUPERSEDED = (
+    (("# ai-factory-kit: installed scripts stay LF - a CRLF checkout makes bash exit 2, and a",
+      "# PreToolUse hook that exits 2 blocks every tool call.",
+      ".claude/hooks/** text eol=lf",
+      "gates/** text eol=lf"),
+     ("gates/** text eol=lf",)),
+    (("# ai-factory-kit: installed scripts stay LF - a CRLF checkout makes bash exit 2, and a",
+      "# PreToolUse hook that exits 2 blocks every tool call. Pinned by extension, so a binary",
+      "# under gates/ is never touched.",
+      ".claude/hooks/*.sh text eol=lf",
+      ".claude/hooks/*.py text eol=lf",
+      ".claude/hooks/*.json text eol=lf",
+      ".claude/hooks/*.txt text eol=lf",
+      "gates/*.sh text eol=lf",
+      "gates/*.py text eol=lf",
+      "gates/*.conf text eol=lf",
+      "gates/*.example text eol=lf",
+      "gates/hooks/* text eol=lf"),
+     ("gates/hooks/* text eol=lf",)),
 )
 IGNORED_NAMES = {"__pycache__", ".DS_Store", ".git"}
 IGNORED_SUFFIXES = (".pyc", NEW, ".orig", ".rej", ".swp")
@@ -816,12 +833,12 @@ def ensure_gitattributes(proj, rep):
     text = cur.decode("utf-8", "replace")
     lines = text.splitlines()
     migrated = False
-    if GITATTRIBUTES_OLD[0] in lines and GITATTRIBUTES_OLD[2] in lines \
-            and GITATTRIBUTES_OLD[3] in lines:
-        # A pre-release 1.4.0 block: its `gates/** text` also rewrote binaries. Replace it.
-        lines = [l for l in lines if l not in GITATTRIBUTES_OLD]
-        text = "\n".join(lines) + ("\n" if lines else "")
-        migrated = True
+    for block, marks in GITATTRIBUTES_SUPERSEDED:
+        if block[0] in lines and all(m in lines for m in marks):
+            # A pre-release 1.4.0 block: its whole-directory rule also rewrote binaries.
+            lines = [l for l in lines if l not in block]
+            text = "\n".join(lines) + ("\n" if lines else "")
+            migrated = True
     have = set(l.strip() for l in lines)
     rules = [l for l in GITATTRIBUTES if not l.startswith("#")]
     if all(r in have for r in rules) and not migrated:
@@ -830,8 +847,9 @@ def ensure_gitattributes(proj, rep):
     sep = "" if not text or text.endswith("\n") else "\n"
     write_bytes(path, (text + sep + "\n".join(add) + "\n").encode("utf-8"))
     rep.notes.append(".gitattributes: pinned the installed scripts and gate config to LF, by "
-                     "extension%s" % (" (replaced the earlier gates/** rule, which also touched "
-                                      "binaries)" if migrated else ""))
+                     "extension or name%s" % (
+                         " (replaced an earlier block whose whole-directory rule also touched "
+                         "binaries)" if migrated else ""))
 
 
 # ---------------------------------------------------------------------------- auditing
@@ -1007,6 +1025,19 @@ def script_mode_problems(proj, plan):
     return out
 
 
+def chain_workflow(proj):
+    """The first workflow under .github/workflows/ that runs gates/run-chain.sh, or None."""
+    wf = pjoin(proj, ".github/workflows")
+    if not os.path.isdir(wf):
+        return None
+    for name in sorted(os.listdir(wf)):
+        if name.endswith((".yml", ".yaml")):
+            data = read_bytes(os.path.join(wf, name)) or b""
+            if b"gates/run-chain.sh" in data:
+                return ".github/workflows/" + name
+    return None
+
+
 def hook_wiring_warning(proj, files, kit_rel):
     """The pre-commit gate is recorded here, but this clone does not run it."""
     if "gates/hooks/pre-commit" not in files or not os.path.isfile(
@@ -1089,12 +1120,20 @@ def run_check(proj, kit, manifest, args):
             if os.path.exists(pjoin(proj, dest)):
                 errors.append("%s: no longer shipped by the kit - run --upgrade" % dest)
             elif dest in dict(FLAG_FILES):
-                warnings.append(
-                    "%s: installed by adopt.py %s, now deleted - %s. Reinstall it with that flag; "
-                    "if it moved on purpose, remove its entry from %s" % (
-                        dest, "--install-git-hook" if dest.startswith("gates/") else "--ci github",
-                        "no local refusal of a red commit" if dest.startswith("gates/")
-                        else "CI no longer runs the gate chain", MANIFEST))
+                # A FAIL, not a warning (review 2: `git rm -r .github` plus a commit left CI not
+                # running the chain while --check said OK). Moved on purpose: another workflow
+                # that runs the chain keeps CI enforcing it, so that is a note.
+                ci = not dest.startswith("gates/")
+                runner = ci and chain_workflow(proj)
+                msg = "%s: installed by adopt.py %s, now deleted - %s. Reinstall it with that " \
+                      "flag; if it moved on purpose, remove its entry from %s" % (
+                          dest, "--ci github" if ci else "--install-git-hook",
+                          "CI no longer runs the gate chain" if ci
+                          else "no local refusal of a red commit", MANIFEST)
+                if runner:
+                    info.append("%s: deleted; %s runs the gate chain in its place" % (dest, runner))
+                else:
+                    errors.append(msg)
         hw = hook_wiring_warning(proj, files, kit.rel)
         if hw:
             warnings.append(hw)

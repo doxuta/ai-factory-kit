@@ -204,7 +204,6 @@ def fold(p):
 GUARDED_RX = re.compile(
     r"(?:^|/)\.claude/hooks(?:/|$)"                         # the hook, its config, its tests
     r"|(?:^|/)\.claude/settings(?:\.local)?\.json$"        # where hooks are registered
-    r"|(?:^|/)gates/(?:run-chain\.sh|check-[^/]*\.(?:sh|py)|hooks(?:/|$))"   # the gate chain
     r"|(?:^|/)harness/skills/careful/hooks(?:/|$)"         # the kit copy an upgrade installs
     # The wiring `adopt.py --register-guard` copies into .claude/settings.json. That command is
     # allowed (it can only restore the kit's wiring), so the template it copies must not be
@@ -215,6 +214,43 @@ GUARDED_RX = re.compile(
     r"|^/library/application support/claudecode(?:/|$)"    # managed settings: macOS
     r"|(?:^|/)program files/claudecode(?:/|$)"             # managed settings: Windows
 )
+# The gate chain: gates/run-chain.sh, gates/check-*.sh|py, gates/hooks/**. Matched on the path
+# as written (case-insensitively), because the directory it names is then looked at.
+GATE_CHAIN_RX = re.compile(
+    r"(?:^|/)(gates)/(?:run-chain\.sh|check-[^/]*\.(?:sh|py)|hooks(?:/|$))", re.I)
+# Set per decision by decide(): the project's own gates/ directory, normalised and folded.
+_PROJECT_GATES = [None]
+
+
+def chain_gates_dir(d):
+    """True when the directory d (a normalised path ending in `gates`) is a gate chain.
+
+    `gates` is a common directory name — feature-flag code keeps `src/gates/hooks/useGate.ts` —
+    and until the second review of v1.4.0 any directory of that name, at any depth, was guarded:
+    an Edit of `src/gates/hooks/index.ts`, `git mv src/gates …` and `rm -r web/src/gates/hooks`
+    were each denied, and careful.json (additive only) could not exempt them. A `gates`
+    directory is now the chain when it is the project's own, when it holds `run-chain.sh` on
+    disk (the kit copy under factory/, the kit repository itself), or when that cannot be
+    looked at: a relative `gates` or `../gates` (the base may be a directory the command
+    changed into), `factory/gates` (the kit copy at its documented path), or a path built at
+    runtime.
+    """
+    f = fold(d).rstrip("/")
+    head = f[:-len("gates")]
+    if re.fullmatch(r"(?:\.\./)*", head) or head.endswith("factory/"):
+        return True
+    if re.search(r"[$`*?\[{]", d):
+        return True
+    if _PROJECT_GATES[0] and f == _PROJECT_GATES[0]:
+        return True
+    return is_abs(d) and os.path.isfile(os.path.join(d, "run-chain.sh"))
+
+
+def in_gate_chain(p):
+    """True when path p (normalised) is a file of a gate chain (see chain_gates_dir)."""
+    return any(chain_gates_dir(p[:m.end(1)]) for m in GATE_CHAIN_RX.finditer(p))
+
+
 # A gates/check-* file that does not exist yet cannot disable anything: creating one is shown
 # (ask), so feature 001 can add a project gate after the guard is registered. Once it exists,
 # it is guarded like the rest of the chain.
@@ -229,14 +265,15 @@ def new_gate_file(p, ab):
 
 
 # Directories that CONTAIN guarded files: deleting or moving one removes them all at once.
-# (`mv .claude .claude.off` passed silently before v1.4.0 — F9.)
+# (`mv .claude .claude.off` passed silently before v1.4.0 — F9.) A `gates` directory counts
+# when it is a gate chain (chain_gates_dir).
 GUARDED_ANCESTOR_RX = re.compile(
-    r"(?:^|/)(?:\.claude|gates|harness/skills/careful)$"
+    r"(?:^|/)(?:\.claude|harness/skills/careful)$"
     r"|^/etc$|^/library$|^/library/application support$|(?:^|/)program files$"
 )
 # Gate configuration: the adopter wires it, so an edit is legitimate — but quietly changing it
-# turns a red gate green, so it is always shown (ask), never silent.
-GATE_CONFIG_RX = re.compile(r"(?:^|/)gates/(?:[^/]+\.conf|orphan-allowlist\.txt)$")
+# turns a red gate green, so it is always shown (ask), never silent. Same anchoring as the chain.
+GATE_CONFIG_RX = re.compile(r"(?:^|/)(gates)/(?:[^/]+\.conf|orphan-allowlist\.txt)$", re.I)
 # The other two places that decide whether the chain runs at all, same treatment (ask):
 #   - the CI job `adopt.py --ci github` installs. GATES §1 calls CI the check nothing skips, yet
 #     an agent could Edit it to `run: true`, or `git rm` it, with {} (review 2026-09-29) while an
@@ -252,13 +289,52 @@ GATE_WIRING_RX = re.compile(
 def gate_wiring(p):
     """Why path p (normalised) is gate configuration or wiring, or None."""
     f = fold(p)
-    if GATE_CONFIG_RX.search(f):
+    m = GATE_CONFIG_RX.search(p)
+    if m and chain_gates_dir(p[:m.end(1)]):
         return "gate configuration (%s) — changing it can turn a red gate green" % p
     if GATE_WIRING_RX.search(f):
         if "/.github/" in "/" + f:
             return ("the CI job that runs the gate chain (%s) — changing or removing it changes "
                     "what CI enforces" % p)
         return "git's hook wiring (%s) — it decides whether the gate chain's hook runs" % p
+    return None
+
+
+# Directories that hold the CI job. Deleting, moving or restoring one takes the job with it:
+# review 2 of v1.4.0 ran `git rm -r -q .github && git commit` in an adopted project — the hook
+# passed it, the commit landed, and CI stopped running the chain — while the same command on
+# the file asked. `.github` is in most repositories, so only one that holds the job counts,
+# and only on disk evidence.
+CI_JOB_NAMES = ("factory-gates.yml", "factory-gates.yaml")
+
+
+def wiring_holder(p):
+    """Why the directory p (normalised, absolute) holds the gate chain's CI job, or None."""
+    if not is_abs(p):
+        return None
+    f = fold(p).rstrip("/")
+    if f.endswith("/.github"):
+        sub = "workflows/"
+    elif f.endswith("/.github/workflows"):
+        sub = ""
+    else:
+        return None
+    for name in CI_JOB_NAMES:
+        if os.path.lexists(os.path.join(p, sub + name)):
+            return ("a directory holding the CI job that runs the gate chain (%s%s%s) — removing "
+                    "or replacing it changes what CI enforces" % (p.rstrip("/"), "/" + sub, name))
+    return None
+
+
+def wiring_at(w, ctx, holders=True):
+    """Why word w names gate configuration or wiring — or, with holders, a directory holding
+    the CI job — or None."""
+    for v, rel, ab in _forms(w, ctx):
+        why = gate_wiring(rel) or gate_wiring(ab)
+        if not why and holders and is_abs(ab):
+            why = wiring_holder(ab) or wiring_holder(_realpath(ab))
+        if why:
+            return why
     return None
 
 
@@ -294,8 +370,11 @@ GIT_LONG_OPTS = {
     "branch": ("--delete", "--force"),
     "worktree": ("--force",),
     "gc": ("--prune",),
-    "config": ("--unset", "--unset-all", "--add", "--replace-all", "--edit", "--get", "--get-all",
-               "--get-regexp", "--list", "--show-origin", "--show-scope"),
+    "config": ("--unset", "--unset-all", "--add", "--replace-all", "--edit", "--remove-section",
+               "--rename-section", "--get", "--get-all", "--get-regexp", "--list",
+               "--show-origin", "--show-scope"),
+    "update-index": ("--chmod", "--cacheinfo", "--index-info", "--assume-unchanged",
+                     "--skip-worktree", "--stdin"),
 }
 
 
@@ -1055,13 +1134,16 @@ _HERE_F = fold(norm(HERE))
 
 def guarded(p):
     f = fold(p)
-    return bool(GUARDED_RX.search(f)) or f == _HERE_F or f.startswith(_HERE_F + "/")
+    return bool(GUARDED_RX.search(f)) or f == _HERE_F or f.startswith(_HERE_F + "/") or \
+        in_gate_chain(p)
 
 
 def guarded_ancestor(p):
     f = fold(p).rstrip("/")
     if GUARDED_ANCESTOR_RX.search(f):
         return True
+    if f == "gates" or f.endswith("/gates"):
+        return chain_gates_dir(p.rstrip("/"))
     # `harness` and `harness/skills` are common names; only on-disk evidence makes them guarded
     if re.search(r"(?:^|/)harness(?:/skills)?$", f):
         tail = "skills/careful/hooks" if f.endswith("harness") else "careful/hooks"
@@ -1102,8 +1184,11 @@ def star_parent(v):
 
 # `perl -pi -e … $(git ls-files .claude)`: the target list is built at runtime, but the text
 # that builds it names the guard's own directory — that is enough to stop.
-GUARD_DIR_MENTION_RX = re.compile(r"(?:^|[\s/'\"(=])(?:\.claude|gates|careful[/\\]hooks)"
-                                  r"(?:[/\\\s'\")]|$)", re.I)
+GUARD_DIR_MENTION_RX = re.compile(r"(?:^|[\s/'\"(=])(?:\.claude|careful[/\\]hooks)"
+                                  r"(?:[/\\\s'\")]|$)"
+                                  # a gate chain, not any `…/src/gates` (chain_gates_dir)
+                                  r"|(?:^|[\s'\"(=]|\.[/\\]|factory[/\\])gates(?:[/\\\s'\")]|$)",
+                                  re.I)
 
 
 def _opaque_guard(w):
@@ -1204,6 +1289,8 @@ def judge_delete(w, ctx, recursive, what="recursive delete"):
                     return (DENY, "%s of %s in a repository with NO remote — this is the only "
                                   "copy of that history. Push to a remote first." % (what, w)), False
         why = gate_wiring(rel) or gate_wiring(ab)
+        if not why and recursive and is_abs(ab):
+            why = wiring_holder(ab) or wiring_holder(rp)
         if why:
             return (ASK, "deleting %s." % why), False
     if not recursive:
@@ -1393,8 +1480,8 @@ def record_assign(name, value, ctx, findings):
     ctx.vars[name] = ["/tmp/mktemp.careful"] if MKTEMP_RX.fullmatch(value) else [value]
     up = name.upper()
     low = value.lower()
-    if (up.startswith("GIT_CONFIG_KEY_") and low == "core.hookspath") or \
-            (up == "GIT_CONFIG_PARAMETERS" and "core.hookspath" in low):
+    if (up.startswith("GIT_CONFIG_KEY_") and hooks_key(low)) or \
+            (up == "GIT_CONFIG_PARAMETERS" and ("core.hookspath" in low or "include" in low)):
         findings["verdicts"].append((ASK, "git hooks path overridden through the environment "
                                           "(%s) — this can skip the gate chain's git hook." % name))
 
@@ -1441,6 +1528,26 @@ GIT_GLOBAL_WITH_ARG = {"-C", "-c", "--git-dir", "--work-tree", "--namespace", "-
 PUSH_OPT_WITH_ARG = {"-o", "--push-option", "--receive-pack", "--exec", "--repo"}
 
 
+def hooks_key(key):
+    """True for a git config key that decides which hooks run: core.hooksPath itself, or an
+    include, which pulls in a file that can set it (measured, git 2.43: `git -c
+    include.path=x.cfg commit` and `git config include.path x.cfg` each skipped the hook)."""
+    k = key.strip().lower().replace(" ", "")
+    return k == "core.hookspath" or k == "include.path" or (
+        k.startswith("includeif.") and k.endswith(".path"))
+
+
+def _pathspec(p):
+    """A git pathspec as the path it names, or None for an exclusion (`:!x`, `:(exclude)x`)."""
+    m = re.match(r":\(([^)]*)\)(.*)", p, re.S)
+    if m:
+        return None if "exclude" in m.group(1) else (m.group(2) or ".")
+    m = re.match(r":([/!^]*)(.*)", p, re.S)
+    if m:
+        return None if ("!" in m.group(1) or "^" in m.group(1)) else (m.group(2) or ".")
+    return p
+
+
 def rule_git(argv, seg, ctx):
     words = [str(x) for x in argv[1:]]
     gitdir, i, verdict = None, 0, None
@@ -1452,14 +1559,25 @@ def rule_git(argv, seg, ctx):
         m = re.match(r"alias\.[^=]+=\s*!(.*)", val, re.S) if o == "-c" else None
         if m:
             verdict = worse(verdict, inspect_command(m.group(1), "bash", ctx, MAX_DEPTH))
-        if o == "-c" and val.lower().replace(" ", "").startswith("core.hookspath"):
-            verdict = worse(verdict, (ASK, "git -c core.hooksPath=… — runs git with the hooks "
-                                           "directory swapped, skipping the gate chain's hook."))
+        # -c NAME=VALUE, and --config-env NAME=ENVVAR (review 2: `H=/dev/null git
+        # --config-env=core.hooksPath=H commit` landed a red commit with {}).
+        cfg = val if o in ("-c", "--config-env") else (
+            o.split("=", 1)[1] if o.startswith("--config-env=") else None)
+        if cfg is not None and hooks_key(cfg.split("=", 1)[0]):
+            verdict = worse(verdict, (ASK, "git %s %s=… — runs git with the hooks directory "
+                                           "swapped, skipping the gate chain's hook."
+                                      % (o.split("=", 1)[0], cfg.split("=", 1)[0])))
         i += 2 if (o in GIT_GLOBAL_WITH_ARG and "=" not in o) else 1
     if i >= len(words):
         return verdict
     sub = words[i]
     args = [str(a) for a in canon_args(words[i + 1:], GIT_LONG_OPTS.get(sub, ()))]
+    # Pathspecs are relative to `-C DIR` when one is given; judge them against both bases.
+    pctxs = [ctx]
+    if gitdir and gitdir != ctx.base():
+        pc = ctx.child()
+        pc.cd, pc.lost = gitdir, False
+        pctxs.append(pc)
     gitdir = gitdir or ctx.base()
     opts, ops = split_opts(args)
     anyarg = lambda *xs: any(a in xs for a in args)
@@ -1479,7 +1597,7 @@ def rule_git(argv, seg, ctx):
                                                        "gate chain's pre-commit hook."))
 
     if sub == "config":
-        keys = [a for a in args if a.lower() == "core.hookspath"]
+        keys = [a for a in args if hooks_key(a)]
         if keys:
             reads = {"--get", "--get-all", "--get-regexp", "get", "-l", "--list", "list",
                      "--show-origin", "--show-scope"}
@@ -1488,8 +1606,67 @@ def rule_git(argv, seg, ctx):
             k = args.index(keys[0])
             after = [a for a in args[k + 1:] if not a.startswith("-")]
             if anyarg(*writes) or (after and not anyarg(*reads)):
-                verdict = worse(verdict, (ASK, "git config core.hooksPath — changes which git "
-                                               "hooks run; the gate chain's hook can drop out."))
+                verdict = worse(verdict, (ASK, "git config %s — changes which git hooks run; "
+                                               "the gate chain's hook can drop out." % keys[0]))
+        # Review 2: `git config --remove-section core` unset core.hooksPath with {} and a red
+        # commit landed; --rename-section does the same (at any scope: rare enough to show), and
+        # --edit hands the file to an editor ($GIT_EDITOR can be any command). --edit of the
+        # global or system file passes: --install-git-hook writes the repository's own config.
+        for flag in ("--remove-section", "remove-section", "--rename-section", "rename-section"):
+            if flag in args:
+                j = args.index(flag)
+                nxt = [a for a in args[j + 1:] if not a.startswith("-")]
+                if nxt and nxt[0].lower() == "core":
+                    verdict = worse(verdict, (ASK, "git config %s core — drops core.hooksPath "
+                                                   "with the rest of the section; the gate "
+                                                   "chain's hook stops running." % flag))
+        if (anyarg("--edit", "-e") or ops[:1] == ["edit"]) and not anyarg("--global", "--system"):
+            verdict = worse(verdict, (ASK, "git config --edit — rewrites the repository's git "
+                                           "config, where core.hooksPath lives, through an editor "
+                                           "the matcher cannot see."))
+        return verdict
+
+    if sub == "update-index":
+        # Review 2: `git update-index --chmod=-x gates/hooks/pre-commit` is chmod by another
+        # name — the commit records mode 100644 and every later clone ignores the hook — while
+        # `chmod -x` on the same file was denied. --cacheinfo stages any blob under a path
+        # without touching the working tree. `--chmod=+x` only restores the bit adopt.py --check
+        # asks for, so it passes.
+        bad_chmod = any(a.startswith("--chmod") and a != "--chmod=+x" for a in args)
+        paths = []
+        for j, a in enumerate(args):
+            if a == "--cacheinfo" and j + 1 < len(args):
+                paths.append(args[j + 1].split(",")[-1])
+                if "," not in args[j + 1] and j + 3 < len(args):
+                    paths.append(args[j + 3])
+            elif a.startswith("--cacheinfo="):
+                paths.append(a.split(",")[-1])
+        cache = bool(paths) or anyarg("--cacheinfo") or any(a.startswith("--cacheinfo=")
+                                                             for a in args)
+        if bad_chmod or cache:
+            paths += ops
+            for pth in paths:
+                for pc in pctxs:
+                    if touches_guard(_word(pth, False), pc, ancestors=False):
+                        return worse(verdict, (DENY, "git update-index %s on a guardrail file "
+                                                     "(%s) — it changes what is committed "
+                                                     "there; the next clone gets it. Have a "
+                                                     "human do it." % (
+                                                         "--chmod" if bad_chmod else "--cacheinfo",
+                                                         pth)))
+        if anyarg("--index-info") or ((bad_chmod or cache) and anyarg("--stdin")):
+            verdict = worse(verdict, (ASK, "git update-index reading paths from stdin — cannot "
+                                           "see which files' committed mode or content changes."))
+        if anyarg("--assume-unchanged", "--skip-worktree"):
+            for pth in ops:
+                w = _word(pth, False)
+                if any(touches_guard(w, pc, ancestors=True) or wiring_at(w, pc)
+                       for pc in pctxs):
+                    verdict = worse(verdict, (ASK, "git update-index --assume-unchanged/"
+                                                   "--skip-worktree on %s — git then hides "
+                                                   "changes to it from status, diff and commit."
+                                              % pth))
+                    break
         return verdict
 
     if sub == "push":
@@ -1506,20 +1683,20 @@ def rule_git(argv, seg, ctx):
         # rewrote or removed the guard with {}. Every pathspec is judged; a branch name that
         # looks like a guarded path is not a real case.
         paths = args[args.index("--") + 1:] if "--" in args else ops
+        paths = [q for q in (_pathspec(p) for p in paths) if q]
         for pth in paths:
-            hit = touches_guard(_word(pth, False), ctx, ancestors=True)
-            if hit:
+            if any(touches_guard(_word(pth, False), pc, ancestors=True) for pc in pctxs):
                 return worse(verdict, (DENY, "git %s on a guardrail file or a directory holding "
                                              "one (%s) — it rewrites or removes the guard." %
                                        (sub, pth)))
         if sub != "clean":
+            # Review 2: `git rm -r .github`, `git mv .github/workflows x` and `git restore
+            # --source=HEAD~5 .github` took the CI job with them, with {}.
             for pth in paths:
-                for v, rel, ab in _forms(_word(pth, False), ctx):
-                    why = gate_wiring(rel) or gate_wiring(ab)
-                    if why:
-                        verdict = worse(verdict, (ASK, "git %s on %s; a human should see it."
-                                                  % (sub, why)))
-                        break
+                why = next(filter(None, (wiring_at(_word(pth, False), pc) for pc in pctxs)), None)
+                if why:
+                    verdict = worse(verdict, (ASK, "git %s on %s; a human should see it."
+                                              % (sub, why)))
     if sub in ("checkout", "restore") and "." in ops:
         return worse(verdict, (ASK, "git checkout/restore . — discards all uncommitted "
                                     "working-tree changes."))
@@ -1545,8 +1722,12 @@ def rule_git(argv, seg, ctx):
 
 
 def rule_git_push(args, gitdir, ctx):
-    lease = any(a.startswith("--force-with-lease") or a.startswith("--force-if-includes")
-                for a in args)
+    # Plain force wins over a lease (review 2, measured on git 2.43): `git push --force-with-lease
+    # --force origin main` overwrote a remote a teammate had moved — git applies the lease and
+    # then lets --force defeat its rejection, as it does a `+refspec`. So a lease relaxes only a
+    # push that carries no other force. --force-if-includes on its own is a plain push: git
+    # ignores it without --force-with-lease.
+    lease = any(a.startswith("--force-with-lease") for a in args)
     forced = any(a in ("--force", "-f") or (re.fullmatch(r"-[a-zA-Z]+", a) and "f" in a[1:])
                  for a in args)
     pos, skip = [], False
@@ -1570,7 +1751,7 @@ def rule_git_push(args, gitdir, ctx):
                       "Push the branch you mean by name instead.")
     if not (lease or forced or plus or deleting):
         return None
-    if lease and not (plus or deleting):
+    if lease and not (forced or plus or deleting):
         return (ASK, "git push --force-with-lease — still rewrites remote history, but refuses "
                      "if the remote moved.")
     if forced and any(a in ("--all", "--branches") for a in args):
@@ -1613,7 +1794,9 @@ def rule_git_push(args, gitdir, ctx):
         return (ASK, "git push --delete — removes a ref from the remote.")
     if hit:
         return (DENY, "force-push to the protected branch '%s' — rewrites shared history "
-                      "irreversibly. Push without --force, or use --force-with-lease." % hit[0])
+                      "irreversibly. Push without --force, or use --force-with-lease%s." % (
+                          hit[0], " ALONE: with --force or a +refspec as well, git skips the "
+                                  "lease check" if lease else ""))
     if unknown:
         return (DENY, "force-push to a branch that cannot be named here (detached or unborn HEAD, "
                       "or a destination built at runtime) — treated as protected. Name the "
@@ -1689,6 +1872,11 @@ def rule_copyish(argv, seg, ctx, a0):
         verdict = judge_write(dest, ctx, "rsync")
         for s in ops[:-1]:
             verdict = worse(verdict, judge_write(_join(dest, s), ctx, "rsync"))
+        # `src/` lands its contents in dest itself; `src` lands in dest/src.
+        for t in [dest if _slash(str(s)).endswith("/") else _join(dest, s) for s in ops[:-1]]:
+            why = wiring_at(t, ctx)
+            if why:
+                verdict = worse(verdict, (ASK, "rsync onto %s; a human should see it." % why))
         return verdict
     if tdir is not None:
         sources, dest = list(ops), tdir
@@ -1705,18 +1893,25 @@ def rule_copyish(argv, seg, ctx, a0):
         return (DENY, "recursive copy into a directory holding guardrail files (%s) — it can "
                       "overwrite the guard." % dest)
     verdict = None
+    if recursive:
+        # `cp -r x/. .github` and `cp -rT x .github` write into .github itself; `cp -r
+        # workflows .github` writes .github/workflows. Either can replace the CI job.
+        into = short_has(opts, "T") or "--no-target-directory" in opts
+        for t in ([dest] if into else []) + [_join(dest, s) for s in sources]:
+            why = wiring_at(t, ctx)
+            if why:
+                verdict = worse(verdict, (ASK, "recursive copy onto %s; a human should see it."
+                                          % why))
     if a0 in ("mv", "rename", "ln"):
         for s in sources:
             if touches_guard(s, ctx, ancestors=True):
                 return (DENY, "%s of a guardrail file or a directory holding one (%s) — it "
                               "moves the guard away or gives it a second, unguarded name." % (a0, s))
             if a0 != "ln":
-                for v, rel, ab in _forms(s, ctx):
-                    why = gate_wiring(rel) or gate_wiring(ab)
-                    if why:
-                        verdict = worse(verdict, (ASK, "%s moves away %s; a human should see it."
-                                                  % (a0, why)))
-                        break
+                why = wiring_at(s, ctx)          # the file, or a directory holding the CI job
+                if why:
+                    verdict = worse(verdict, (ASK, "%s moves away %s; a human should see it."
+                                              % (a0, why)))
     for t in [dest] + [_join(dest, s) for s in sources]:
         v = judge_write(t, ctx, a0)
         if v and v[0] == DENY:
@@ -2073,6 +2268,10 @@ def rule_find(argv, seg, ctx):
                     fnmatch.fnmatch(b, p.rsplit("/", 1)[-1]) for p in pats for b in GUARD_BASENAMES)):
                 return (DENY, "find -exec %s over the guard's own files (%s) — it can rewrite or "
                               "remove them." % (", ".join(execs), r))
+            why = wiring_at(w, ctx)
+            if why:
+                return (ASK, "find -exec %s over %s; a human should see it."
+                        % (", ".join(execs), why))
         return None
     if not deletes:
         return None
@@ -2155,11 +2354,16 @@ def rule_extract(argv, seg, ctx, a0):
             dests.append(a.split("=", 1)[1])
         elif a0.startswith("7z") and a.startswith("-o") and len(a) > 2:
             dests.append(a[2:])
+    verdict = None
     for d in dests:
         if touches_guard(_word(d, False), ctx, ancestors=True):
             return (DENY, "%s extracting into a directory holding guardrail files (%s) — the "
                           "archive can overwrite the guard." % (a0, d))
-    return None
+        why = wiring_at(_word(d, False), ctx)
+        if why:
+            verdict = worse(verdict, (ASK, "%s extracting into %s; a human should see it."
+                                      % (a0, why)))
+    return verdict
 
 
 def rule_adopt(argv, seg, ctx):
@@ -2331,16 +2535,20 @@ def rule_pwsh_cmdlet(argv, seg, ctx, a0):
         return None
     if a0 in MOVE_ITEM:
         dest = _pp(params, "destination", "newname")
+        verdict = None
         for w in words[:1] if dest else words[:-1] or words:
             if touches_guard(w, ctx, ancestors=True):
                 return (DENY, "Move-Item of a guardrail file or a directory holding one (%s) — it "
                               "moves the guard away." % w)
+            why = wiring_at(w, ctx)
+            if why:
+                verdict = (ASK, "Move-Item moves away %s; a human should see it." % why)
         for d in (dest or words[1:2]):
             if d is not True:
                 v = judge_write(_word(str(d), False), ctx, "Move-Item")
                 if v:
-                    return v
-        return None
+                    return worse(verdict, v)
+        return verdict
     if a0 in PS_WRITERS:
         # the path is -Path/-LiteralPath/-FilePath or the FIRST positional; the rest is -Value
         named = [p for p in _pp(params, "path", "literalpath", "lp", "pspath", "filepath")
@@ -2757,6 +2965,7 @@ def decide(payload, cfg=None, cfg_error=None):
     if isinstance(payload.get("scratchpad_dir"), str) and payload["scratchpad_dir"]:
         scratch_extra = (fold(norm(payload["scratchpad_dir"])).rstrip("/") + "/",)
     ctx = Ctx(cfg, cwd, norm(proj) if proj else None, scratch_extra)
+    _PROJECT_GATES[0] = fold(ctx.project).rstrip("/") + "/gates" if ctx.project else None
 
     if tool in WRITE_TOOLS:
         verdict = None

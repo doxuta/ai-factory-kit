@@ -211,9 +211,9 @@ What this means for the kit:
 - File-tool paths arrive with backslash separators, even when the hook runs under Git Bash; the
   guard normalises them before matching.
 - A CRLF checkout makes bash fail on the scripts; `adopt.py` appends LF rules for the
-  installed scripts and gate configuration, by extension (`.claude/hooks/*.sh`, `gates/*.sh`,
-  `gates/hooks/*`, …), to the project's `.gitattributes` — never a whole-tree rule, which would
-  also rewrite the CRLF bytes inside a binary under `gates/`.
+  installed scripts and gate configuration, by extension or by name (`.claude/hooks/*.sh`,
+  `gates/*.sh`, `gates/hooks/pre-commit`, …), to the project's `.gitattributes` — never a
+  whole-directory rule, which would also rewrite the CRLF bytes inside a binary under `gates/`.
 
 **Untested.** No live session on a native Windows host, and none on any host other than Claude
 Code, has been run against this version of the harness. The per-host rows above come from

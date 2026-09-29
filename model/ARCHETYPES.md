@@ -160,9 +160,10 @@ The API is the product; its callers live in other repositories.
   line `import os` (checked on this release). `acceptance:` end-to-end tests that run the
   entry point as a subprocess on fixture files, or `NA: <reason>`.
 - **careful.json** —
-  `"extra_ask": ["\\bgit\\s+push\\b.*\\s(--tags|refs/tags/|v\\d)", "\\bgh\\s+release\\s+create\\b", "\\bgoreleaser\\s+release\\b(?!.*--snapshot)"]`
-  (a pushed version tag is what most release pipelines trigger on;
-  `goreleaser release --snapshot` passes).
+  `"extra_ask": ["\\bgit\\s+push\\b.*\\s(--tags|--follow-tags|refs/tags/|v\\d+\\.\\d+)", "\\bgh\\s+release\\s+create\\b", "\\bgoreleaser\\s+release\\b(?!.*--snapshot)"]`
+  (a pushed version tag is what most release pipelines trigger on. The tag has to look like
+  one — `v` + digits + `.` + digits — so `git push origin v0.3.0` asks and a branch named
+  `v2-api-cleanup` does not; `goreleaser release --snapshot` passes).
 - **Acceptance** — the acceptor installs from the built artifact (wheel, binary) in a clean
   environment, not from the source tree, and runs `quickstart.md`. Exit codes and output
   formats are part of the contract and are asserted.

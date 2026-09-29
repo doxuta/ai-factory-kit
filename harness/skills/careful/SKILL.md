@@ -111,8 +111,8 @@ means printing `{}`.
 
 | Tier | Shapes |
 |---|---|
-| `deny` — nothing undoes it | recursive delete (`rm -r`, `find -delete` without a filter, `Remove-Item -Recurse`, `rd /s`, `rsync --delete`) of `/`, `$HOME`, any directory above `$HOME`, `/home` / `/Users` / `C:\Users\<name>`, or everything in one of them (`~/*`, `"$DIR/"*` with `DIR` unset); force-push (flag or `+refspec`) or delete (`:main`, `--delete`, `gh api -X DELETE …/refs/heads/main`) of a protected branch, `--mirror`, `--force --all`, and a force-push whose branch cannot be named (detached or unborn `HEAD`, `$VAR`, `$(…)`); raw block-device writes (`dd of=/dev/sda`, `> /dev/disk4`, `mkfs`/`wipefs -a`/`blkdiscard`/`sgdisk --zap-all` on a device, `diskutil eraseDisk`); eFuse burns (`espefuse burn_*`, `idf.py efuse-burn`); recursive delete of `.git`, `.specify` or `.specify/memory` in a repository with **no remote**, and of the project directory itself; every write, move, link, delete, `chmod` or `git checkout/restore/rm` of a guarded file (next section) |
-| `ask` — destructive but recoverable, or unreadable | `rm -r` outside the safe list · SQL `DROP`/`TRUNCATE`/`DELETE`/`UPDATE` without `WHERE` through a DB client, including warehouses (`bq`, `snowsql`, `duckdb`, `spark-sql`, `clickhouse-client`, …) · ORM resets (`prisma migrate reset`, `rails db:drop`, `manage.py flush`, `artisan migrate:fresh`, `redis-cli FLUSHALL`, `dropdb`, …) · migrate down · cloud and IaC teardown (`terraform`/`tofu`/`pulumi`/`cdk destroy`, `apply -destroy`, `state rm`, `helm uninstall`, `kubectl delete`, `aws s3 rm --recursive`, `aws … delete-*`, `gcloud … delete`, `az … delete`) · flash erase (`esptool erase_flash`, `st-flash erase`, `nrfjprog --eraseall`) · publish and unpublish (`npm publish`/`unpublish`, `cargo publish`/`yank`, `twine upload`, `gh release delete`, …) · `git commit/push --no-verify`, `commit -n`, `git config core.hooksPath`, `git -c core.hooksPath=…`, and any edit, move or delete of git's hook wiring (`.git/config`, `.git/hooks/*`) · edits, moves and deletes of the CI job `adopt.py --ci github` installs (`.github/workflows/factory-gates.yml`) · `adopt.py --upgrade` · `reset --hard` · `checkout/restore .` · `clean -f` · `branch -D` · `--force-with-lease` and force-push to other branches · `sed -i` / `perl -i` · compose `down -v` · edits to gate configuration (`gates/*.conf`, `gates/orphan-allowlist.txt`) and creating a **new** `gates/check-*` script · writes to a dot-entry in `$HOME` or a system path (`/etc`, `/usr`, …) · anything piped into a shell that is not a readable literal · a command name built at runtime · a command over 256 K characters |
+| `deny` — nothing undoes it | recursive delete (`rm -r`, `find -delete` without a filter, `Remove-Item -Recurse`, `rd /s`, `rsync --delete`) of `/`, `$HOME`, any directory above `$HOME`, `/home` / `/Users` / `C:\Users\<name>`, or everything in one of them (`~/*`, `"$DIR/"*` with `DIR` unset); force-push (flag or `+refspec`, with or without `--force-with-lease` beside it — plain force defeats the lease) or delete (`:main`, `--delete`, `gh api -X DELETE …/refs/heads/main`) of a protected branch, `--mirror`, `--force --all`, and a force-push whose branch cannot be named (detached or unborn `HEAD`, `$VAR`, `$(…)`); raw block-device writes (`dd of=/dev/sda`, `> /dev/disk4`, `mkfs`/`wipefs -a`/`blkdiscard`/`sgdisk --zap-all` on a device, `diskutil eraseDisk`); eFuse burns (`espefuse burn_*`, `idf.py efuse-burn`); recursive delete of `.git`, `.specify` or `.specify/memory` in a repository with **no remote**, and of the project directory itself; every write, move, link, delete, `chmod`, `git update-index --chmod`/`--cacheinfo` or `git checkout/restore/rm` of a guarded file (next section) |
+| `ask` — destructive but recoverable, or unreadable | `rm -r` outside the safe list · SQL `DROP`/`TRUNCATE`/`DELETE`/`UPDATE` without `WHERE` through a DB client, including warehouses (`bq`, `snowsql`, `duckdb`, `spark-sql`, `clickhouse-client`, …) · ORM resets (`prisma migrate reset`, `rails db:drop`, `manage.py flush`, `artisan migrate:fresh`, `redis-cli FLUSHALL`, `dropdb`, …) · migrate down · cloud and IaC teardown (`terraform`/`tofu`/`pulumi`/`cdk destroy`, `apply -destroy`, `state rm`, `helm uninstall`, `kubectl delete`, `aws s3 rm --recursive`, `aws … delete-*`, `gcloud … delete`, `az … delete`) · flash erase (`esptool erase_flash`, `st-flash erase`, `nrfjprog --eraseall`) · publish and unpublish (`npm publish`/`unpublish`, `cargo publish`/`yank`, `twine upload`, `gh release delete`, …) · `git commit/push --no-verify`, `commit -n`, `git config core.hooksPath`, `git -c`/`--config-env core.hooksPath=…`, an `include.path` set the same ways, `git config --remove-section`/`--rename-section core` and `git config --edit`, `update-index --assume-unchanged`/`--skip-worktree` on a gate file, and any edit, move or delete of git's hook wiring (`.git/config`, `.git/hooks/*`) · edits, moves and deletes of the CI job `adopt.py --ci github` installs (`.github/workflows/factory-gates.yml`), and of a directory holding it (`git rm -r .github`, `mv .github/workflows …`, `git restore --source=… .github`) · `adopt.py --upgrade` · `reset --hard` · `checkout/restore .` · `clean -f` · `branch -D` · `--force-with-lease` alone, and force-push to other branches · `sed -i` / `perl -i` · compose `down -v` · edits to gate configuration (`gates/*.conf`, `gates/orphan-allowlist.txt`) and creating a **new** `gates/check-*` script · writes to a dot-entry in `$HOME` or a system path (`/etc`, `/usr`, …) · anything piped into a shell that is not a readable literal · a command name built at runtime · a command over 256 K characters |
 | pass | everything else — printed as `{}`, so the host's own permission flow decides |
 
 An abbreviated long option is that option: GNU `getopt_long`, git and Python's `argparse` all
@@ -136,7 +136,7 @@ flashes boards with `write_flash`, which stays silent.
 | `.claude/hooks/**` — matcher, shim, `careful.json`, tests | this is the guard |
 | `.claude/settings.json`, `.claude/settings.local.json` (any `.claude/`, incl. `~/.claude/`) | where hooks are registered, or disabled wholesale with `disableAllHooks` |
 | managed settings: `/etc/claude-code/**`, `/Library/Application Support/ClaudeCode/**`, `C:\Program Files\ClaudeCode\**` | the same switch, one level up; writable by an agent running as root, as in most containers |
-| `gates/run-chain.sh`, `gates/check-*.sh`, `gates/check-*.py`, `gates/hooks/**` | the gate chain the guard protects |
+| `gates/run-chain.sh`, `gates/check-*.sh`, `gates/check-*.py`, `gates/hooks/**` — in the project's `gates/`, in any `gates/` holding `run-chain.sh` (the kit copy under `factory/`), and wherever the directory cannot be looked at (a relative `gates/…`, a path built at runtime) | the gate chain the guard protects. A feature-flag `src/gates/hooks/` is not the chain: until review 2 of v1.4.0 any directory named `gates` was, and editing or moving one was denied with no way to exempt it |
 | `harness/skills/careful/hooks/**`, including under `factory/` | the copy an upgrade installs |
 | `harness/settings.json.template`, including under `factory/` | the wiring `adopt.py --register-guard` copies into `.claude/settings.json`; that command stays allowed because it can only restore the kit's wiring, so its source must not be editable |
 | `.specify/scripts/**` | scripts the Spec Kit flow shells out to |
@@ -144,22 +144,25 @@ flashes boards with `write_flash`, which stays silent.
 **Deny** covers the file-edit tools (`Write`, `Edit`, `MultiEdit`, `NotebookEdit`) and, on the
 shell side, every redirect (`>`, `>>`, `>|`, `&>`, `2>`), `rm`, `mv`, `cp`, `ln`, `install`,
 `truncate`, `dd of=`, `tee`, `sponge`, `sed -i`, `perl -i`, editors, `chmod`/`chown`, `rsync`,
-`git rm`, `git checkout … --`, `git restore`, `git mv`, `git clean <path>`, `find -delete` or
-`find -exec` whose traversal reaches the guard, `xargs` fed a listing of it, `cp -r`/`rsync`/
-`tar -C`/`unzip -d` into a directory holding it, PowerShell `Remove-Item`/`Move-Item`/
+`git rm`, `git checkout … --`, `git restore`, `git mv`, `git clean <path>`, `git update-index
+--chmod=-x`/`--cacheinfo` (they change what is committed there without touching the file;
+`--chmod=+x` passes, since it only restores the bit), `find -delete` or `find -exec` whose
+traversal reaches the guard, `xargs` fed a listing of it, `cp -r`/`rsync`/`tar -C`/`unzip -d`
+into a directory holding it, PowerShell `Remove-Item`/`Move-Item`/
 `Set-Content`/`Out-File`/`Copy-Item`, and deleting or moving any directory that holds these
-files (`.claude`, `gates`).
-A path is normalised before it is matched — `//`, `/./`, `..`, backslashes, case, NTFS trailing
-dots and `::$DATA`, globs expanded against the disk, symlinks resolved — because v1.3 matched
-the literal spelling and `.claude//hooks/x`, `.CLAUDE/Hooks/x`, `>|` and
-`C:\proj\.claude\hooks\x` each passed with `{}` (F8, F44), as did `rm`, `mv`, `cp`, `ln`,
-`truncate`, `git rm`, `git checkout HEAD~1 -- …` on the guard (F9).
+files (`.claude`, `gates`). A path is normalised before it is matched — `//`, `/./`, `..`,
+backslashes, case, NTFS trailing dots and `::$DATA`, globs expanded against the disk, symlinks
+resolved — because v1.3 matched the literal spelling and `.claude//hooks/x`, `.CLAUDE/Hooks/x`,
+`>|` and `C:\proj\.claude\hooks\x` each passed with `{}` (F8, F44), as did `rm`, `mv`, `cp`,
+`ln`, `truncate`, `git rm`, `git checkout HEAD~1 -- …` on the guard (F9).
 
 Some edits stay possible, and shown (ask), because the adopter legitimately makes them — but a
 quiet one turns a red chain green or stops it running: gate configuration (`gates/chain.conf`,
 `gates/*.conf`, `gates/orphan-allowlist.txt`); the CI job `.github/workflows/factory-gates.yml`,
 which the adopter extends with toolchain steps (before the 2026-09-29 review an agent could
-`git rm` it with `{}` while an edit to `chain.conf` asked); and git's hook wiring, `.git/config`
+`git rm` it with `{}` while an edit to `chain.conf` asked; until the second review, `git rm -r
+.github` still could, and the commit landed — a directory holding the job now asks too, and
+`adopt.py --check` fails while it is gone); and git's hook wiring, `.git/config`
 and `.git/hooks/*` (`git config --unset core.hooksPath` asked; an Edit deleting the same line
 passed). A `gates/check-*` script that does **not exist yet** asks, so feature 001 can add a
 project gate after registration; once it exists it is guarded. **Reading** any of these is
@@ -222,14 +225,18 @@ After fixing those: 800 → 77.
    corpus said one in eight.
 3. **Precision beats scope.** Every fix above made the matcher narrower.
 
-v1.4.0 numbers, from real runs. `careful-corpus.txt` holds 384 ordinary commands across stacks
+v1.4.0 numbers, from real runs. `careful-corpus.txt` holds 395 ordinary commands across stacks
 (git, JS, Python, Go, Rust, JVM, .NET, Ruby/PHP/Elixir, mobile, containers, IaC, embedded,
 data, PowerShell): **0 interrupted**, and the table fails if one ever is. (Review found two
 ordinary cleanups missing from it — `find . -name '*.pyc' -delete` and
 `find . -type d -name __pycache__ -exec rm -rf {} +` — which asked while `rm -rf __pycache__`
 was silent, and no `careful.json` key could change that. A find cleanup is now silent when every
 root is inside the project, every `-name` is a `safe_dirs` entry or a bytecode pattern, and
-nothing in the expression can widen it: no `-o`, no `!`, no `-path`, no other `-exec`.) That corpus is
+nothing in the expression can widen it: no `-o`, no `!`, no `-path`, no other `-exec`. A second
+review found the guard treating every directory named `gates` as the gate chain: an Edit of
+`src/gates/hooks/useGate.ts` or `git mv src/gates …` in feature-flag code was denied, and
+`careful.json`, additive only, could not exempt it. The chain is now the project's `gates/` or
+one holding `run-chain.sh`, and eleven such commands joined the corpus.) That corpus is
 constructed, so the real-traffic replay was repeated on the **2,002 unique commands** from the
 agent sessions that built and audited this kit: v1.3.2 interrupted 165 (8.2%), v1.4.0
 interrupts 89 (4.4%). Each of the 89 is a rule doing what it says: 40 denies on writes, moves
@@ -298,6 +305,11 @@ Per [GATES](../../../gates/GATES.md) §4, a gate says what it cannot see, in its
   (measured on this release). Keep the kit's directories out of the formatter's scope
   ([ARCHETYPES](../../../model/ARCHETYPES.md), "Stack stanzas"); `adopt.py --check` reports a
   kit file that changed anyway.
+- **Git plumbing that writes the index or history directly.** `git apply --cached`,
+  `git read-tree`, `git commit-tree`, or `git revert` of the commit that installed the CI job
+  change what is committed without naming a guarded path as a path. `git update-index
+  --chmod=-x`/`--cacheinfo` on a guarded path is denied and `--index-info` asks; the rest pass.
+  CI runs the committed chain, and `adopt.py --check` fails while the CI job is gone.
 - **A session started below the project root.** Claude Code reads the shared
   `.claude/settings.json` from the session's primary working directory (its settings docs, read
   2026-09-29; not observed live), so a session opened in a monorepo package runs without the
@@ -306,12 +318,13 @@ Per [GATES](../../../gates/GATES.md) §4, a gate says what it cannot see, in its
 ## Verification — two steps, and step 2 is the one that was skipped
 
 ```bash
-bash .claude/hooks/check-careful.test.sh   # step 1: passed 613, failed 0
+bash .claude/hooks/check-careful.test.sh   # step 1: passed 722, failed 0
 ```
 
-(Before `--register-guard` it reads 602 and prints `SKIP` for the wiring checks, which test the
+(Before `--register-guard` it reads 711 and prints `SKIP` for the wiring checks, which test the
 registered command in `.claude/settings.json`: intact, broken, empty, printing no decision, and
-missing.)
+missing. It also loads every `careful.json` stanza in `factory/model/ARCHETYPES.md` and checks
+the CLI stanza's tag rule; with no `factory/` there it prints `SKIP` for that too.)
 
 Step 1 builds its own fixtures — throwaway repos on `main`, a feature branch, detached and
 unborn `HEAD`, with and without a remote; a fake `$HOME` and project; a clean copy of the hook —
@@ -320,7 +333,7 @@ branch, in detached CI checkouts and in a fresh repo, because one row asked the 
 checkout which branch it was on — F26.) It pins decision and envelope for every row, the
 generated escapes (1,680 variants, 480 of them with abbreviated long options), the size
 limits, the fail-closed wiring, the no-Python fallback, your
-`careful.json`, and the false-positive corpus.
+`careful.json`, the false-positive corpus, and the ARCHETYPES stanzas.
 
 **Step 2, in a live session**, after the first commit. Both probes work in a repository with
 no remote, and neither has any blast radius:

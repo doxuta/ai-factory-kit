@@ -54,26 +54,26 @@ run needed **228 lines of kit adaptation for 204 lines of product**. This releas
   first `---` anywhere — the first draft of this release's rules had one in a comment.
 - **The careful guard was rebuilt, because v1.3.2's deny tier had holes.** Tested before the
   rewrite, `rm -rf /` returned `{}` (allow) inside `if … then … fi`, a subshell, a function
-  body, `$(…)`, a heredoc fed to `bash`, and `echo "…" | sh`; a 129-character `base64` line
-  took 69 s against a 10 s hook timeout, and a timed-out hook blocks nothing. The regex matcher
-  is replaced by a lexer for bash and one for PowerShell. Deny now covers every tool and shell
-  form of writing, moving or deleting the guard's files, the gate scripts and Claude Code's
-  managed settings, after path normalisation; raw block-device writes and eFuse burns; and
-  recursive delete of `.git` or `.specify` in a repository with no remote. New asks: cloud and
-  IaC teardown, warehouse SQL, ORM resets, publish, `--no-verify`, `core.hooksPath`,
-  `adopt.py --upgrade`. `careful.json` adds project rules and can remove none, and a typo in it
-  turns every pass into an ask instead of quietly dropping a rule. The registered command fails
+  body, `$(…)`, a heredoc fed to `bash`, and `echo "…" | sh`; a 129-character `base64` line took
+  69 s against a 10 s hook timeout, and a timed-out hook blocks nothing. The regex matcher is
+  replaced by a lexer for bash and one for PowerShell. Deny now covers every tool and shell form
+  of writing, moving or deleting the guard's files, the gate scripts and Claude Code's managed
+  settings, after path normalisation; raw block-device writes and eFuse burns; and recursive
+  delete of `.git` or `.specify` in a repository with no remote. New asks: cloud and IaC
+  teardown, warehouse SQL, ORM resets, publish, `--no-verify`, `core.hooksPath`, `adopt.py
+  --upgrade`. `careful.json` adds project rules and can remove none, and a typo in it turns
+  every pass into an ask instead of quietly dropping a rule. The registered command fails
   closed. Integration closed one more hole: `harness/settings.json.template` was editable while
   `adopt.py --register-guard` is allowed, so one edit plus one allowed command could rewrite the
-  guarded `settings.json`; the template is now guarded (5 rows; removing the rule fails 3).
-  The test table grew from 142 to **613 rows** (550 at integration, 63 added in the review
-  round), hermetic (it builds its own repos, so it passes on any branch or detached `HEAD`),
-  plus 1,680 generated variants that must stay deny, 480 of them with abbreviated long options
-  — the generator's first run found three escapes, fixed. Its false-positive corpus: **384
-  ordinary commands, 0 interrupted**. Replaying the 2,002 unique shell commands from the
-  sessions that built this release (measured before the review round): v1.3.2 interrupted 165
-  (8.2%), v1.4.0 interrupts 89 (4.4%), every one by a designed rule. The cost: about 75 ms per
-  call, up from 48.
+  guarded `settings.json`; the template is now guarded (5 rows; removing the rule fails 3). The
+  test table grew from 142 to **722 rows** (550 at integration, 63 added in the first review
+  round and 109 in the second), hermetic (it builds its own repos, so it passes on any branch or
+  detached `HEAD`), plus 1,680 generated variants that must stay deny, 480 of them with
+  abbreviated long options — the generator's first run found three escapes, fixed. Its
+  false-positive corpus: **395 ordinary commands, 0 interrupted**. Replaying the 2,002 unique
+  shell commands from the sessions that built this release (measured before the review rounds):
+  v1.3.2 interrupted 165 (8.2%), v1.4.0 interrupts 89 (4.4%), every one by a designed rule. The
+  cost: about 75 ms per call, up from 48.
 - **The kit stops assuming one kind of product.** The constitution template keeps Articles
   I–VII but gains an "Adapting at ratification" block (what is fixed, what is a slot, what may
   be N/A with a dated reason — never deleted), Article V becomes the product's real entry point,
@@ -118,22 +118,22 @@ maintainer step after merge). The ones that change behaviour:
   `--register-guard`). `find`-based `__pycache__`/`*.pyc` cleanup is silent, like `rm -rf
   __pycache__`.
 - *adopt.py.* `--check` fails on a guard or gate script that differs from the kit's (a kept
-  v1.3.2 matcher, an emptied shim and a brownfield gate that shadowed the kit's all passed
-  with a warning), on a script without its execute bit on disk or in the index (a `.factory-new`
+  v1.3.2 matcher, an emptied shim and a brownfield gate that shadowed the kit's all passed with
+  a warning), on a script without its execute bit on disk or in the index (a `.factory-new`
   taken by `mv` silently disabled the pre-commit hook; `.factory-new` of a script is now
   executable), and on a `factory/` older than what the project installed — a teammate's stale
   submodule, where `--upgrade` used to reinstall the older guard with a green `--check`; now
-  `adopt.py` refuses there unless `--upgrade --allow-downgrade`. It warns on a deleted CI job
-  or hook, on a clone whose `core.hooksPath` is not wired, and on unfilled placeholders. The
-  appended `.gitattributes` rule `gates/** text eol=lf` rewrote the CRLF bytes inside every
-  binary under `gates/` (a PNG's signature); the rules are now by extension, and an earlier
-  block is replaced. The constitution override's links are written for `.specify/memory/`,
-  where `/speckit-constitution` copies them (one run had left 18 dead links). `--check` no longer
-  runs a `run-chain.sh` the kit did not write, `.claude/settings.json.template` is no longer
+  `adopt.py` refuses there unless `--upgrade --allow-downgrade`. It warns on a clone whose
+  `core.hooksPath` is not wired and on unfilled placeholders, and on a deleted CI job or hook
+  (the second round below made that a failure). The appended `.gitattributes` rule `gates/**
+  text eol=lf` rewrote the CRLF bytes inside every binary under `gates/` (a PNG's signature);
+  the rules are now by extension (since the second round, the hook by name), and an earlier
+  block is replaced. The constitution override's links are written for `.specify/memory/`, where
+  `/speckit-constitution` copies them (one run had left 18 dead links). `--check` no longer runs
+  a `run-chain.sh` the kit did not write, `.claude/settings.json.template` is no longer
   installed, a profile change is no longer blamed on the kit, a pristine v1.3 duplicate of the
-  guard is recognised by `factory/`'s history, a rule without frontmatter is valid, and
-  `--ci github` refuses in a project below the repository root, where GitHub would never read
-  the job.
+  guard is recognised by `factory/`'s history, a rule without frontmatter is valid, and `--ci
+  github` refuses in a project below the repository root, where GitHub would never read the job.
 - *The spec gates.* `check-plan-sync.sh` read a 1.3.x `| ⬜ | M1-T2 |` table as no tasks, so a
   shipped spec with an open row was green in both gates; those rows are now tasks (with a
   warning to convert), and a task-less `tasks.md` past draft is red. `check-spec-approval.sh`
@@ -159,6 +159,57 @@ fresh smoke adoption of this tree as a submodule tagged v1.4.0 (`--profile cli`,
 denied, `git commit --no-verif` and an Edit of the CI job asked, the dry-run probe passed; the
 hook refused a commit on the red chain; a `--recurse-submodules` clone warned until it ran
 `--install-git-hook`; an emptied shim blocked with exit 2 and failed `--check`.
+
+**Second review round (same day).** A second adversarial pass on the guard and a second
+whole-kit pass — which re-ran the evidence for all 13 first-round majors, found one of them (the
+CI job) only partly closed, and took a new archetype, a Data/ML pipeline, from an idea to a green
+chain and an accepted spec — filed **8 findings: 2 majors, 6 minors. All 8 reproduced and fixed,
+none rejected, none deferred;** the seven that changed behaviour are pinned by tests that fail on
+the first-round tree, and the eighth (rows for deny shapes that already held) by rows that keep
+them.
+- *Force beats a lease.* `git push --force-with-lease --force origin main` (or `-f
+  --force-if-includes`) was asked, with a reason saying it "refuses if the remote moved",
+  instead of denied — and git 2.43 overwrote a remote a teammate had moved, because plain force
+  defeats the lease. Plain force or a `+refspec` now decides, whatever lease sits beside it;
+  `--force-with-lease` alone still asks, and `--force-if-includes` alone, a no-op, passes.
+- *The CI job went with its directory.* `git rm -r .github`, `mv .github …`, `git mv
+  .github/workflows …` and `git restore --source=HEAD~5 .github` returned `{}`; the commit
+  passed the hook, CI stopped running the chain, and `adopt.py --check` said OK with a warning.
+  A directory holding the job now asks too — `git rm`/`mv`/`checkout`/`restore`, `mv`,
+  `rm -r`, `cp -r`, `rsync`, `tar -C`, `find -exec`, PowerShell `Move-Item`/`Remove-Item` — on
+  disk evidence, so a `.github` without the job stays silent; and `--check` fails while the job
+  is gone, unless another workflow runs `gates/run-chain.sh`.
+- *Minors.* Any directory named `gates` was the gate chain: editing, moving or restoring
+  feature-flag code under `src/gates/hooks/` drew 12 denies and 1 ask across 16 ordinary
+  commands, and `careful.json`, additive only, could not relieve it. The chain is now the
+  project's `gates/`, a `gates/` holding `run-chain.sh` (the kit copy), or one the matcher cannot
+  look at (a relative `gates/…`, a path built at runtime); `git -C` pathspecs are resolved
+  against the `-C` directory, and pathspec magic (`:/gates`) against the path it names.
+  `core.hooksPath` could be dropped through `git --config-env`, `git config
+  --remove-section`/`--rename-section core`, `git config --edit` or an `include.path`
+  (`--config-env`, `--remove-section` and `include.path` each landed a red commit when
+  measured); all ask now. `git update-index --chmod=-x` on the pre-commit hook passed while
+  `chmod -x` was denied, and every later clone ignored the hook; `--chmod` other than `+x` and
+  `--cacheinfo` on a guarded file are denied, `--assume-unchanged`/`--skip-worktree` on a gate
+  file asks. The appended `.gitattributes` kept one directory rule, `gates/hooks/*`, which
+  rewrote a PNG there; the hook is pinned by name and the earlier block is replaced.
+  ARCHETYPES' CLI tag rule asked on a branch named `v2-api-cleanup`; it now needs
+  `v<digits>.<digits>`, and the guard's table loads every `careful.json` stanza in ARCHETYPES
+  and checks that rule both ways. Eight deny shapes SKILL.md documents (`chown`, `chgrp`,
+  `chattr`, `setfacl`, `shred`, `vi`, `nano`, `git mv` on a guarded file) had no row; each has
+  one now, with an allow row beside it.
+After it, 8 suites, **1,432 checks, 0 failed** — adopt 413, careful 722, plan-sync 97,
+spec-approval 65, run-chain 56, orphan-endpoints 45, spec-numbers 21, metrics 13 — on Linux
+under bash 5.2 with Python 3.11 and again under bash 3.2.57 with Python 3.8. Against the
+first-round tree the new tests fail: 53 table rows and the corpus check (7 commands), 2
+ARCHETYPES checks, 10 adopt checks. The guard reviewer's own 462-command corpus: 12 denies
+before, none after (its 2 designed asks remain). Kit links: 62 files, 445 relative links, 0
+dead. A fresh smoke adoption of this tree as a submodule tagged v1.4.0 (`--profile cli`, real
+`specify init`): `--check` clean; after `--register-guard`, `rm -rf ~` and `git push
+--force-with-lease --force origin main` denied, `git mv src/gates src/feature_gates` and an
+Edit under it passed, the dry-run probe passed; after `--install-git-hook --ci github` the hook
+refused a commit on the red chain; `git rm -r .github` asked, and once a human committed it,
+`--check` failed until `--ci github` reinstalled the job.
 
 **Measured in the integration pass.** 8 suites, **1,140 checks, 0 failed** — adopt 309,
 careful 550, plan-sync 89 (its original 8 rows unchanged), spec-approval 57, run-chain 56,
