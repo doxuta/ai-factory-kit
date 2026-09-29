@@ -13,17 +13,22 @@ Spec-first · executable gates · adversarial verification · one atom of work.
 
 > Like [GitHub Spec Kit](https://github.com/github/spec-kit) — but it doesn't stop at specs.
 > This kit is the **whole factory**: the constitution above the specs, the agents beside them,
-> the gates below them, and the daily discipline that keeps all of it honest. Every rule in here
-> was forged (and paid for) on a real production platform built ~100% by AI across 730+ commits.
+> the gates below them, and the daily discipline that keeps all of it honest. The core loop —
+> constitution, spec-first flow, gates, third-person acceptance, the careful guard — was forged
+> (and paid for) on a real production platform built ~100% by AI across 730+ commits. Newer
+> guidance (the archetypes, the release lanes, the LLM/ML eval rules) has not been through a real
+> adoption yet, and says so where it is doctrine rather than measurement.
 
-**Supported.** Tested: Claude Code on Linux, macOS and WSL (project on the Linux filesystem).
+**Supported.** Claude Code on Linux, macOS and WSL (project on the Linux filesystem).
 Best-effort: native Windows, with Claude Code running hooks under Git Bash (without Git Bash
 there is no guard). Other AI hosts
 (Codex, Gemini CLI, Copilot, Cursor, …): the model, the specs, the Spec Kit flow and the gates
 carry over; the harness (the `.claude/` layout, agents, rules) and the careful guard need
-porting by hand. What differs per host and platform: [HARNESS §7](harness/HARNESS.md). For
-1.4.0 every test suite passed on Linux under bash 5.2 with Python 3.11, and under bash 3.2.57
-(the version macOS ships) with Python 3.8; no run on a Mac or a Windows host is recorded.
+porting by hand. What differs per host and platform: [HARNESS §7](harness/HARNESS.md).
+**What has actually run for 1.4.0:** every test suite in CI on Linux (bash 5.2) and on macOS
+(the system bash 3.2 and BSD tools), as checked out and detached — the first macOS run failed
+on a test fixture, fixed before release; headless Claude Code sessions on Linux, including the
+careful guard's live probes. Nothing has run on WSL or on a Windows host.
 Version 1.4.0 ([VERSION](VERSION)), tested with Spec Kit (specify-cli) 1.0.12.
 
 ## Why this exists
@@ -98,12 +103,16 @@ listed in [PHASE-0 §8](model/PHASE-0.md). The exact order, with what each step 
 
 - **Starting from an idea**, with no code yet: [`model/PHASE-0.md`](model/PHASE-0.md).
 - **An existing project**: `adopt.py` merges into an existing `.claude/` and never overwrites a
-  file — [AI-ONBOARDING §3](AI-ONBOARDING.md).
+  file you wrote (the one thing it replaces is Spec Kit's unfilled constitution scaffold) —
+  [AI-ONBOARDING §3](AI-ONBOARDING.md).
 - **Not a submodule?** A plain copy of the kit in `factory/`, with no `.git` inside, also works.
   Not a plain `git clone` into `factory/`: git records it as an embedded repository, and every
   other clone of your project gets an empty `factory/` (`adopt.py` warns).
 - **Teammates and CI** clone with `git clone --recurse-submodules`, or run
   `git submodule update --init` after cloning; an empty `factory/` leaves every link into it dead.
+  Once feature 001 has installed the hook, every clone also runs
+  `python3 factory/bin/adopt.py --install-git-hook` once: `core.hooksPath` is per clone, and a
+  clone without it refuses no red commit (CI still does).
 - **Staying current**: pin a tag, upgrade with `adopt.py --upgrade` —
   [`sync/DAILY-SYNC.md`](sync/DAILY-SYNC.md).
 

@@ -9,6 +9,9 @@
 #     implementation started before the owner approved the spec;
 #   * status is anything but draft and approved_by or approved_on (YYYY-MM-DD) is missing,
 #     malformed or a placeholder ("<name>", "[OWNER]", "TBD", ...);
+#   * status is anything but draft or superseded and spec.md still holds an open
+#     "[NEEDS CLARIFICATION: ...]" marker (outside comments, fences and code spans) — the
+#     spec was approved with a question nobody answered;
 #   * status is accepted, released or (legacy) shipped and specs/<id>/acceptance.md is missing
 #     or invalid: it needs the heading "# Acceptance — <id>", accepted_on (a date, not before
 #     approved_on), accepted_by, run_as ("n/a" only with its reason) and "result: pass";
@@ -29,8 +32,11 @@
 #   * WHO REALLY ACCEPTED. It cannot tell the builder from anyone else; accepted_by "never the
 #     builder" is a rule for people, and run_as is only as true as whoever wrote it.
 #   * THE ACCEPTANCE RUN ITSELF. It reads the record, never re-runs quickstart.md.
-#   * CODE WRITTEN BEFORE APPROVAL WITHOUT TICKING A TASK. It sees checkboxes, not source
-#     files. Work done on a draft spec but left unticked passes until someone ticks it.
+#   * CODE WRITTEN BEFORE APPROVAL WITHOUT TICKING A TASK. It sees checkboxes (and 1.3.x
+#     "| ✅ |" rows), not source files. Work done on a draft spec but left unticked passes
+#     until someone ticks it.
+#   * A QUESTION ASKED ANOTHER WAY. Only the "[NEEDS CLARIFICATION" marker Spec Kit writes is
+#     read; "TBD", "?" or an open question in prose is not.
 #   * SPECS OUTSIDE <specs-dir>, and anything not in spec.md / tasks.md / acceptance.md.
 #   * ITSELF. Two-direction test: gates/check-spec-approval.test.sh.
 set -euo pipefail

@@ -24,7 +24,8 @@
 
 Slots: format → static → test → build → orphan-endpoints → acceptance → doc-sync →
 spec-approval → spec-numbers. No commit on red. Fix or explicitly revert
-([GATES §1](../../gates/GATES.md)). A `TODO` slot is red, not skipped; `git commit --no-verify`
+([GATES §1](../../gates/GATES.md)); the one exception, defined there, is feature 001 wiring the
+chain: red only at a `TODO` slot. A `TODO` slot is red, not skipped; `git commit --no-verify`
 is not a way round it (the careful guard asks before an agent does that, and CI runs the same
 chain). Two traps the chain does not catch by itself:
 

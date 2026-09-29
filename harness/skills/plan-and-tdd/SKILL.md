@@ -43,6 +43,11 @@ that `/speckit-analyze` also reads):
   adversarial review before commit, not just the normal pass.
 - Tasks use Spec Kit's checklist format, `- [ ] T001 …`; a task deliberately moved out of this
   feature reads `(deferred → <where>)`, so it does not hold the spec back.
+- **Feature 001, the walking skeleton**, ends by installing the kit's gate hook and CI job:
+  `python3 factory/bin/adopt.py --install-git-hook --ci github`, then the toolchain steps in
+  `.github/workflows/factory-gates.yml` ([PHASE-0 §7](../../../model/PHASE-0.md)). A task that
+  writes its own pre-commit hook, hook installer or gate workflow is wrong: re-plan it onto
+  those two commands.
 
 ## The loop, per task
 
@@ -53,7 +58,9 @@ that `/speckit-analyze` also reads):
 2. **Green** — the minimum code that passes. No gold-plating; the
    [`ponytail`](../ponytail/SKILL.md) ladder applies inside the layer.
 3. **Refactor** — clean up with the tests staying green.
-4. **Gates** — `./gates/run-chain.sh`. Red = fix, never proceed; a `TODO` slot is red too. A
+4. **Gates** — `./gates/run-chain.sh`. Red = fix, never proceed; a `TODO` slot is red too. The
+   one exception is feature 001 wiring the chain: its commits may be red only at a `TODO` slot,
+   with the spec gates run directly ([GATES §1](../../../gates/GATES.md)). A
    new route, command or exported surface needs its caller in the same task or a named task —
    the `orphan-endpoints` slot (`gates/check-orphan-endpoints.sh`, configured by
    `gates/orphan-endpoints.conf`; unconfigured it is red, "not wired") checks routes.

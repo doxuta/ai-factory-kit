@@ -21,8 +21,8 @@ a hotfix, a refactor, a spike, a release — has its own lane. Level 2 is **auto
 orchestrate specialist agents and adversarial reviews, but executable **gates** decide "done",
 never anyone's claim, including yours.
 
-**Where this runs.** Tested: Claude Code on Linux, macOS and WSL (project on the Linux
-filesystem). Best-effort: native Windows, with Claude Code running hooks under Git Bash —
+**Where this runs.** Supported: Claude Code on Linux, macOS and WSL (project on the Linux
+filesystem); what has actually run is listed in the README ("Supported"). Best-effort: native Windows, with Claude Code running hooks under Git Bash —
 without Git Bash the hook command cannot run and there is no guard at all. Other AI
 hosts (Codex, Gemini CLI, Copilot, Cursor, …): the model, the specs, the Spec Kit flow and the
 gates carry over; the harness (`.claude/` layout, agents, rules) and the careful guard need
@@ -93,10 +93,12 @@ python3 factory/bin/adopt.py --check               # exit 0
    human already believes and what their product demands.
 7. Fill `.claude/CLAUDE.md` — the always-loaded context. Safety invariants from the constitution
    MUST be mirrored there ([HARNESS §3](harness/HARNESS.md)), and the same block copied into the
-   INVARIANTS block of each `.claude/agents/*.md`; dev commands that do not exist yet read
+   INVARIANTS block of each `.claude/agents/*.md` (verbatim: the bullets carry no relative link,
+   so the copy stays valid one directory deeper); dev commands that do not exist yet read
    `TBD — wired by specs/001-<name>`. Fill each `.claude/rules/*.md` — its `paths:` globs
    included: an unfilled `[GLOB …]` placeholder does not scope the rule to your code — or delete
-   one that does not apply and re-run `adopt.py` (it offers a `.factory-new` for every file that linked to it).
+   one that does not apply and re-run `adopt.py` (it re-renders the kit's own files that linked
+   to it and offers a `.factory-new` for each file you fill that did).
    Then `adopt.py --check`.
 8. **Register the guard, then prove it fires.** Adapt `.claude/hooks/careful.json` for the
    archetype and check it: `python3 .claude/hooks/check-careful.py --check-config`. First
@@ -145,8 +147,8 @@ python3 factory/bin/adopt.py --check               # exit 0
 ### 2.4 Teammates, CI and worktrees
 
 A plain `git clone` of the project does not fetch submodules: `factory/` is empty, every link
-from `.claude/` into it is dead (45 of 88 in a `cli`-profile adoption of this release), and
-`adopt.py` is missing. Clone with
+from `.claude/` into it is dead (about half of all the links in `.claude/`, in a `cli`-profile
+adoption), and `adopt.py` is missing. Clone with
 `git clone --recurse-submodules <url>`, or run `git submodule update --init` after a plain clone.
 `git config submodule.recurse true` makes a later `git pull` move `factory/` to the commit the
 project records; without it, a pull that brings a kit upgrade leaves `factory/` on the old
@@ -155,6 +157,13 @@ not apply to `git clone`.) A `git worktree add` checkout — Claude Code's `--wo
 create theirs under `.claude/worktrees/` — starts with an empty `factory/` too: run
 `git submodule update --init` in it. CI checks out with submodules: the job `adopt.py --ci
 github` installs does (`submodules: recursive`).
+
+**The pre-commit gate is per clone.** `adopt.py --install-git-hook` sets `core.hooksPath`,
+which git keeps in the clone's own `.git/config`, never in the repository. Every clone and
+every worktree's first session, once feature 001 has installed the hook, runs
+`python3 factory/bin/adopt.py --install-git-hook` once; until then `git config core.hooksPath`
+prints nothing and the clone commits on red unrefused (CI still runs the chain).
+`adopt.py --check` warns in a clone where the hook is installed but not wired.
 
 ### 2.5 Upgrading the kit later
 
@@ -166,12 +175,16 @@ python3 factory/bin/adopt.py --upgrade           # a human runs this, or approve
 
 `--upgrade` replaces kit-owned files you have not modified. Where the kit's source changed, it
 writes `<file>.factory-new` beside a kit-owned file you modified and beside every adopter-filled
-file (`.claude/CLAUDE.md`, `.claude/rules/*.md`, the constitution, `gates/chain.conf`,
-`careful.json`); it never replaces those. Then it runs `--check`, which stays non-zero until
-every `.factory-new` is reviewed: `diff -u <file> <file>.factory-new`,
-merge what applies, delete the `.factory-new`. A project adopted before 1.4.0 has no manifest, so
-every differing file gets a `.factory-new` and a printed review list. Then re-run the careful
-live probes and commit, `factory` pointer included. It is a human's step because it replaces the
+file (`.claude/CLAUDE.md`, `.claude/rules/*.md`, `.claude/agents/*.md`, the constitution,
+`gates/chain.conf`, `careful.json`, `.github/workflows/factory-gates.yml`); it never replaces
+those. Then it runs `--check`, which stays non-zero until every `.factory-new` is reviewed:
+`diff -u <file> <file>.factory-new`, merge what applies, delete the `.factory-new`. A project
+adopted before 1.4.0 has no manifest, so every differing file gets a `.factory-new` and a
+printed review list ([DAILY-SYNC](sync/DAILY-SYNC.md) Part B lists what to check on that first
+upgrade). If the guard changed, run `bash .claude/hooks/check-careful.test.sh` and the careful
+live probes; then commit everything `git status` shows except `*.factory-new`, `factory` pointer
+included. If `--check` says `factory/` is *behind* what the project installed, the upgrade was
+someone else's and your submodule is stale: `git submodule update --init`, never `--upgrade`. It is a human's step because it replaces the
 guard itself: the guard asks when an agent runs it, and denies an agent's file edits to
 `.claude/hooks/`. A vendored copy: replace `factory/` with the new release, then `--upgrade`.
 Staying current, and upgrading Spec Kit: [`sync/DAILY-SYNC.md`](sync/DAILY-SYNC.md).
@@ -181,11 +194,15 @@ Staying current, and upgrading Spec Kit: [`sync/DAILY-SYNC.md`](sync/DAILY-SYNC.
 Since 1.4.0 `adopt.py` merges into an existing `.claude/` (1.3.x refused to). The order:
 
 1. **Start from a clean working tree** — commit or stash your own changes. `adopt.py` never
-   overwrites a file, so afterwards `git status` lists exactly what adoption added: new files,
-   `.factory-new` siblings, and `.gitattributes` (created, or appended with LF rules for
-   `.claude/hooks/**` and `gates/**`). To back out, remove what that list shows — delete the new
-   files, restore an appended `.gitattributes`. Do not delete by the manifest
-   (`.claude/.factory-manifest.json`): it also lists your pre-existing files that adoption kept.
+   overwrites a file you wrote, so afterwards `git status` lists exactly what adoption added:
+   new files, `.factory-new` siblings, `.gitattributes` (created, or appended with LF rules for
+   the installed scripts and gate config, by extension), and one replacement — Spec Kit's
+   unfilled constitution scaffold, if `.specify/memory/constitution.md` was still that, becomes
+   the kit's seed (`M .specify/memory/constitution.md`). To back out, remove what that list
+   shows — delete the new files, restore an appended `.gitattributes`, and
+   `git checkout -- .specify/memory/constitution.md` for the scaffold. Do not delete by the
+   manifest (`.claude/.factory-manifest.json`): it also lists your pre-existing files that
+   adoption kept.
 2. **Vendor the kit and adopt** — §2.2 steps 2 and 3. Per file: a missing file is installed; an
    identical one is left alone; a differing one stays yours, with the kit's version beside it as
    `<file>.factory-new`. `.claude/settings.json`, `.claude/settings.local.json` and Spec Kit's

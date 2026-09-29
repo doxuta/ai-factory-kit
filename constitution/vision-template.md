@@ -6,7 +6,8 @@
      Save the filled copy as .specify/memory/vision.md, beside the constitution; `specify init
      --here --force` leaves that directory's files in place (checked with specify-cli 1.0.12).
      A small project may instead answer the first three sections in three lines on the
-     constitution's Vision line and skip this file. -->
+     constitution's Vision line and skip this file. This file holds no relative link, so the
+     saved copy has none to break. -->
 
 # [PROJECT_NAME] — Vision
 
@@ -46,8 +47,8 @@ nobody measures is a wish.]
 [The kind of product — multi-tenant SaaS · backend/API service · mobile + backend ·
 frontend-only/static · CLI · library/SDK · data/ML pipeline · embedded/firmware · game ·
 IaC/DevOps · LLM/agent app · monorepo, or another — and the one-line reason.
-It picks the adopt.py profile and the constitution's slot choices
-([ARCHETYPES](../model/ARCHETYPES.md)).]
+It picks the adopt.py profile and the constitution's slot choices (the kit's
+`model/ARCHETYPES.md`).]
 
 ## Data and risk
 [What the product stores or touches that would hurt someone if it leaked, was lost or was

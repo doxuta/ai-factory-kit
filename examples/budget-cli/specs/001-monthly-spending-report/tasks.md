@@ -112,7 +112,10 @@ refused at commit.
 
 ## Notes
 
-- A task is ticked in the commit that lands it, with the gate chain green.
+- A task is ticked in the commit that lands it, with the gate chain green. T001–T005 landed
+  while the chain was being wired, so their commits were red at the `TODO` slots still ahead
+  and at no wired one, with the spec gates run directly: the bootstrap exception
+  ([GATES §1](../../../../gates/GATES.md)).
 - A task moved out of this feature stays listed, unticked, marked `(deferred → <spec id>)`.
 
 ## Phase 7: Convergence

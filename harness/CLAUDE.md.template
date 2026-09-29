@@ -41,13 +41,16 @@ owns the COMMANDS. Neither restates the other.
   included; dynamic queries are parameterized, never concatenated." Or `N/A — <reason>` if the
   constitution says so.]
 - **III — [ARCHITECTURE SHAPE]**: [LAYER] → [LAYER] → [LAYER]; [one-line forbidden coupling,
-  EXAMPLE: "no queries in the transport layer"]. Detail:
-  [`rules/architecture.md`](rules/architecture.md).
+  EXAMPLE: "no queries in the transport layer"]. Detail: `.claude/rules/architecture.md`.
 - **VI — Gates and independent acceptance**: "done" = `./gates/run-chain.sh` green — never a
   claim, mine included. Tests first: a failing test before the code it proves. Each feature is
   accepted by [ACCEPTOR — someone other than the builder] running its `quickstart.md`,
   recorded in `specs/<id>/acceptance.md`[, as a non-privileged account — keep this clause only
-  where the product has an authorization boundary] ([GATES §3](../gates/GATES.md)).
+  where the product has an authorization boundary] (GATES.md §3).
+
+The four bullets above carry no relative link on purpose: each agent in `.claude/agents/`
+copies them verbatim, one directory deeper, and a link would die there. The links are in
+[GATES §3](../gates/GATES.md) and [`rules/architecture.md`](rules/architecture.md).
 
 ## Dev commands (run from `[REPO_ROOT_OR_SUBDIR]`)
 
@@ -80,10 +83,19 @@ hotfix, a refactor, a spike, a release? It has a lane:
 
 `./gates/run-chain.sh` runs the slots in `gates/chain.conf` in order — format → static → test →
 build → orphan-endpoints → acceptance → doc-sync → spec-approval → spec-numbers — and stops at
-the first red. No commit on red, no exceptions ([GATES](../gates/GATES.md)). A `TODO` slot is
-red until feature 001 wires it; an `NA: <reason>` slot prints its reason every run. The
-per-feature acceptance run is not a chain slot: it is the `acceptance.md` record that the
-`spec-approval` slot checks.
+the first red. No commit on red ([GATES §1](../gates/GATES.md)). A `TODO` slot is red until
+feature 001 wires it, and that is the one exception GATES §1 defines: while feature 001 wires
+the chain, a commit may be red only at a `TODO` slot, never at a wired one, with the three spec
+gates run directly. An `NA: <reason>` slot prints its reason every run. The per-feature
+acceptance run is not a chain slot: it is the `acceptance.md` record that the `spec-approval`
+slot checks.
+
+Feature 001 installs the kit's hook and CI job with
+`python3 factory/bin/adopt.py --install-git-hook --ci github`, then adds its toolchain steps to
+`.github/workflows/factory-gates.yml`. Never hand-write a pre-commit hook, a hook installer or a
+gate workflow: the kit's are the ones the guard protects and `adopt.py --check` audits. In a
+fresh clone, `git config core.hooksPath` prints nothing until someone runs
+`python3 factory/bin/adopt.py --install-git-hook` there; run it once per clone.
 
 ## When code and spec disagree
 

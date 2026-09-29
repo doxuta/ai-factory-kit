@@ -44,7 +44,8 @@ Two hard rules learned by measurement:
 **`specs/<id>/` is the single atom of work** — `<id>` is `NNN-<name>`, or
 `YYYYMMDD-HHMMSS-<name>` when several branches create specs at once. Full walkthrough:
 [`SPEC-FLOW.md`](SPEC-FLOW.md). Work that is not a feature has a lane in
-[`NON-FEATURE-WORK.md`](NON-FEATURE-WORK.md), and each lane still records into a spec.
+[`NON-FEATURE-WORK.md`](NON-FEATURE-WORK.md); each lane that changes behaviour records into a
+spec, while a refactor, a chore, docs or a spike, which change none, need no spec.
 
 If your project already runs on epics / milestones / slices / tickets, map them — don't stack a
 seventh vocabulary on top:
@@ -80,7 +81,8 @@ Running the same model across more executors (other agent CLIs, CI robots, k8s r
 multiplies failure modes before it multiplies value for a small team, so the kit targets one
 host and says exactly how far it carries:
 
-- **Tested** — Claude Code on Linux, macOS and WSL (with the project on the Linux filesystem).
+- **Supported** — Claude Code on Linux, macOS and WSL (with the project on the Linux
+  filesystem); what has actually run on each is in [HARNESS §7](../harness/HARNESS.md).
 - **Best-effort** — native Windows, where Claude Code runs hooks under Git Bash.
 - **Other AI hosts** (Codex, Gemini CLI, Copilot, Cursor, …) — the model, the specs, the Spec
   Kit flow and the gates carry over: they are Markdown, shell and git. The harness — the

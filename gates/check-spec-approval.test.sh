@@ -209,6 +209,28 @@ mkdir -p "$TMP/r-arg"
 run_in 1 "a specs dir you name that does not exist" "$TMP/r-arg" product/specs
 said "reason" "specs dir not found"
 
+echo "== open clarifications and 1.3.x rows (review 2026-09-29) =="
+approved "$TMP/c-open" 001-alpha approved
+echo "- **FR-009**: [NEEDS CLARIFICATION: timezone?]" >> "$TMP/c-open/specs/001-alpha/spec.md"
+run_in 1 "approved with an open [NEEDS CLARIFICATION]" "$TMP/c-open"
+said "reason" "1 [NEEDS CLARIFICATION] marker is still open (line 10)"
+approved "$TMP/c-acc" 001-alpha accepted
+printf '%s\n' "- a [NEEDS CLARIFICATION: x]" "- b [NEEDS CLARIFICATION: y]" >> "$TMP/c-acc/specs/001-alpha/spec.md"
+acceptance "$TMP/c-acc" 001-alpha
+run_in 1 "accepted with two open markers" "$TMP/c-acc"
+said "count" "2 [NEEDS CLARIFICATION] markers are still open"
+spec "$TMP/c-draft" 001-alpha draft
+echo "- **FR-009**: [NEEDS CLARIFICATION: timezone?]" >> "$TMP/c-draft/specs/001-alpha/spec.md"
+run_in 0 "a draft may hold open questions" "$TMP/c-draft"
+approved "$TMP/c-quoted" 001-alpha approved
+printf '%s\n' '<!-- mark gaps as [NEEDS CLARIFICATION: q] -->' 'Markers look like `[NEEDS CLARIFICATION: q]`.' \
+  '```' '[NEEDS CLARIFICATION: in a fence]' '```' >> "$TMP/c-quoted/specs/001-alpha/spec.md"
+run_in 0 "a marker quoted in a comment, a code span or a fence is not open" "$TMP/c-quoted"
+spec "$TMP/m-draft" 001-alpha draft
+tasks "$TMP/m-draft" 001-alpha "| ✅ | M1-T1 | done before approval |"
+run_in 1 "a ticked 1.3.x row on a draft spec" "$TMP/m-draft"
+said "reason" "1 task checked while status is draft"
+
 run_in 0 "--help" "$TMP" --help
 run_in 2 "unknown option" "$TMP" --bogus
 

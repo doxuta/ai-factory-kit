@@ -3,7 +3,8 @@
      constitution-template.md, so /speckit-constitution amends against THIS structure and not
      Spec Kit's five-principle scaffold, and as the seed of .specify/memory/constitution.md, the
      project's constitution (written only when absent or still Spec Kit's unfilled scaffold;
-     a filled one is never replaced).
+     a filled one is never replaced). Both copies carry links written for .specify/memory/,
+     because /speckit-constitution copies the override's text there, links included.
      I POINT TO (kit paths; factory/... once adopted): constitution/vision-template.md (the why
      above these rules) · model/PHASE-0.md (the interview that fills me) · model/ARCHETYPES.md
      (slot choices per kind of product) · gates/GATES.md (Article VI delegates to it) ·
@@ -175,7 +176,8 @@ skeleton, settles may read "TBD — settled by specs/001-<name>" until then. -->
 ## Development Workflow
 1. New feature: the [Level-1 flow](../model/SPEC-FLOW.md), HARD-GATE at spec approval.
 2. Every commit: the [gate chain](../gates/GATES.md) green; the pre-commit hook and CI run the
-   same chain once feature 001 has wired them.
+   same chain once feature 001 has wired them. The one exception is feature 001's own bootstrap
+   (red only at a `TODO` slot), defined in GATES §1 and nowhere else.
 3. Risky surfaces ([RISKY_SURFACES — EXAMPLE (web): data, authorization, money; a CLI: file
    writes and deletes; IaC: state and permissions]): adversarial review
    ([tech-lead-review](../harness/agents/tech-lead-review.md)) before commit — findings are

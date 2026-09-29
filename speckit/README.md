@@ -85,7 +85,12 @@ outside what the kit enforces.
 `.specify/templates/overrides/`, and `constitution/constitution-template.md` both to
 `.specify/templates/overrides/constitution-template.md` and to
 `.specify/memory/constitution.md` — the latter only when it is absent or still Spec Kit's
-unfilled scaffold. The manifest records the overrides as kit-owned. Checked in a scratch
+unfilled scaffold. Both copies are the same text, with links written for `.specify/memory/`:
+`/speckit-constitution` drafts the constitution "using the resolved template as the required
+structure", links and all, so the override's links must resolve where they land. Written for the
+override's own depth, one run left 18 dead links in the constitution (review 2026-09-29).
+`bin/check-links.py` and `adopt.py --check` therefore check that one override from
+`.specify/memory/`. The manifest records the overrides as kit-owned. Checked in a scratch
 project: `--upgrade` replaced an override nobody had edited and wrote
 `spec-template.md.factory-new` beside one that had been edited; `--check` failed (exit 1) on a
 deleted override and warned on an edited one. Run adopt.py before

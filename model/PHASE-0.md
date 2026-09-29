@@ -40,7 +40,8 @@ installed, and `./gates/run-chain.sh` green. From then on every feature follows
 | Claude Code | the harness (`.claude/`) and the careful guard target it | `claude --version` |
 | a git host with CI (optional until feature 001) | the remote (§9) and the CI half of the chain; the kit ships a GitHub Actions job | — |
 
-Tested envelope: Claude Code on Linux, macOS and WSL (Linux filesystem). Native Windows, with
+Supported envelope: Claude Code on Linux, macOS and WSL (Linux filesystem); what has actually
+run on each is in [HARNESS §7](../harness/HARNESS.md). Native Windows, with
 Claude Code running hooks under Git Bash, is best-effort. On other AI hosts the model, the
 specs, the Spec Kit flow and the gates carry over; the harness and the guard need porting by
 hand ([HARNESS §7](../harness/HARNESS.md)).
@@ -85,8 +86,10 @@ specify init --here --force --non-interactive --integration claude
 7. **AI**: fill `.claude/CLAUDE.md` — the safety mirror of Articles I, II, III and VI, and dev
    commands written as `TBD — wired by specs/001-<name>` (they do not exist yet). Fill each
    `.claude/rules/*.md`, or delete one that does not apply and re-run `adopt.py`: it records
-   the rule as dropped and offers a `.factory-new` for every file that linked to it (checked on
-   this release). Merge those, then `adopt.py --check`.
+   the rule as dropped, re-renders the kit's own files that linked to it, and offers a
+   `.factory-new` for each file you fill that did (checked on this release). Merge those, then
+   `adopt.py --check`. Its placeholder warnings list what is still unfilled — in the agents'
+   INVARIANTS blocks too.
 8. **AI, owner approves**: adapt `.claude/hooks/careful.json` for the archetype
    ([ARCHETYPES](ARCHETYPES.md)) and check it with
    `python3 .claude/hooks/check-careful.py --check-config`. First commit: everything so far.
@@ -102,13 +105,16 @@ specify init --here --force --non-interactive --integration claude
 **Choosing the profile at step 3.** When the idea already says what kind of product it is ("a
 CLI that…"), pass that profile. When it does not, install with the default `full`, which drops
 nothing, and narrow it after step 6 with `adopt.py --profile <p>`: it lists the rule files the
-profile drops, for you to delete, and offers a `.factory-new` for each file that links to them
-(checked on this release). While those files are still unfilled, accepting a `.factory-new` is a
-plain `mv`.
+profile drops, for you to delete, re-renders the kit's own files that link to them, and offers a
+`.factory-new` for each file you fill that does (checked on this release). While those files are
+still unfilled, accepting a `.factory-new` is a plain `mv` (a script's `.factory-new` keeps its
+execute bit).
 
 **Teammates and CI** clone with `git clone --recurse-submodules`, or run
 `git submodule update --init` after a plain clone. An empty `factory/` leaves every link into
-it dead and every `adopt.py` command missing.
+it dead and every `adopt.py` command missing. Once feature 001 has installed the hook, each
+clone runs `python3 factory/bin/adopt.py --install-git-hook` once: `core.hooksPath` is local to
+a clone, and a clone without it refuses no red commit (`adopt.py --check` warns there).
 
 ## 3. The vision interview
 
@@ -218,17 +224,23 @@ Its tasks, in Spec Kit's phases:
 
 **The chain while 001 is being built.** Until every slot is wired, `run-chain.sh` is red by
 construction, and the kit does not install the hook or CI before then because they would refuse
-every commit. The rule for those commits: the chain may be red **only at a `TODO` slot** — its
+every commit. Those commits fall under the one exception to "no commit on red", which
+[GATES §1](../gates/GATES.md) defines: the chain may be red **only at a `TODO` slot** — its
 output says `not wired (TODO)` — never at a wired one; and the three spec gates, which sit after
 the `TODO` slots, are run directly (`./gates/check-spec-approval.sh`,
 `./gates/check-spec-numbers.sh`, `./gates/check-plan-sync.sh`). Once the last `TODO` is gone,
-install the hook and CI and the ordinary rule starts: no commit on red.
+install the hook and CI with `python3 factory/bin/adopt.py --install-git-hook --ci github` —
+never a hand-written hook, installer or workflow — and the ordinary rule starts: no commit on
+red.
 
 **The guard during 001.** Feature 001 runs after the guard is registered (§2 step 8), so the
 guard asks before every edit of `gates/chain.conf`, `gates/*.conf` and
 `gates/orphan-allowlist.txt`: the owner answering those asks is the review of what "green" will
 mean. A project gate of your own may be created as `gates/check-<name>.sh` (the guard asks);
-once it exists it is guarded like the kit's, and a change to it is a human's edit.
+once it exists it is guarded like the kit's, and a change to it is a human's edit. So keep the
+script generic and put what grows with each feature — expected outputs, a consumer program,
+the list of exported names — in a data file or test module outside `gates/`, which review
+reads; otherwise every feature needs the owner to edit the gate by hand.
 
 After 001, the format, static, test and build rows in `CLAUDE.md` and the same slots in
 `gates/chain.conf` name the same commands; a change to one changes the other in the same commit.

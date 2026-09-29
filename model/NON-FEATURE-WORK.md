@@ -185,27 +185,35 @@ users. Between them sits the step that cannot be taken back.
    `poetry publish`, `twine upload`, `gem push` and `gem yank`, `gh release delete` — and lets
    their dry runs through, so a human answers the real one (checked on this release). Treat
    that as a backstop, not the gate: a deploy script it does not know is not asked about.
-4. **Afterwards**, one commit flips each spec's frontmatter to `status: released`
-   (`chore(release): 1.4.0`, one `Spec:` trailer per spec), then the tag. Release notes come
-   from the specs that became `released` since the last tag — run this before tagging:
+4. **The released commit and the tag.** One commit flips each spec's frontmatter to
+   `status: released` (`chore(release): 1.4.0`, one `Spec:` trailer per spec), and the release
+   tag goes on that commit. Where pushing the tag *is* the irreversible step — a tag-triggered
+   release pipeline, a Go module the proxy makes permanent ([GATES §9](../gates/GATES.md)) —
+   this commit is made before step 3 and the human's step is pushing its tag; everywhere else
+   it follows the deploy or publish, and the tag marks what shipped. Release notes come from the
+   specs that became `released` since the last tag — run this before tagging:
 
    ```bash
    sh <<'EOF'
-   last=$(git describe --tags --abbrev=0)
+   last=$(git describe --tags --abbrev=0 2>/dev/null) || last=
    st() { awk '{ sub(/\r$/, "") } NR == 1 { if ($0 != "---") exit; next } $0 == "---" { exit }
      /^status[ \t]*:/ { v = $0; sub(/^[^:]*:[ \t]*/, "", v); sub(/[ \t]+#.*$/, "", v)
        sub(/[ \t]+$/, "", v); print v; exit }'; }
    for f in specs/*/spec.md; do
      [ -f "$f" ] || continue
      [ "$(st < "$f")" = released ] || continue
-     [ "$(git show "$last:$f" 2>/dev/null | st)" = released ] && continue
+     if [ -n "$last" ]; then
+       [ "$(git show "$last:$f" 2>/dev/null | st)" = released ] && continue
+     fi
      echo "${f%/spec.md}"
    done
    EOF
    ```
 
-   Checked on a scratch repository: with specs `released`, `accepted → released` and
-   `approved → accepted` since the tag, it printed only the second.
+   Checked on scratch repositories: with specs `released`, `accepted → released` and
+   `approved → accepted` since the tag, it printed only the second; with no tag at all — a
+   first release, where the earlier version of this script printed nothing — it printed every
+   released spec.
 5. **Rollback** follows the plan. A spec already flipped to `released` goes back to
    `accepted` in a commit with a dated Clarifications entry; the fix takes the bug or hotfix
    lane.

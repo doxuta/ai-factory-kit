@@ -8,12 +8,16 @@
 # slot is red.
 #
 # BLIND TO:
-#   * git commit --no-verify (or -n): git skips every pre-commit hook. The careful guard asks
-#     before an agent does that; CI (gates/ci/github-actions.yml) cannot be skipped.
+#   * git commit --no-verify (or -n, or any prefix git accepts, such as --no-verif): git skips
+#     every pre-commit hook. The careful guard asks before an agent does that; CI
+#     (gates/ci/github-actions.yml) runs the chain where no --no-verify reaches it — and the
+#     guard asks before an agent edits, moves or deletes the installed CI job.
 #   * CLONES THAT NEVER RAN --install-git-hook: core.hooksPath lives in .git/config, which is
-#     not versioned. Each clone opts in once; CI is the check that covers everyone.
+#     not versioned. Each clone opts in once (adopt.py --check warns in a clone that has not);
+#     CI is the check that covers everyone.
 #   * A HOOK WITHOUT ITS EXECUTE BIT: git prints a hint and commits anyway. Keep this file at
-#     mode 100755 in git (git update-index --chmod=+x gates/hooks/pre-commit).
+#     mode 100755 in git (git update-index --chmod=+x gates/hooks/pre-commit); adopt.py --check
+#     fails while it is not.
 #   * COMMITS THAT DO NOT RUN pre-commit. Checked with git 2.43: merge (it runs
 #     pre-merge-commit, not shipped here), rebase, cherry-pick and revert all commit without
 #     it; --amend does run it. CI checks what they produce.

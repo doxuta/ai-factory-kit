@@ -95,15 +95,20 @@ Part B, "Keeping your own Level-0 files current").
 Spec Kit has two kinds of extension, and specify-cli 1.0.12 treats them differently
 (`specify extension search`, `specify extension catalog list`):
 
-- **Bundled, installable** — the `default` catalog, four extensions by the Spec Kit authors:
+- **Bundled, installable** — the `default` catalog, by the Spec Kit authors. Checked
+  2026-09-29 with `specify extension search` (specify-cli 1.0.12; the catalog is fetched live,
+  so it changes without a CLI release; an earlier check of this section counted four):
   `agent-context` (manages agent context files such as `CLAUDE.md` between markers — the file
   the kit's template fills, so read what it writes before adding it); `assess` (intake →
-  research → define → shape → decide; "a go verdict hands off to /speckit.specify"; it lives
-  under `.specify/assessments/<slug>/`); `bug` (bug triage under `.specify/bugs/<slug>/`); and
-  `git` (branch creation, sequential or timestamp numbering). `specify extension add <name>`
-  installs them.
+  research → define → shape → decide; "a go verdict hands off to /speckit.specify"; it lives under
+  `.specify/assessments/<slug>/`); `bug` (bug triage under `.specify/bugs/<slug>/`); `git`
+  (branch creation, sequential or timestamp numbering); and `github` ("create GitHub issues
+  from a feature's task list"). `specify extension add <name>` installs them. `github` does
+  the job of the built-in `/speckit-taskstoissues`: pick one of the two, never both, or a
+  task list becomes two sets of issues. The kit takes no position on which; neither is part of
+  the flow (SPEC-FLOW lists `/speckit-taskstoissues` as optional).
 - **Community, discovery only** — 176 entries in `catalog.community.json` when this was
-  checked, tagged by category and effect, browsable on a
+  checked (181 results in all with the five above), tagged by category and effect, browsable on a
   [website](https://speckit-community.github.io/extensions/) that upstream itself calls a
   third-party resource. The CLI searches them but will not install them by name: after you have
   read the source, `specify extension add <name> --from <url>`.
@@ -147,8 +152,10 @@ audited**):
 
 **The supported envelope.**
 
-- **Tested** — Claude Code on Linux, macOS and WSL (with the project on the Linux filesystem).
-- **Best-effort** — native Windows, where Claude Code runs hooks under Git Bash.
+- **Supported** — Claude Code on Linux, macOS and WSL (with the project on the Linux
+  filesystem). For 1.4.0 the test suites ran in CI on Linux and macOS, and headless Claude Code
+  sessions (the guard's live probes among them) on Linux; nothing has run on WSL.
+- **Best-effort** — native Windows, where Claude Code runs hooks under Git Bash. Not run.
 - **Other AI hosts** (Codex, Gemini CLI, GitHub Copilot, Cursor, …) — the model, the specs, the
   Spec Kit flow and the gates port, because they are Markdown, shell and git. The harness —
   the `.claude/` layout, the agents, the rules — and the careful guard need porting by hand.
@@ -203,8 +210,10 @@ What this means for the kit:
   run and the careful guard is absent ([careful](skills/careful/SKILL.md) says what remains).
 - File-tool paths arrive with backslash separators, even when the hook runs under Git Bash; the
   guard normalises them before matching.
-- A CRLF checkout makes bash fail on the scripts; `adopt.py` appends LF rules for
-  `.claude/hooks/**` and `gates/**` to the project's `.gitattributes`.
+- A CRLF checkout makes bash fail on the scripts; `adopt.py` appends LF rules for the
+  installed scripts and gate configuration, by extension (`.claude/hooks/*.sh`, `gates/*.sh`,
+  `gates/hooks/*`, …), to the project's `.gitattributes` — never a whole-tree rule, which would
+  also rewrite the CRLF bytes inside a binary under `gates/`.
 
 **Untested.** No live session on a native Windows host, and none on any host other than Claude
 Code, has been run against this version of the harness. The per-host rows above come from

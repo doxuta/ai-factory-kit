@@ -252,8 +252,18 @@ contains "seeded constitution -> installed agent" "$K" "](../../.claude/agents/t
 contains "manifest records kit version" "$M" '"kit_version": "9.9.9"'
 contains "manifest: CLAUDE.md is adopter-filled" "$M" '"adopter-filled"'
 contains "manifest records the kit commit" "$M" "\"kit_commit\": \"$(git -C "$FX" rev-parse HEAD)\""
-contains ".gitattributes pins hooks" "$p/.gitattributes" '.claude/hooks/** text eol=lf'
-contains ".gitattributes pins gates" "$p/.gitattributes" 'gates/** text eol=lf'
+contains ".gitattributes pins hooks" "$p/.gitattributes" '.claude/hooks/*.sh text eol=lf'
+contains ".gitattributes pins gates" "$p/.gitattributes" 'gates/*.sh text eol=lf'
+contains ".gitattributes pins the git hook" "$p/.gitattributes" 'gates/hooks/* text eol=lf'
+lacks ".gitattributes never pins a whole tree (binaries)" "$p/.gitattributes" 'gates/** text'
+absent "settings template not installed (register-guard reads the kit's)" \
+  "$p/.claude/settings.json.template"
+contains "careful skill links the kit's template" "$C/skills/careful/SKILL.md" \
+  "](../../../factory/harness/settings.json.template)"
+contains "constitution override: links written for .specify/memory/" \
+  "$p/.specify/templates/overrides/constitution-template.md" "](../../factory/model/SPEC-FLOW.md)"
+same "override and seed are one text (what /speckit-constitution copies)" \
+  "$p/.specify/templates/overrides/constitution-template.md" "$K"
 adopt "$p" factory --check; rc 0 "--check after a clean adoption"
 t "the submodule stays clean (no __pycache__, no edits)" \
   test -z "$(git -C "$p/factory" status --porcelain)"
@@ -326,6 +336,7 @@ printf '%s\n' '---' 'name: tester' 'description: ours' '---' 'OUR AGENT' > "$p/.
 printf '#!/usr/bin/env bash\necho MY-OWN-GATE\n' > "$p/gates/check-plan-sync.sh"
 adopt "$p" factory; rc 0 "collision is not a failure"
 has "collision" "REVIEW  2 file"
+has "a colliding name gets the rename hint" "rename yours to keep both"
 contains "our agent kept" "$p/.claude/agents/tester.md" "OUR AGENT"
 contains "our gate kept" "$p/gates/check-plan-sync.sh" "MY-OWN-GATE"
 present "kit agent offered" "$p/.claude/agents/tester.md.factory-new"
@@ -334,9 +345,17 @@ adopt "$p" factory; rc 0 "re-run with pending reviews"
 hasnt "re-run does not re-list reviewed-once files" "REVIEW"
 adopt "$p" factory --check; rc 1 "--check fails while .factory-new awaits review"
 has "--check" "awaiting review"
+exe "a script's .factory-new keeps the execute bit" "$p/gates/check-plan-sync.sh.factory-new"
 rm "$p/.claude/agents/tester.md.factory-new" "$p/gates/check-plan-sync.sh.factory-new"
+adopt "$p" factory --check; rc 1 "keeping your own gate under a kit gate's name fails --check"
+has "enforcement drift is a FAIL" "FAIL  gates/check-plan-sync.sh: differs from the kit's copy"
+hasnt "an agent is adopter-filled: its fill is not 'modified locally'" "tester.md: kit-owned"
+mv "$p/gates/check-plan-sync.sh" "$p/gates/check-my-sync.sh"
+adopt "$p" factory; rc 0 "after renaming ours, adopt.py restores the kit's gate"
+contains "kit gate back" "$p/gates/check-plan-sync.sh" "nothing to check yet"
+contains "ours kept under its own name" "$p/gates/check-my-sync.sh" "MY-OWN-GATE"
+chmod +x "$p/gates/check-my-sync.sh"
 adopt "$p" factory --check; rc 0 "--check after the adopter decided"
-has "local edits are a warning" "modified locally"
 
 echo "== profiles drop the right rules and leave no dead link =="
 for prof in full backend frontend cli library data embedded iac llm; do
@@ -464,7 +483,8 @@ chmod +x "$p/factory/gates/check-spec-numbers.sh"
 rm "$p/factory/gates/check-plan-sync.test.sh"
 adopt "$p" factory --upgrade; rc 1 "upgrade with reviews pending exits 1"
 contains "unmodified hook replaced" "$p/.claude/hooks/check-careful.py" "v2"
-has "hook change reminds the live probes" "re-run the careful skill's two live probes"
+has "hook change reminds the test table and the live probes" \
+  "run bash .claude/hooks/check-careful.test.sh, then the careful skill's"
 contains "modified kit-owned file kept" "$p/.claude/agents/tester.md" "local tweak"
 contains "its kit version offered" "$p/.claude/agents/tester.md.factory-new" "Kit v2 line."
 contains "adopter-filled kept" "$p/.claude/CLAUDE.md" "filled"
@@ -620,6 +640,153 @@ rc 0 "clean tree passes"
 (cd "$p" && "$PY" "$KIT/bin/check-links.py" nope) >"$OUT" 2>&1; RC=$?
 rc 2 "missing root is a usage error"
 
+echo "== a stale kit checkout is behind the manifest (review 2026-09-29) =="
+# A teammate's plain `git pull` leaves factory/ on the old commit. --check used to say "stale -
+# run --upgrade", and --upgrade put the older guard back with a green --check.
+FXN="$TMP/fixture-newer"; mkdir -p "$FXN"; (cd "$FX" && tar --exclude=.git -cf - .) | (cd "$FXN" && tar -xf -)
+echo "9.9.10" > "$FXN/VERSION"
+printf '#!/usr/bin/env python3\nprint("{}")  # newer guard\n' > "$FXN/harness/skills/careful/hooks/check-careful.py"
+p="$TMP/behind"; mkdir -p "$p"; vendor "$FXN" "$p"
+adopt "$p" factory; rc 0 "adopt the newer kit"
+rm -rf "$p/factory"; vendor "$FX" "$p"                     # the stale checkout
+adopt "$p" factory --check; rc 1 "--check: factory/ is behind what the project installed"
+has "behind" "older than the 9.9.10"; has "behind: the fix" "git submodule update --init"
+hasnt "behind: never 'run --upgrade' per file" "stale - "
+adopt "$p" factory --upgrade; rc 1 "--upgrade refuses to downgrade"
+contains "newer guard kept" "$p/.claude/hooks/check-careful.py" "newer guard"
+adopt "$p" factory; rc 1 "a plain run refuses too (it would rewrite the manifest)"
+contains "manifest still records the newer kit" "$p/.claude/.factory-manifest.json" '"9.9.10"'
+adopt "$p" factory --allow-downgrade; rc 2 "--allow-downgrade only with --upgrade"
+adopt "$p" factory --upgrade --allow-downgrade; rc 0 "a deliberate rollback"
+lacks "rolled back" "$p/.claude/hooks/check-careful.py" "newer guard"
+rm -rf "$p/factory"; vendor "$FXN" "$p"
+adopt "$p" factory --check; rc 1 "forward again: an ordinary upgrade is due"; has "forward" "run --upgrade"
+
+echo "== guard and gate drift fail --check; execute bits are checked (review 2026-09-29) =="
+p="$TMP/drift"; git init -q "$p"; vendor "$FX" "$p"
+adopt "$p" factory; rc 0 "adopt"
+cp "$p/.claude/hooks/check-careful.sh" "$TMP/shim"; : > "$p/.claude/hooks/check-careful.sh"
+adopt "$p" factory --check; rc 1 "an emptied shim fails --check"
+has "emptied shim" "check-careful.sh: differs from the kit's copy, so the guard may be off"
+cat "$TMP/shim" > "$p/.claude/hooks/check-careful.sh"
+adopt "$p" factory --check; rc 0 "restored shim"
+echo "# local tweak" >> "$p/.claude/HARNESS.md"
+adopt "$p" factory --check; rc 0 "a doc edit stays a warning"; has "doc edit" "HARNESS.md: kit-owned but modified locally"
+chmod -x "$p/gates/run-chain.sh"
+adopt "$p" factory --check; rc 1 "a script without its execute bit"; has "chmod" "not executable"
+chmod +x "$p/gates/run-chain.sh"
+(cd "$p" && git add -A && git update-index --chmod=-x gates/run-chain.sh) >/dev/null 2>&1
+adopt "$p" factory --check; rc 1 "a script committed as 100644"; has "index mode" "git update-index --chmod=+x gates/run-chain.sh"
+(cd "$p" && git update-index --chmod=+x gates/run-chain.sh)
+adopt "$p" factory --check; rc 0 "index mode fixed"
+
+echo "== --check never runs a run-chain.sh the kit did not write (review 2026-09-29) =="
+p="$TMP/foreign"; mkdir -p "$p/gates"; vendor "$FX" "$p"
+printf '#!/usr/bin/env bash\necho "RAN $*" >> "%s/ran.log"\n' "$p" > "$p/gates/run-chain.sh"
+chmod +x "$p/gates/run-chain.sh"
+adopt "$p" factory; rc 0 "adopt beside a project runner"
+rm "$p/gates/run-chain.sh.factory-new"
+adopt "$p" factory --check; rc 1 "--check (the runner is not the kit's)"
+absent "--check executed nothing" "$p/ran.log"
+
+echo "== .gitattributes pins by extension; a binary under gates/ is untouched (review 2026-09-29) =="
+p="$TMP/bin"; git init -q "$p"; vendor "$FX" "$p"
+printf '%s\n' "# ai-factory-kit: installed scripts stay LF - a CRLF checkout makes bash exit 2, and a" \
+  "# PreToolUse hook that exits 2 blocks every tool call." ".claude/hooks/** text eol=lf" \
+  "gates/** text eol=lf" > "$p/.gitattributes"
+adopt "$p" factory; rc 0 "adopt over a pre-release .gitattributes block"
+has "migrated" "replaced the earlier gates/"
+lacks "old tree rule gone" "$p/.gitattributes" "gates/** text"
+mkdir -p "$p/gates/visual"; printf '\211PNG\r\n\032\n\000\000\000\rIHDR' > "$p/gates/visual/baseline.png"
+(cd "$p" && git add -A) >/dev/null 2>&1
+t "the PNG is committed byte for byte" sh -c "cd '$p' && git show :gates/visual/baseline.png | cmp -s - gates/visual/baseline.png"
+adopt "$p" factory --check; hasnt "a binary is not a CRLF script" "baseline.png"
+
+echo "== flag-installed files and the per-clone hook are audited (review 2026-09-29) =="
+p="$TMP/flags"; git init -q "$p"; vendor "$FX" "$p"
+adopt "$p" factory --install-git-hook --ci github; rc 0 "hook and CI"
+contains "CI is adopter-filled (toolchain steps)" "$p/.claude/.factory-manifest.json" \
+  '".github/workflows/factory-gates.yml": {'
+git -C "$p" config --unset core.hooksPath
+adopt "$p" factory --check; rc 0 "an unwired clone is a warning"
+has "per clone" "does not run it (core.hooksPath is unset)"; has "per clone: fix" "--install-git-hook once in every clone"
+adopt "$p" factory --install-git-hook; rc 0 "wire this clone"
+adopt "$p" factory --check; hasnt "wired" "does not run it"
+rm "$p/.github/workflows/factory-gates.yml"
+adopt "$p" factory; rc 0 "re-run after the CI job was deleted"
+adopt "$p" factory --check; rc 0 "a deleted CI job is a warning, not silence"
+has "deleted CI" "factory-gates.yml: installed by adopt.py --ci github, now deleted"
+
+echo "== next steps never mark the live probes done (review 2026-09-29) =="
+p="$TMP/probes"; mkdir -p "$p"; vendor "$FX" "$p"
+adopt "$p" factory --register-guard; rc 0 "register"
+has "registration is done" '\[done\] adapt .claude/hooks/careful.json'
+hasnt "the probes are not" '\[done\] the careful skill'
+has "the probes are listed" "the careful skill's two live probes"
+has "footer: per-clone hook" "each clone runs python3 factory/bin/adopt.py --install-git-hook once"
+
+echo "== unfilled placeholders are reported (review 2026-09-29) =="
+p="$TMP/ph"; mkdir -p "$p"; vendor "$FX" "$p"
+adopt "$p" factory; adopt "$p" factory --check; rc 0 "placeholders are warnings"
+has "placeholder" "WARN  .claude/CLAUDE.md: 1 unfilled placeholder"
+"$PY" - "$p/.claude/CLAUDE.md" <<'EOF'
+import sys
+p = sys.argv[1]; s = open(p).read().replace("[PROJECT]", "Budget"); open(p, "w").write(s)
+EOF
+adopt "$p" factory --check; hasnt "filled" "WARN  .claude/CLAUDE.md: 1 unfilled"
+
+echo "== pre-1.4.0 constitution links get a hint (review 2026-09-29) =="
+printf '# C\nFlow: [SPEC-FLOW](../model/SPEC-FLOW.md).\n' > "$p/.specify/memory/constitution.md"
+adopt "$p" factory --check; rc 1 "a v1.3.x constitution link is dead"
+has "hint" "written for factory/constitution/"; has "hint: the new target" "../../factory/model/SPEC-FLOW.md"
+
+echo "== a rule with no frontmatter is valid; a misplaced one is not (review 2026-09-29) =="
+p="$TMP/nofm"; mkdir -p "$p/.claude/rules"; vendor "$FX" "$p"
+printf '# Our workflow\nAlways rebase.\n' > "$p/.claude/rules/workflow.md"
+printf '# Security\nNo secrets.\n' > "$p/.claude/rules/security.md"
+adopt "$p" factory; rc 0 "adopt beside rules without frontmatter"
+rm "$p/.claude/rules/workflow.md.factory-new"
+adopt "$p" factory --check; rc 0 "--check accepts them"; hasnt "no frontmatter" "must open at byte 0"
+printf '<!-- x -->\n---\npaths:\n  - "src/**"\n---\n' > "$p/.claude/rules/security.md"
+adopt "$p" factory --check; has "a misplaced frontmatter still warns" "security.md: rule: YAML frontmatter must open at byte 0"
+
+echo "== a project below the repository root (review 2026-09-29) =="
+top="$TMP/mono"; git init -q "$top"; p="$top/services/api"; mkdir -p "$p"; vendor "$FX" "$p"
+adopt "$p" factory; rc 0 "adopt in a sub-directory"; has "nested" "not the git repository's root"
+adopt "$p" factory --ci github; rc 1 "--ci github refuses where GitHub would never read it"
+has "nested ci" "GitHub reads workflows only from the repository root"
+absent "nothing written" "$p/.github"
+
+echo "== a profile change or a deleted rule is not a kit change (review 2026-09-29) =="
+p="$TMP/reprof"; mkdir -p "$p"; vendor "$FX" "$p"
+adopt "$p" factory; echo "filled" >> "$p/.claude/CLAUDE.md"
+adopt "$p" factory --profile cli; rc 0 "narrow the profile"
+has "rendering, not the kit" "its links changed with the profile"; hasnt "not the kit's fault" "the kit's template changed"
+rm "$p/.claude/CLAUDE.md.factory-new"
+p="$TMP/delrule"; mkdir -p "$p"; vendor "$FX" "$p"
+adopt "$p" factory; rm "$p/.claude/rules/architecture.md"
+adopt "$p" factory --check; rc 1 "--check after deleting a rule"
+has "plain adopt.py" "run python3 factory/bin/adopt.py, not --upgrade"; hasnt "not stale" "stale - "
+
+echo "== adopt.py takes no abbreviated options (review 2026-09-29) =="
+p="$TMP/abbr"; mkdir -p "$p"; vendor "$FX" "$p"; adopt "$p" factory
+adopt "$p" factory --upg; rc 2 "--upg is not --upgrade"
+adopt "$p" factory --che; rc 2 "--che is not --check"
+
+echo "== a pristine older duplicate of the guard is removed (review 2026-09-29) =="
+FXH="$TMP/fixture-hist"; mkdir -p "$FXH"; (cd "$FX" && tar --exclude=.git -cf - .) | (cd "$FXH" && tar -xf -)
+gitkit "$FXH"
+printf '#!/usr/bin/env bash\ncat >/dev/null\necho "{}"  # v2\n' > "$FXH/harness/skills/careful/hooks/check-careful.sh"
+(cd "$FXH" && git commit -qam v2)
+p="$TMP/dup"; git init -q "$p"; git clone -q "$FXH" "$p/factory"
+adopt "$p" factory; rm "$p/.claude/.factory-manifest.json"
+mkdir -p "$p/.claude/skills/careful/hooks"
+git -C "$FXH" show HEAD~1:harness/skills/careful/hooks/check-careful.sh > "$p/.claude/skills/careful/hooks/check-careful.sh"
+echo "# our live edit" >> "$p/.claude/hooks/check-careful.sh"
+adopt "$p" factory --upgrade
+absent "a copy equal to an OLDER kit version is removed" "$p/.claude/skills/careful/hooks"
+has "legacy guard review line" "port any local rule to .claude/hooks/careful.json"
+
 echo "== live kit: a fresh adoption of this working tree =="
 p="$TMP/live"; git init -q "$p"; vendor "$KIT" "$p"
 adopt "$p" factory; rc 0 "live kit adopts cleanly"
@@ -633,6 +800,35 @@ adopt "$p" factory --check; rc 1 "live kit: --check on a chain.conf that declare
 has "malformed chain.conf named" "gates/chain.conf: run-chain.sh rejects it"
 cat "$TMP/live-cc" > "$p/gates/chain.conf"
 adopt "$p" factory --check; rc 0 "live kit: --check once the duplicate slot is gone"
+# /speckit-constitution drafts the constitution from the override, links and all (review
+# 2026-09-29: 18 dead links). The override's text must be valid where it lands.
+cp "$p/.specify/memory/constitution.md" "$TMP/live-const"
+cp "$p/.specify/templates/overrides/constitution-template.md" "$p/.specify/memory/constitution.md"
+adopt "$p" factory --check; rc 0 "live kit: the override written into memory/ has no dead link"
+cat "$TMP/live-const" > "$p/.specify/memory/constitution.md"
+t "live kit: a direct check-links run agrees" links "$p" .specify
+# PHASE-0 §3: the vision is saved from the template beside the constitution.
+cp "$p/factory/constitution/vision-template.md" "$p/.specify/memory/vision.md"
+adopt "$p" factory --check; rc 0 "live kit: vision.md saved from the template"
+hasnt "live kit: no dead link in vision.md" "vision.md: line"
+rm "$p/.specify/memory/vision.md"
+# AI-ONBOARDING §2.2 step 7: the Safety invariants bullets, copied verbatim into each agent.
+"$PY" - "$p/.claude/CLAUDE.md" "$p"/.claude/agents/*.md <<'EOF' || fail "live kit: copying the invariants into the agents"
+import re, sys
+src = open(sys.argv[1], encoding="utf-8").read()
+start = src.index("- **I —")
+end = src.index("\n\n", start)
+bullets = src[start:end].strip() + "\n"
+pat = re.compile(r"- \*\*I — \[DOMAIN INVARIANT\]\*\*: \[copy from CLAUDE\.md\]\n(?:- .*\n){3}")
+for a in sys.argv[2:]:
+    t = open(a, encoding="utf-8").read()
+    t2 = pat.sub(lambda m: bullets, t, count=1)
+    assert t2 != t, a
+    open(a, "w", encoding="utf-8").write(t2)
+EOF
+adopt "$p" factory --check; rc 0 "live kit: invariants copied verbatim into the agents"
+hasnt "live kit: no dead link in an agent" "agents/.*dead link"
+hasnt "live kit: a filled agent is not 'modified locally'" "agents/.*modified locally"
 
 echo "== v1.3.2 adoption upgraded by this adopt.py =="
 # v1.3.2 is tag v1.3.2 = commit af7f324 (git ls-remote --tags origin). The commit is the fallback

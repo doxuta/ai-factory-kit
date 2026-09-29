@@ -27,7 +27,7 @@ the hook cannot.
 
 | Host / platform | Status |
 |---|---|
-| Claude Code on Linux, macOS, WSL (Linux filesystem) | Supported. For v1.4.0 the test table ran on Linux under bash 3.2.57 (the macOS version) and 5.2, Python 3.8 and 3.11; it was not run on a Mac |
+| Claude Code on Linux, macOS, WSL (Linux filesystem) | Supported. For v1.4.0 the test table ran in CI on Linux (bash 5.2) and on macOS (the system bash 3.2), and the two live probes in headless Claude Code sessions on Linux; nothing has run on WSL |
 | Claude Code on native Windows, hooks under Git Bash | Best-effort. PowerShell payloads and backslash paths are handled and pinned in the table, but no run on a real Windows host has been made |
 | Native Windows **without** Git Bash | **No guard.** Claude Code then runs hooks in PowerShell, where the registered `bash …` command cannot run; a hook that fails that way is a non-blocking error, so every call proceeds |
 | Other hosts (Codex, Gemini, Copilot, Cursor, …) | Port by hand: decision envelope, tool names, path fields and `$CLAUDE_PROJECT_DIR` are Claude Code's. See [HARNESS](../../HARNESS.md) §7 |
@@ -40,7 +40,12 @@ the hook cannot.
 maintainers edit it. (v1.3 installed the matcher twice: the documented procedure edited and
 tested the unregistered copy, the test went green, and the live guard was unchanged — F10.)
 `adopt.py --check` fails while a `.claude/skills/careful/hooks/` directory exists, and
-`--upgrade` removes a byte-identical v1.3 copy.
+`--upgrade` removes one that matches the live copy, this kit's, or — when `factory/` is a git
+checkout, so its history is there to compare with — any earlier committed kit version; a copy
+that matches none holds local edits — port them to `careful.json`, then
+delete the directory. `--check` also fails while the installed matcher or shim differs from
+the kit's copy: since 1.4.0 `careful.json` is the only place a project's rules go, so a changed
+`check-careful.py` is a guard that may be off, not a customisation.
 
 ## Install, adapt, register — in that order
 
@@ -64,8 +69,9 @@ tested the unregistered copy, the test went green, and the live guard was unchan
    `bash .claude/hooks/check-careful.test.sh`.
 4. First commit; create a remote and push (until one exists, `.git` is the only copy of your
    history — see the deny tier). Then `python3 factory/bin/adopt.py --register-guard`, which
-   merges both matchers from [`settings.json.template`](../../settings.json.template) into
-   `.claude/settings.json`.
+   merges both matchers from the kit's [`settings.json.template`](../../settings.json.template)
+   into `.claude/settings.json` (adopt.py installs no copy of the template; the kit's is the one
+   it reads, and the one the guard protects).
 5. Run the live probes below.
 
 After registration `careful.json` is a guarded file: the agent is denied, and changing it is a
@@ -106,8 +112,15 @@ means printing `{}`.
 | Tier | Shapes |
 |---|---|
 | `deny` — nothing undoes it | recursive delete (`rm -r`, `find -delete` without a filter, `Remove-Item -Recurse`, `rd /s`, `rsync --delete`) of `/`, `$HOME`, any directory above `$HOME`, `/home` / `/Users` / `C:\Users\<name>`, or everything in one of them (`~/*`, `"$DIR/"*` with `DIR` unset); force-push (flag or `+refspec`) or delete (`:main`, `--delete`, `gh api -X DELETE …/refs/heads/main`) of a protected branch, `--mirror`, `--force --all`, and a force-push whose branch cannot be named (detached or unborn `HEAD`, `$VAR`, `$(…)`); raw block-device writes (`dd of=/dev/sda`, `> /dev/disk4`, `mkfs`/`wipefs -a`/`blkdiscard`/`sgdisk --zap-all` on a device, `diskutil eraseDisk`); eFuse burns (`espefuse burn_*`, `idf.py efuse-burn`); recursive delete of `.git`, `.specify` or `.specify/memory` in a repository with **no remote**, and of the project directory itself; every write, move, link, delete, `chmod` or `git checkout/restore/rm` of a guarded file (next section) |
-| `ask` — destructive but recoverable, or unreadable | `rm -r` outside the safe list · SQL `DROP`/`TRUNCATE`/`DELETE`/`UPDATE` without `WHERE` through a DB client, including warehouses (`bq`, `snowsql`, `duckdb`, `spark-sql`, `clickhouse-client`, …) · ORM resets (`prisma migrate reset`, `rails db:drop`, `manage.py flush`, `artisan migrate:fresh`, `redis-cli FLUSHALL`, `dropdb`, …) · migrate down · cloud and IaC teardown (`terraform`/`tofu`/`pulumi`/`cdk destroy`, `apply -destroy`, `state rm`, `helm uninstall`, `kubectl delete`, `aws s3 rm --recursive`, `aws … delete-*`, `gcloud … delete`, `az … delete`) · flash erase (`esptool erase_flash`, `st-flash erase`, `nrfjprog --eraseall`) · publish and unpublish (`npm publish`/`unpublish`, `cargo publish`/`yank`, `twine upload`, `gh release delete`, …) · `git commit/push --no-verify`, `commit -n`, `git config core.hooksPath`, `git -c core.hooksPath=…` · `adopt.py --upgrade` · `reset --hard` · `checkout/restore .` · `clean -f` · `branch -D` · `--force-with-lease` and force-push to other branches · `sed -i` / `perl -i` · compose `down -v` · edits to gate configuration (`gates/*.conf`, `gates/orphan-allowlist.txt`) and creating a **new** `gates/check-*` script · writes to a dot-entry in `$HOME` or a system path (`/etc`, `/usr`, …) · anything piped into a shell that is not a readable literal · a command name built at runtime · a command over 256 K characters |
+| `ask` — destructive but recoverable, or unreadable | `rm -r` outside the safe list · SQL `DROP`/`TRUNCATE`/`DELETE`/`UPDATE` without `WHERE` through a DB client, including warehouses (`bq`, `snowsql`, `duckdb`, `spark-sql`, `clickhouse-client`, …) · ORM resets (`prisma migrate reset`, `rails db:drop`, `manage.py flush`, `artisan migrate:fresh`, `redis-cli FLUSHALL`, `dropdb`, …) · migrate down · cloud and IaC teardown (`terraform`/`tofu`/`pulumi`/`cdk destroy`, `apply -destroy`, `state rm`, `helm uninstall`, `kubectl delete`, `aws s3 rm --recursive`, `aws … delete-*`, `gcloud … delete`, `az … delete`) · flash erase (`esptool erase_flash`, `st-flash erase`, `nrfjprog --eraseall`) · publish and unpublish (`npm publish`/`unpublish`, `cargo publish`/`yank`, `twine upload`, `gh release delete`, …) · `git commit/push --no-verify`, `commit -n`, `git config core.hooksPath`, `git -c core.hooksPath=…`, and any edit, move or delete of git's hook wiring (`.git/config`, `.git/hooks/*`) · edits, moves and deletes of the CI job `adopt.py --ci github` installs (`.github/workflows/factory-gates.yml`) · `adopt.py --upgrade` · `reset --hard` · `checkout/restore .` · `clean -f` · `branch -D` · `--force-with-lease` and force-push to other branches · `sed -i` / `perl -i` · compose `down -v` · edits to gate configuration (`gates/*.conf`, `gates/orphan-allowlist.txt`) and creating a **new** `gates/check-*` script · writes to a dot-entry in `$HOME` or a system path (`/etc`, `/usr`, …) · anything piped into a shell that is not a readable literal · a command name built at runtime · a command over 256 K characters |
 | pass | everything else — printed as `{}`, so the host's own permission flow decides |
+
+An abbreviated long option is that option: GNU `getopt_long`, git and Python's `argparse` all
+accept a unique prefix, so `rm --recurs --forc ~`, `git push --delet origin main`,
+`git commit --no-verif` and `adopt.py --upg` ran as the full option while v1.4.0's first matcher
+returned `{}` for every one (review 2026-09-29). The options the rules key on are now read the
+way the tool reads them; an ambiguous prefix, which the tool itself refuses to run, is read the
+dangerous way. `adopt.py` itself no longer accepts abbreviations.
 
 Adapt the lists to your stack through `careful.json`; **the tier split and the classes are the
 portable part.** Why cloud teardown is `ask`, not `deny`: whether `terraform destroy` erases
@@ -142,17 +155,24 @@ the literal spelling and `.claude//hooks/x`, `.CLAUDE/Hooks/x`, `>|` and
 `C:\proj\.claude\hooks\x` each passed with `{}` (F8, F44), as did `rm`, `mv`, `cp`, `ln`,
 `truncate`, `git rm`, `git checkout HEAD~1 -- …` on the guard (F9).
 
-Two edits stay possible, and shown: gate configuration (`gates/chain.conf`, `gates/*.conf`,
-`gates/orphan-allowlist.txt`) asks, because the adopter wires it — but a quiet change turns a
-red gate green. A `gates/check-*` script that does **not exist yet** asks, so feature 001 can add
-a project gate after registration; once it exists it is guarded. **Reading** a guarded file is
+Some edits stay possible, and shown (ask), because the adopter legitimately makes them — but a
+quiet one turns a red chain green or stops it running: gate configuration (`gates/chain.conf`,
+`gates/*.conf`, `gates/orphan-allowlist.txt`); the CI job `.github/workflows/factory-gates.yml`,
+which the adopter extends with toolchain steps (before the 2026-09-29 review an agent could
+`git rm` it with `{}` while an edit to `chain.conf` asked); and git's hook wiring, `.git/config`
+and `.git/hooks/*` (`git config --unset core.hooksPath` asked; an Edit deleting the same line
+passed). A `gates/check-*` script that does **not exist yet** asks, so feature 001 can add a
+project gate after registration; once it exists it is guarded. **Reading** any of these is
 always allowed — the first draft denied the read, which blocked the ordinary "look at what this
 does" step and bought nothing.
 
-The registered command **fails closed**: if `check-careful.sh` is missing or broken it exits 2,
-which Claude Code treats as a block, and names `.claude/hooks/` on stderr. A plain
-`bash <missing file>` exits 127, which Claude Code treats as a non-blocking error — deleting the
-shim used to switch the guard off for every later call (F9).
+The registered command **fails closed**: if `check-careful.sh` is missing, broken, or prints
+anything but a JSON decision, it exits 2, which Claude Code treats as a block, and names
+`.claude/hooks/` on stderr. A plain `bash <missing file>` exits 127, a non-blocking error —
+deleting the shim used to switch the guard off for every later call (F9) — and
+`bash <empty file>` exits 0 printing nothing, which is no decision at all: an emptied shim
+passed everything while `adopt.py --check` said OK (review 2026-09-29). The shim prints a JSON
+object on every path it can take, so requiring one costs nothing.
 
 ## 🔴 The second lesson: a fresh adversary, not a fresh test
 
@@ -162,7 +182,8 @@ returned `{}` (argv[0] read off token 0), `rm -rf / ; echo done` downgraded to a
 origin :main` needed no `--force`, `git -C /repo push -f` hid the subcommand, `rm -rf / /home`
 softened by *adding* a target, `rm -rf ~/*` was missing from the root set.
 
-It happened again in v1.4.0, which is why this is a lesson and not a story. The v1.3.2 matcher
+It happened again in v1.4.0, which is why this is a lesson and not a story — and a third time
+in the review of v1.4.0 itself, through abbreviated long options (above, under the tiers). The v1.3.2 matcher
 split commands on a regex and tokenised with `shlex`. Measured 2026-09-29, each of these
 returned `{}` for `rm -rf /`: `if true; then rm -rf /; fi`, `(rm -rf /)`, `f(){ rm -rf /; }`,
 `echo $(rm -rf /)`, `bash <<EOF` with `rm -rf /` in the body, `echo "rm -rf /" | sh` — and a
@@ -201,9 +222,14 @@ After fixing those: 800 → 77.
    corpus said one in eight.
 3. **Precision beats scope.** Every fix above made the matcher narrower.
 
-v1.4.0 numbers, from real runs. `careful-corpus.txt` holds 381 ordinary commands across stacks
+v1.4.0 numbers, from real runs. `careful-corpus.txt` holds 384 ordinary commands across stacks
 (git, JS, Python, Go, Rust, JVM, .NET, Ruby/PHP/Elixir, mobile, containers, IaC, embedded,
-data, PowerShell): **0 interrupted**, and the table fails if one ever is. That corpus is
+data, PowerShell): **0 interrupted**, and the table fails if one ever is. (Review found two
+ordinary cleanups missing from it — `find . -name '*.pyc' -delete` and
+`find . -type d -name __pycache__ -exec rm -rf {} +` — which asked while `rm -rf __pycache__`
+was silent, and no `careful.json` key could change that. A find cleanup is now silent when every
+root is inside the project, every `-name` is a `safe_dirs` entry or a bytecode pattern, and
+nothing in the expression can widen it: no `-o`, no `!`, no `-path`, no other `-exec`.) That corpus is
 constructed, so the real-traffic replay was repeated on the **2,002 unique commands** from the
 agent sessions that built and audited this kit: v1.3.2 interrupted 165 (8.2%), v1.4.0
 interrupts 89 (4.4%). Each of the 89 is a rule doing what it says: 40 denies on writes, moves
@@ -280,18 +306,20 @@ Per [GATES](../../../gates/GATES.md) §4, a gate says what it cannot see, in its
 ## Verification — two steps, and step 2 is the one that was skipped
 
 ```bash
-bash .claude/hooks/check-careful.test.sh   # step 1: passed 550, failed 0
+bash .claude/hooks/check-careful.test.sh   # step 1: passed 613, failed 0
 ```
 
-(Before `--register-guard` it reads 543 and prints `SKIP` for the wiring checks, which test the
-registered command in `.claude/settings.json`.)
+(Before `--register-guard` it reads 602 and prints `SKIP` for the wiring checks, which test the
+registered command in `.claude/settings.json`: intact, broken, empty, printing no decision, and
+missing.)
 
 Step 1 builds its own fixtures — throwaway repos on `main`, a feature branch, detached and
 unborn `HEAD`, with and without a remote; a fake `$HOME` and project; a clean copy of the hook —
 so it passes on any branch and in any checkout state. (v1.3.2 read 141/142 on every feature
 branch, in detached CI checkouts and in a fresh repo, because one row asked the caller's own
 checkout which branch it was on — F26.) It pins decision and envelope for every row, the
-generated escapes, the size limits, the fail-closed wiring, the no-Python fallback, your
+generated escapes (1,680 variants, 480 of them with abbreviated long options), the size
+limits, the fail-closed wiring, the no-Python fallback, your
 `careful.json`, and the false-positive corpus.
 
 **Step 2, in a live session**, after the first commit. Both probes work in a repository with

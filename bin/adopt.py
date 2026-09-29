@@ -76,13 +76,52 @@ PROFILES = {
 }
 
 # Files the adopter fills in. --upgrade never replaces them; it offers a .factory-new when the
-# kit's source changed. Everything else the kit installs is kit-owned.
+# kit's source changed. Everything else the kit installs is kit-owned. The agents carry an
+# INVARIANTS block the adopter fills (AI-ONBOARDING §2.2 step 7) and the CI job gets the
+# adopter's toolchain steps (its own header says so): both were kit-owned until the 2026-09-29
+# review, so every correct adoption showed five permanent "modified locally" warnings and an
+# upgrade diff made of the adopter's own fill, reversed.
 ADOPTER_FILLED = re.compile(
-    r"^(?:\.claude/CLAUDE\.md|\.claude/rules/[^/]+\.md|\.specify/memory/constitution\.md"
-    r"|gates/chain\.conf|\.claude/hooks/careful\.json)$")
+    r"^(?:\.claude/CLAUDE\.md|\.claude/rules/[^/]+\.md|\.claude/agents/[^/]+\.md"
+    r"|\.specify/memory/constitution\.md|gates/chain\.conf|\.claude/hooks/careful\.json"
+    r"|\.github/workflows/factory-gates\.yml)$")
+# Enforcement code: the guard's matcher and shim, the chain runner, the gates and the git hook.
+# A local edit here is not "modified locally" but a guard or a gate that may be off, so --check
+# fails on it. Since 1.4.0 the guard's rules go in careful.json; a project's own gate goes in its
+# own gates/check-<name>.sh.
+ENFORCEMENT = re.compile(
+    r"^(?:\.claude/hooks/check-careful\.(?:sh|py)"
+    r"|gates/(?:run-chain\.sh|check-[^/]+\.(?:sh|py)|hooks/pre-commit))$")
+# Installed only when their flag asks. One the adopter deletes is not re-created, but --check
+# keeps saying it is gone: CI and the hook are the two things that enforce "no commit on red".
+FLAG_FILES = (("gates/hooks/pre-commit", "git-hook"),
+              (".github/workflows/factory-gates.yml", "ci-github"))
+# The constitution override is what /speckit-constitution drafts .specify/memory/constitution.md
+# from, links included (review 2026-09-29: 18 dead links after one run). Its links are written
+# for the file that receives them, and checked from there.
+CONST_OVERRIDE = ".specify/templates/overrides/constitution-template.md"
+CONST_MEMORY = ".specify/memory/constitution.md"
 
 LINK_SCOPE = (".claude", "gates", ".specify/memory", ".specify/templates/overrides")
+# By extension and by directory, never `gates/**`: `text` on a whole tree also normalises the
+# CRLF bytes inside every binary under it (review 2026-09-29: a PNG committed under gates/
+# lost its signature, \r\n -> \n).
 GITATTRIBUTES = (
+    "# ai-factory-kit: installed scripts stay LF - a CRLF checkout makes bash exit 2, and a",
+    "# PreToolUse hook that exits 2 blocks every tool call. Pinned by extension, so a binary",
+    "# under gates/ is never touched.",
+    ".claude/hooks/*.sh text eol=lf",
+    ".claude/hooks/*.py text eol=lf",
+    ".claude/hooks/*.json text eol=lf",
+    ".claude/hooks/*.txt text eol=lf",
+    "gates/*.sh text eol=lf",
+    "gates/*.py text eol=lf",
+    "gates/*.conf text eol=lf",
+    "gates/*.example text eol=lf",
+    "gates/hooks/* text eol=lf",
+)
+# What a pre-release 1.4.0 adopt.py appended; replaced when found under our comment.
+GITATTRIBUTES_OLD = (
     "# ai-factory-kit: installed scripts stay LF - a CRLF checkout makes bash exit 2, and a",
     "# PreToolUse hook that exits 2 blocks every tool call.",
     ".claude/hooks/** text eol=lf",
@@ -257,10 +296,11 @@ class Kit(object):
 # ---------------------------------------------------------------------------- the install plan
 
 class Item(object):
-    __slots__ = ("dest", "source", "kind", "data", "script")
+    __slots__ = ("dest", "source", "kind", "data", "script", "source_sha")
 
-    def __init__(self, dest, source, kind, data, script):
+    def __init__(self, dest, source, kind, data, script, source_sha=None):
         self.dest, self.source, self.kind, self.data, self.script = dest, source, kind, data, script
+        self.source_sha = source_sha
 
 
 def installed_location(src, kit, dropped):
@@ -271,6 +311,10 @@ def installed_location(src, kit, dropped):
     """
     if src == "harness/CLAUDE.md.template":
         return ".claude/CLAUDE.md"
+    if src == "harness/settings.json.template":
+        # --register-guard reads the kit's copy; an installed second copy was unguarded and
+        # read by nothing, so an edit there changed nothing (review 2026-09-29).
+        return None
     hooks = "harness/skills/careful/hooks"
     if src == hooks or src.startswith(hooks + "/"):
         return ".claude/hooks" + src[len(hooks):]
@@ -341,6 +385,11 @@ def rewrite_links(text, src, dest, kit, dropped):
     return "".join(out)
 
 
+def link_home(dest):
+    """Where the links in project file `dest` are written to resolve from (see CONST_OVERRIDE)."""
+    return CONST_MEMORY if dest == CONST_OVERRIDE else dest
+
+
 def render(kit, src, dest, dropped):
     data = read_bytes(pjoin(kit.root, src))
     if data is None:
@@ -353,7 +402,7 @@ def render(kit, src, dest, dropped):
     if text.startswith("\ufeff"):
         text = text[1:]  # a BOM before "#!" or "---" breaks the shebang and the frontmatter
     if is_markdown(src):
-        text = rewrite_links(text, src, dest, kit, dropped)
+        text = rewrite_links(text, src, link_home(dest), kit, dropped)
     return text.encode("utf-8")
 
 
@@ -386,8 +435,8 @@ def build_plan(kit, dropped, extras):
                 pairs.append((src, dest))
     const = "constitution/constitution-template.md"
     if kit.exists(const):
-        pairs.append((const, ".specify/templates/overrides/constitution-template.md"))
-        pairs.append((const, ".specify/memory/constitution.md"))
+        pairs.append((const, CONST_OVERRIDE))
+        pairs.append((const, CONST_MEMORY))
 
     plan, seen = [], {}
     for src, dest in pairs:
@@ -398,7 +447,8 @@ def build_plan(kit, dropped, extras):
             raise Fail("kit defect: %s and %s would both install to %s" % (seen[dest], src, dest))
         seen[dest] = src
         data = render(kit, src, dest, dropped)
-        plan.append(Item(dest, src, kind_of(dest), data, is_script(dest, data)))
+        plan.append(Item(dest, src, kind_of(dest), data, is_script(dest, data),
+                         sha256(read_bytes(pjoin(kit.root, src)) or b"")))
     return plan
 
 
@@ -413,6 +463,8 @@ FM_RULES = (
      "skill loaders require the frontmatter first (harness/skills/README.md rule 2)"),
 )
 FM_OPEN = re.compile(r"^---[ \t\r]*\n")
+# A frontmatter block that exists but does not open at byte 0: a fence, then a key, early on.
+MISPLACED_FM = re.compile(r"(?:^|\n)---[ \t\r]*\n(?:[^\n]*\n){0,10}?[ \t]*(?:paths|name|description)[ \t]*:")
 FM_CLOSE = re.compile(r"^---[ \t\r]*$", re.M)
 # Claude Code 2.1.284 parses frontmatter with /^---\s*\n([\s\S]*?)---\s*\n?/: the closing fence
 # is NOT line-anchored, so three dashes anywhere inside the block (a YAML comment explaining the
@@ -426,6 +478,11 @@ def frontmatter_problem(dest, data):
             continue
         text = data.decode("utf-8", "replace")
         m = FM_OPEN.match(text)
+        if not m and what == "rule" and not MISPLACED_FM.search(text[:4000]):
+            # No frontmatter at all is a valid rule: it has no paths: scope and loads in every
+            # session, as the author meant (review 2026-09-29: a brownfield workflow.md failed
+            # --check for ever, over a scope it never had).
+            return None
         if not m:
             lead = "a UTF-8 BOM" if text.startswith("\ufeff") else repr(text[:12])
             return "%s: YAML frontmatter must open at byte 0 (starts with %s) - %s" % (
@@ -449,7 +506,15 @@ def frontmatter_problem(dest, data):
 
 
 def cr_problem(dest, data):
+    """A CR in a script or in the config a script reads. Never a binary: a PNG's signature holds
+    \r\n, and a warning about it trained people to ignore this one (review 2026-09-29)."""
     if is_markdown(dest) or b"\r" not in data:
+        return None
+    if not (is_script(dest, data) or dest.endswith((".conf", ".json"))):
+        return None
+    try:
+        data.decode("utf-8")
+    except UnicodeDecodeError:
         return None
     return "contains a carriage return (CR): bash cannot run a CRLF script"
 
@@ -573,18 +638,24 @@ def spec_kit_scaffold(proj, data):
         return False
 
 
-def history_hint(kit, source, data):
-    """If `data` equals some committed version of kit `source`, the adopter changed nothing."""
-    if not kit.has_git or is_markdown(source):
-        return None
+def in_kit_history(kit, source, data):
+    """True if `data` is byte for byte some committed version of kit file `source`."""
+    if not kit.has_git or data is None:
+        return False
     blob = hashlib.sha1(b"blob %d\0" % len(data) + data).hexdigest()
     log = git(kit.root, "log", "--format=", "--raw", "--no-abbrev", "--", source) or ""
     for line in log.splitlines():
         parts = line.split()
         if len(parts) >= 4 and blob in (parts[2], parts[3]):
-            return ("identical to the kit's own %s at an earlier version: take the .factory-new"
-                    % source)
-    return None
+            return True
+    return False
+
+
+def history_hint(kit, source, data):
+    """If `data` equals some committed version of kit `source`, the adopter changed nothing."""
+    if is_markdown(source) or not in_kit_history(kit, source, data):
+        return None
+    return "identical to the kit's own %s at an earlier version: take the .factory-new" % source
 
 
 def apply_plan(proj, kit, plan, files, mode, legacy, rep):
@@ -595,7 +666,13 @@ def apply_plan(proj, kit, plan, files, mode, legacy, rep):
         rec = files.get(it.dest)
         render_sha = sha256(it.data)
         cur = read_bytes(path)
-        entry = {"source": it.source, "sha256": render_sha, "kind": it.kind}
+        entry = {"source": it.source, "sha256": render_sha, "kind": it.kind,
+                 "source_sha256": it.source_sha}
+        # Same kit source, different rendering: the profile, a dropped rule or the kit's
+        # directory changed, not the kit (review 2026-09-29: the old message blamed the kit and
+        # sent the adopter to --upgrade, the human-only step).
+        render_only = rec is not None and rec.get("source_sha256") == it.source_sha \
+            and rec.get("sha256") != render_sha
         if os.path.isdir(path):
             rep.warnings.append("%s is a directory; the kit installs a file there - skipped"
                                 % it.dest)
@@ -610,35 +687,49 @@ def apply_plan(proj, kit, plan, files, mode, legacy, rep):
                 os.chmod(path, 0o755)
             rep.unchanged.append(it.dest)
             ours.add(it.dest)
-        elif rec is None and it.dest == ".specify/memory/constitution.md" \
-                and spec_kit_scaffold(proj, cur):
+        elif rec is None and it.dest == CONST_MEMORY and spec_kit_scaffold(proj, cur):
             write_bytes(path, it.data)
             rep.replaced.append(it.dest)
             rep.notes.append("replaced Spec Kit's unfilled constitution scaffold with the kit's")
             ours.add(it.dest)
         elif rec is not None and it.kind == "kit-owned" and sha256(cur) == rec.get("sha256"):
-            if mode == "upgrade":
+            if mode == "upgrade" or render_only:
                 write_bytes(path, it.data, it.script)
                 rep.replaced.append(it.dest)
                 ours.add(it.dest)
             else:
-                offer(path, it.data)
+                offer(path, it.data, it.script)
                 rep.outdated.append(it.dest)
                 entry["sha256"] = rec["sha256"]  # still unmodified: --upgrade may replace it
+                entry["source_sha256"] = rec.get("source_sha256")
         elif rec is not None and rec.get("sha256") == render_sha:
             rep.kept.append(it.dest)  # the adopter's version; this kit version was offered before
         else:
-            offer(path, it.data)
+            offer(path, it.data, it.script)
+            kit_changed = rec is not None and not render_only
             if rec is None and not legacy:
                 why = "was already there"
+                if it.kind == "kit-owned" or it.dest.startswith((".claude/rules/",
+                                                                 ".claude/agents/")):
+                    why += ("; if yours is a different file that only shares the kit's name, "
+                            "rename yours to keep both")
+            elif rec is None and it.dest in (".claude/hooks/check-careful.py",
+                                             ".claude/hooks/check-careful.sh"):
+                why = ("no manifest; 1.4.0 replaces the guard wholesale: take the .factory-new, "
+                       "then port any local rule to .claude/hooks/careful.json, the only "
+                       "extension point since 1.4.0")
             elif rec is None:
                 why = "no manifest: cannot tell kit copy from local edit"
+            elif render_only:
+                why = ("its links changed with the profile or a dropped rule, not the kit: merge "
+                       "the link changes")
             elif it.kind == "adopter-filled":
                 why = "adopter-filled; the kit's template changed"
             else:
                 why = "kit-owned, modified locally"
             hint = history_hint(kit, it.source, cur) if rec is None else None
-            rep.offered.append((it.dest, why + ("; " + hint if hint else "")))
+            rep.offered.append((it.dest, why + ("; " + hint if hint else ""),
+                                it.source if kit_changed else None))
         files[it.dest] = entry
         stale = read_bytes(path + NEW)
         if stale is not None and stale == read_bytes(path):
@@ -646,8 +737,11 @@ def apply_plan(proj, kit, plan, files, mode, legacy, rep):
     return ours
 
 
-def offer(path, data):
-    write_bytes(path + NEW, data)
+def offer(path, data, executable=False):
+    # A .factory-new is taken by `mv` (PHASE-0 §2 says so). Written 0644, the moved script lost
+    # its execute bit and git ignored the pre-commit hook while --check said OK (review
+    # 2026-09-29), so a script's .factory-new is executable too.
+    write_bytes(path + NEW, data, executable)
 
 
 def handle_orphans(proj, plan, files, mode, dropped, rep):
@@ -659,6 +753,8 @@ def handle_orphans(proj, plan, files, mode, dropped, rep):
         rec, path = files[dest], pjoin(proj, dest)
         cur = read_bytes(path)
         rule = re.match(r"^\.claude/rules/([^/]+)\.md$", dest)
+        if cur is None and dest in dict(FLAG_FILES):
+            continue  # kept on record so that --check keeps saying the hook or CI job is gone
         if cur is None:
             del files[dest]
         elif rule and rule.group(1) in dropped:
@@ -692,7 +788,11 @@ def legacy_duplicate_hooks(proj, kit, mode, before, rep):
         p = os.path.join(dup, f)
         data = read_bytes(p) if os.path.isfile(p) else None
         kit_copy = read_bytes(os.path.join(kit.root, "harness", "skills", "careful", "hooks", f))
-        same = data is not None and (data == before.get(f) or data == kit_copy)
+        # Unmodified = equal to the live copy, to this kit's copy, or to ANY committed kit
+        # version (review 2026-09-29: a pristine v1.3.2 copy beside an edited live copy
+        # survived every --upgrade, and --check kept saying "run --upgrade").
+        same = data is not None and (data == before.get(f) or data == kit_copy or in_kit_history(
+            kit, "harness/skills/careful/hooks/" + f, data))
         if mode == "upgrade" and same:
             os.remove(p)
             rep.removed.append(".claude/skills/careful/hooks/" + f)
@@ -703,7 +803,9 @@ def legacy_duplicate_hooks(proj, kit, mode, before, rep):
         return
     msg = (".claude/skills/careful/hooks/ holds an unregistered copy of the guard (%s). Edits "
            "there never reach the live hook in .claude/hooks/; " % ", ".join(left))
-    msg += ("move any local rules into .claude/hooks/careful.json, then delete the directory"
+    msg += ("these match neither the live copy nor any kit version adopt.py can compare with "
+            "(%s/'s git history, when it has one), so treat them as local edits: port any rule "
+            "they add to .claude/hooks/careful.json, then delete the directory" % kit.rel
             if mode == "upgrade" else "run --upgrade to remove the unmodified copies")
     rep.warnings.append(msg)
 
@@ -712,14 +814,24 @@ def ensure_gitattributes(proj, rep):
     path = pjoin(proj, ".gitattributes")
     cur = read_bytes(path) or b""
     text = cur.decode("utf-8", "replace")
-    have = set(l.strip() for l in text.splitlines())
+    lines = text.splitlines()
+    migrated = False
+    if GITATTRIBUTES_OLD[0] in lines and GITATTRIBUTES_OLD[2] in lines \
+            and GITATTRIBUTES_OLD[3] in lines:
+        # A pre-release 1.4.0 block: its `gates/** text` also rewrote binaries. Replace it.
+        lines = [l for l in lines if l not in GITATTRIBUTES_OLD]
+        text = "\n".join(lines) + ("\n" if lines else "")
+        migrated = True
+    have = set(l.strip() for l in lines)
     rules = [l for l in GITATTRIBUTES if not l.startswith("#")]
-    if all(r in have for r in rules):
+    if all(r in have for r in rules) and not migrated:
         return
     add = [l for l in GITATTRIBUTES if l.startswith("#") or l not in have]
     sep = "" if not text or text.endswith("\n") else "\n"
     write_bytes(path, (text + sep + "\n".join(add) + "\n").encode("utf-8"))
-    rep.notes.append(".gitattributes: pinned .claude/hooks/** and gates/** to LF")
+    rep.notes.append(".gitattributes: pinned the installed scripts and gate config to LF, by "
+                     "extension%s" % (" (replaced the earlier gates/** rule, which also touched "
+                                      "binaries)" if migrated else ""))
 
 
 # ---------------------------------------------------------------------------- auditing
@@ -737,7 +849,25 @@ def scan_new_files(proj):
     return sorted(out)
 
 
-def audit_disk(proj, strict):
+def old_constitution_hint(proj, kit, dest, target):
+    """A dead link in .specify/memory/ that resolves from the kit's constitution/ directory:
+    written for the pre-1.4.0 instructions, which had the adopter save the kit's template there
+    unchanged (review 2026-09-29: 9 such links failed --check after a v1.3.2 upgrade)."""
+    if kit is None or not dest.startswith(".specify/memory/"):
+        return ""
+    path = LC.local_path(target)
+    if not path:
+        return ""
+    t = normpath_posix("constitution/" + LC.unquote(path.split("#", 1)[0]))
+    if t.startswith("../") or not kit.exists(t):
+        return ""
+    return (" - written for %s/constitution/, where the kit's template lives (pre-1.4.0 "
+            "instructions saved it unchanged); from here it is %s. In the ratified constitution, "
+            "re-pointing it is an amendment: the owner approves"
+            % (kit.rel, relpath_posix(kit.rel + "/" + t, dest.rsplit("/", 1)[0])))
+
+
+def audit_disk(proj, strict, kit=None):
     """Links, frontmatter and CR on disk. Returns (errors, warnings).
 
     `strict(dest)` says whether a problem in project path `dest` (possibly a .factory-new) is
@@ -755,8 +885,12 @@ def audit_disk(proj, strict):
             continue
         for path in LC.markdown_files(base):
             dest = os.path.relpath(path, proj).replace(os.sep, "/")
+            elsewhere = LC.base_dir_for(path) != os.path.dirname(os.path.abspath(path))
             for line, target, why in LC.check_file(path, cache):
-                put(dest, "line %d: dead link -> %s (%s)" % (line, target, why))
+                put(dest, "line %d: dead link -> %s (%s%s)%s" % (
+                    line, target, why, ", resolved from .specify/memory/, where "
+                    "/speckit-constitution copies it" if elsewhere else "",
+                    old_constitution_hint(proj, kit, dest, target)))
     for root in (".claude/agents", ".claude/rules", ".claude/skills"):
         base = pjoin(proj, root)
         if not os.path.isdir(base):
@@ -784,16 +918,116 @@ def audit_disk(proj, strict):
 def recorded_extras(proj, files):
     """Flag-installed files stay installed while they exist; one the adopter deleted stays gone."""
     extras = set()
-    for dest, extra in (("gates/hooks/pre-commit", "git-hook"),
-                        (".github/workflows/factory-gates.yml", "ci-github")):
+    for dest, extra in FLAG_FILES:
         if dest in files and os.path.exists(pjoin(proj, dest)):
             extras.add(extra)
     return extras
 
 
+def version_tuple(v):
+    m = re.match(r"^\s*v?(\d+)\.(\d+)\.(\d+)", v or "")
+    return tuple(int(x) for x in m.groups()) if m else None
+
+
+def kit_behind(kit, manifest):
+    """None, or why factory/ is OLDER than the kit that last installed into this project.
+
+    Review 2026-09-29: a teammate's plain `git pull` leaves the submodule on the old commit;
+    --check then said "stale - run --upgrade", and --upgrade put the older guard and gates back
+    with a green --check. Version first; for one version, ancestry when the recorded commit is
+    known to this clone of the kit.
+    """
+    if not manifest:
+        return None
+    mv, kv = version_tuple(manifest.get("kit_version")), version_tuple(kit.version)
+    mc = manifest.get("kit_commit")
+    said = "%s @ %s" % (manifest.get("kit_version"), (mc or "?")[:7])
+    here = "%s @ %s" % (kit.version, (kit.commit or "?")[:7])
+    if mv and kv and mv != kv:
+        return ("%s/ is kit %s, older than the %s this project last installed" % (
+            kit.rel, here, said)) if mv > kv else None
+    if mc and kit.commit and mc != kit.commit and kit.has_git \
+            and git(kit.root, "cat-file", "-e", mc + "^{commit}") is not None \
+            and git(kit.root, "merge-base", "--is-ancestor", kit.commit, mc) is not None:
+        return "%s/ is kit %s, behind the %s this project last installed" % (kit.rel, here, said)
+    return None
+
+
+def behind_advice(kit):
+    return ("a stale checkout of %s/, not a kit change: run git submodule update --init (a "
+            "vendored copy: put the newer release back). Do not run --upgrade: it would install "
+            "the older guard and gates. A deliberate rollback is --upgrade --allow-downgrade."
+            % kit.rel)
+
+
+# An unfilled slot in a file the adopter fills: `[PROJECT_NAME]`, `[DOMAIN INVARIANT]`,
+# `[BRANCH_MODEL — EXAMPLE: …]`, `[X.Y.Z]`, an agent's `[copy from CLAUDE.md]`. Review 2026-09-29:
+# two survived to an accepted feature with --check OK and the chain green. A markdown link's text
+# (`[GATES §3](…)`) is not a slot.
+PLACEHOLDER_RX = re.compile(
+    r"\[copy from CLAUDE\.md\]|\[X\.Y\.Z\]"
+    r"|\[[A-Z][A-Z0-9_]+(?:[ _./-][A-Z0-9_]+)*(?:[ \t]*[:—–-][^\[\]]{0,400})?\](?![(\[])")
+
+
+def placeholder_warnings(proj, files):
+    out = []
+    for dest in sorted(files):
+        if files[dest].get("kind") != "adopter-filled" or not is_markdown(dest):
+            continue
+        raw = read_bytes(pjoin(proj, dest))
+        if raw is None:
+            continue
+        text = re.sub(r"<!--.*?-->", "", raw.decode("utf-8", "replace"), flags=re.S)
+        found = PLACEHOLDER_RX.findall(text)
+        if found:
+            first = re.sub(r"\s+", " ", found[0])
+            out.append("%s: %d unfilled placeholder(s), e.g. %s - fill them (PHASE-0 §2 step 7) "
+                       "or mark the part N/A with its reason" % (
+                           dest, len(found), first if len(first) <= 50 else first[:47] + "...]"))
+    return out
+
+
+def script_mode_problems(proj, plan):
+    """Installed scripts that lost the execute bit on disk or in the index."""
+    out = []
+    scripts = [it.dest for it in plan if it.script and os.path.isfile(pjoin(proj, it.dest))]
+    if os.name != "nt":
+        for d in scripts:
+            if not os.access(pjoin(proj, d), os.X_OK):
+                out.append("%s: not executable (a .factory-new taken by mv?) - chmod +x %s" % (d, d))
+    if scripts and git(proj, "rev-parse", "--is-inside-work-tree") == "true":
+        staged = git(proj, "ls-files", "-s", "--", *scripts) or ""
+        for line in staged.splitlines():
+            mode, _, rest = line.partition(" ")
+            path = line.split("\t", 1)[-1]
+            if mode == "100644":
+                out.append("%s: committed without the execute bit (mode 100644), so every clone "
+                           "gets a script git and the chain cannot run - git update-index "
+                           "--chmod=+x %s" % (path, path))
+    return out
+
+
+def hook_wiring_warning(proj, files, kit_rel):
+    """The pre-commit gate is recorded here, but this clone does not run it."""
+    if "gates/hooks/pre-commit" not in files or not os.path.isfile(
+            pjoin(proj, "gates/hooks/pre-commit")):
+        return None
+    top = git(proj, "rev-parse", "--show-toplevel")
+    if top is None:
+        return None
+    want = os.path.relpath(pjoin(proj, "gates/hooks"), top).replace(os.sep, "/")
+    cur = (git(proj, "config", "--get", "core.hooksPath") or "").rstrip("/")
+    if cur == want:
+        return None
+    return ("gates/hooks/pre-commit is installed but this clone does not run it (core.hooksPath "
+            "is %s). core.hooksPath is per clone: run python3 %s/bin/adopt.py "
+            "--install-git-hook once in every clone" % (repr(cur) if cur else "unset", kit_rel))
+
+
 def run_check(proj, kit, manifest, args):
     """--check: writes nothing. Returns the exit code."""
     errors, warnings, info = [], [], []
+    trusted_runner = False
     if manifest is None:
         if os.path.isdir(pjoin(proj, ".claude")):
             errors.append("no %s: a pre-1.4.0 adoption (or a hand copy). Run --upgrade: it "
@@ -805,30 +1039,68 @@ def run_check(proj, kit, manifest, args):
     else:
         files = manifest["files"]
         recorded = set(files)
+        behind = kit_behind(kit, manifest)
+        if behind:
+            errors.append("%s - %s" % (behind, behind_advice(kit)))
         profile, without, dropped, notes = resolve_selection(
             argparse.Namespace(profile=None, without=None), kit, manifest, proj)
         info.extend(notes)
         plan = build_plan(kit, dropped, recorded_extras(proj, files))
+        stale_hidden = 0
         for it in plan:
             rec, path = files.get(it.dest), pjoin(proj, it.dest)
             cur = read_bytes(path)
+            if it.dest == "gates/run-chain.sh" and cur is not None and rec is not None:
+                trusted_runner = sha256(cur) in (rec.get("sha256"), sha256(it.data))
             if rec is None:
                 errors.append("%s: shipped by the kit but not installed here - run --upgrade"
                               % it.dest)
             elif cur is None:
                 errors.append("%s: installed, now missing - run adopt.py to restore it" % it.dest)
             elif sha256(it.data) != rec.get("sha256"):
-                errors.append("%s: stale - %s/ changed since the last install or upgrade; run "
-                              "--upgrade" % (it.dest, kit.rel))
+                if behind:
+                    stale_hidden += 1
+                elif rec.get("source_sha256") == it.source_sha:
+                    errors.append("%s: its links no longer match the profile or the rules on disk "
+                                  "(a rule deleted or the profile changed) - run python3 "
+                                  "%s/bin/adopt.py, not --upgrade" % (it.dest, kit.rel))
+                else:
+                    errors.append("%s: stale - %s/ changed since the last install or upgrade; "
+                                  "run --upgrade" % (it.dest, kit.rel))
             elif it.kind == "kit-owned" and sha256(cur) != rec.get("sha256") \
                     and not os.path.exists(path + NEW):
-                warnings.append("%s: kit-owned but modified locally (--upgrade offers a "
-                                ".factory-new instead of replacing it)" % it.dest)
+                if ENFORCEMENT.match(it.dest):
+                    errors.append(
+                        "%s: differs from the kit's copy, so the %s may be off. Local edits to "
+                        "enforcement code are not supported: the guard's rules go in "
+                        ".claude/hooks/careful.json, a project gate in its own "
+                        "gates/check-<name>.sh. Rename yours if you need it, then a human "
+                        "deletes this file and runs python3 %s/bin/adopt.py to restore it" % (
+                            it.dest, "guard" if it.dest.startswith(".claude/") else "gate",
+                            kit.rel))
+                else:
+                    warnings.append("%s: kit-owned but modified locally (--upgrade offers a "
+                                    ".factory-new instead of replacing it)" % it.dest)
+        if stale_hidden:
+            info.append("%d file(s) differ from what %s/ would install because %s/ is behind; "
+                        "not listed" % (stale_hidden, kit.rel, kit.rel))
         planned = set(it.dest for it in plan)
         for dest in sorted(recorded - planned):
             if os.path.exists(pjoin(proj, dest)):
                 errors.append("%s: no longer shipped by the kit - run --upgrade" % dest)
-        if manifest.get("kit_version") != kit.version:
+            elif dest in dict(FLAG_FILES):
+                warnings.append(
+                    "%s: installed by adopt.py %s, now deleted - %s. Reinstall it with that flag; "
+                    "if it moved on purpose, remove its entry from %s" % (
+                        dest, "--install-git-hook" if dest.startswith("gates/") else "--ci github",
+                        "no local refusal of a red commit" if dest.startswith("gates/")
+                        else "CI no longer runs the gate chain", MANIFEST))
+        hw = hook_wiring_warning(proj, files, kit.rel)
+        if hw:
+            warnings.append(hw)
+        errors.extend(script_mode_problems(proj, plan))
+        warnings.extend(placeholder_warnings(proj, files))
+        if manifest.get("kit_version") != kit.version and not behind:
             info.append("installed from kit %s; %s/ is now %s" % (
                 manifest.get("kit_version"), kit.rel, kit.version))
     pending = scan_new_files(proj)
@@ -836,8 +1108,10 @@ def run_check(proj, kit, manifest, args):
         errors.append("%s: awaiting review" % f)
     if os.path.isdir(pjoin(proj, ".claude/skills/careful/hooks")):
         errors.append(".claude/skills/careful/hooks/: an unregistered second copy of the guard; "
-                      "edits there never reach .claude/hooks/ - run --upgrade")
-    e, w = audit_disk(proj, lambda d: (d[:-len(NEW)] if d.endswith(NEW) else d) in recorded)
+                      "edits there never reach .claude/hooks/. --upgrade removes a copy that "
+                      "matches any kit version; one it leaves holds local edits: port any rule "
+                      "it adds to .claude/hooks/careful.json, then delete the directory")
+    e, w = audit_disk(proj, lambda d: (d[:-len(NEW)] if d.endswith(NEW) else d) in recorded, kit)
     errors.extend(e)
     warnings.extend(w)
     reg = registration_state(proj, kit)
@@ -849,7 +1123,7 @@ def run_check(proj, kit, manifest, args):
     elif reg == "absent":
         info.append("the careful guard is not registered yet (--register-guard, after the first "
                     "commit)")
-    chain_problem = chain_conf_problem(proj)
+    chain_problem = chain_conf_problem(proj) if trusted_runner else None
     if chain_problem:
         errors.append(chain_problem)
     state, detail = kit_vcs_state(proj, kit)
@@ -878,7 +1152,9 @@ def chain_conf_problem(proj):
     """None, or why gates/chain.conf is malformed, as run-chain.sh --list reads it (exit 2).
 
     --list runs no slot and writes nothing. A red chain (TODO slots) is not a --check problem:
-    that is the honest state of every project before feature 001 wires it."""
+    that is the honest state of every project before feature 001 wires it. Called only when
+    gates/run-chain.sh is the kit's own (review 2026-09-29: --check, which writes nothing, ran a
+    brownfield project's own run-chain.sh, which ignored --list and appended to a log)."""
     runner, conf = pjoin(proj, "gates/run-chain.sh"), pjoin(proj, "gates/chain.conf")
     if not (os.path.isfile(runner) and os.path.isfile(conf)):
         return None
@@ -1053,13 +1329,13 @@ def install_git_hook(proj, rep):
         rep.warnings.append("git hook: git config core.hooksPath %s failed" % want)
         return False
     rep.notes.append("git hook: core.hooksPath = %s (local to this clone: each clone runs "
-                     "--install-git-hook once; CI is the check nobody can skip)" % want)
+                     "--install-git-hook once; CI is the check --no-verify cannot skip)" % want)
     return True
 
 
 # ---------------------------------------------------------------------------- output
 
-def print_report(kit, rep, mode, profile, dropped):
+def print_report(kit, rep, mode, profile, dropped, old_commit=None, legacy=False):
     say("adopt.py %s  (kit %s at %s/%s, profile %s%s)" % (
         mode, kit.version, kit.rel, " @ " + kit.commit[:7] if kit.commit else "", profile,
         ", rules dropped: " + ", ".join(dropped) if dropped else ""))
@@ -1067,6 +1343,13 @@ def print_report(kit, rep, mode, profile, dropped):
         len(rep.installed), len(rep.unchanged), len(rep.replaced), len(rep.kept), len(rep.removed)))
     for n in rep.notes:
         say("  note  " + n)
+    if legacy and rep.installed:
+        # Review 2026-09-29: a legacy upgrade re-created a rule the adopter had deleted and
+        # seeded a blank constitution beside a ratified one, visible only as "installed 17".
+        say("  new in this project (it had no manifest, so the kit cannot tell what you removed "
+            "on purpose):")
+        for d in rep.installed:
+            say("    " + d)
     for r in rep.removed:
         say("  removed  " + r)
     if rep.outdated:
@@ -1078,11 +1361,19 @@ def print_report(kit, rep, mode, profile, dropped):
         say("")
         say("REVIEW  %d file(s) differ from what the kit would install; nothing was overwritten."
             % len(rep.offered))
-        width = max(len(d) for d, _ in rep.offered)
-        for d, why in rep.offered:
+        width = max(len(o[0]) for o in rep.offered)
+        for d, why, _src in rep.offered:
             say("  %-*s  (%s)" % (width, d, why))
         say("  For each: diff -u <file> <file>.factory-new, merge what applies, delete the "
             ".factory-new.")
+        changed = [src for _d, _w, src in rep.offered if src]
+        if changed and old_commit and kit.commit and old_commit != kit.commit and kit.has_git:
+            # The diff above mixes your fill (shown as removed) with the kit's change. This is
+            # the kit's change alone.
+            say("  What the kit itself changed in each (your own edits are not in it):")
+            for src in sorted(set(changed)):
+                say("    git -C %s diff %s..%s -- %s" % (kit.rel, old_commit[:12],
+                                                          kit.commit[:12], src))
     for o in rep.orphans:
         say("  WARN  " + o)
     for w in rep.warnings:
@@ -1105,9 +1396,14 @@ def next_steps(proj, kit):
         (None, ["Phase 0: %s - vision, archetype, stack, constitution;" % phase0,
                 "the owner approves before any code"]),
         (None, ["fill .claude/CLAUDE.md and each .claude/rules/*.md; delete a rule that does",
-                "not apply and re-run adopt.py (it offers the files that linked to it); --check"]),
+                "not apply and re-run adopt.py (it offers your filled files that linked to",
+                "it as .factory-new); --check lists what is still unfilled"]),
         (guard, ["adapt .claude/hooks/careful.json, first commit, create the remote,",
-                 "then --register-guard and the careful skill's two live probes"]),
+                 "then --register-guard"]),
+        # adopt.py cannot observe the probes, so this step never shows [done] (review
+        # 2026-09-29: "[done]" beside the probes was the registered-is-not-enforced confusion).
+        (None, ["the careful skill's two live probes, in a fresh session - a registered",
+                "hook is not evidence the host enforces it"]),
         (hook and ci, ["feature 001 (walking skeleton) wires gates/chain.conf, then",
                        "--install-git-hook --ci github; from then on no commit on red"]),
     ]
@@ -1118,14 +1414,19 @@ def next_steps(proj, kit):
         for more in lines[1:]:
             say("     " + more)
     say("Teammates and CI: git clone --recurse-submodules, or git submodule update --init;")
-    say("an empty %s/ means every link into it is dead." % k)
+    say("an empty %s/ means every link into it is dead. Once feature 001 has installed the" % k)
+    say("hook, each clone runs python3 %s/bin/adopt.py --install-git-hook once:" % k)
+    say("core.hooksPath is per clone, and a clone without it never refuses a red commit.")
 
 
 # ---------------------------------------------------------------------------- main
 
 def parse_args(argv):
+    # allow_abbrev=False: argparse otherwise ran `--upg` as --upgrade, the one step the careful
+    # guard asks about, past a guard that matched the full spelling (review 2026-09-29).
     p = argparse.ArgumentParser(
         prog="adopt.py",
+        allow_abbrev=False,
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description="Install the AI Factory Kit into the project in the current directory, merge\n"
                     "it into an existing .claude/, upgrade it, or audit it. The kit is found from\n"
@@ -1148,13 +1449,19 @@ def parse_args(argv):
     p.add_argument("--upgrade", action="store_true",
                    help="replace unmodified kit-owned files with the current kit's, offer the "
                         "rest as .factory-new, then run --check")
+    p.add_argument("--allow-downgrade", action="store_true",
+                   help="with --upgrade: install from a kit OLDER than the one this project last "
+                        "installed (a deliberate rollback; a stale submodule needs git submodule "
+                        "update --init instead)")
     p.add_argument("--check", action="store_true",
                    help="audit only: manifest drift, links, frontmatter, line endings, "
-                        "gates/chain.conf syntax")
+                        "execute bits, placeholders, gates/chain.conf syntax")
     a = p.parse_args(argv)
     if a.check and (a.profile or a.without is not None or a.install_git_hook or a.ci
-                    or a.register_guard or a.upgrade):
+                    or a.register_guard or a.upgrade or a.allow_downgrade):
         p.error("--check writes nothing and takes no other option")
+    if a.allow_downgrade and not a.upgrade:
+        p.error("--allow-downgrade goes with --upgrade")
     return a
 
 
@@ -1179,6 +1486,21 @@ def main(argv):
 
 def install(proj, kit, manifest, args):
     mode = "upgrade" if args.upgrade else "install"
+    behind = kit_behind(kit, manifest)
+    if behind and not (args.upgrade and args.allow_downgrade):
+        # Before anything is written: a plain run would also rewrite the manifest to the older
+        # kit, and a teammate who committed that would record the downgrade for everyone.
+        raise Fail("%s - %s" % (behind, behind_advice(kit)))
+    top = git(proj, "rev-parse", "--show-toplevel")
+    nested = top is not None and os.path.realpath(top) != os.path.realpath(proj)
+    if nested and args.ci:
+        sub = os.path.relpath(os.path.realpath(proj), os.path.realpath(top)).replace(os.sep, "/")
+        raise Fail("--ci github: this project is %s/ inside the repository %s. GitHub reads "
+                   "workflows only from the repository root's .github/workflows/, and the job's "
+                   "./gates/run-chain.sh would not resolve from there, so an installed job would "
+                   "never run. Copy %s/gates/ci/github-actions.yml to %s/.github/workflows/"
+                   "factory-gates.yml by hand and add `defaults: run: working-directory: %s` to "
+                   "its job. Nothing was written." % (sub, top, kit.rel, top, sub))
     legacy = manifest is None and os.path.isdir(pjoin(proj, ".claude")) and (
         os.path.exists(pjoin(proj, ".claude/hooks/check-careful.sh"))
         or os.path.exists(pjoin(proj, ".claude/HARNESS.md")))
@@ -1221,6 +1543,28 @@ def install(proj, kit, manifest, args):
     handle_orphans(proj, plan, files, mode, dropped, rep)
     legacy_duplicate_hooks(proj, kit, mode, before_hooks, rep)
     ensure_gitattributes(proj, rep)
+    if legacy:
+        for d in rep.installed:
+            m = re.match(r"^\.claude/rules/([^/]+)\.md$", d)
+            if m:
+                rep.warnings.append(
+                    "%s was not in this project and is now installed. If you had dropped it, "
+                    "delete it and re-run with your profile (--profile <p>, or --without %s): "
+                    "a project with no manifest has no record of the profile" % (d, m.group(1)))
+    if CONST_MEMORY in rep.installed:
+        elsewhere = [c for c in ("constitution.md", "CONSTITUTION.md", "docs/constitution.md",
+                                 ".specify/constitution.md") if os.path.isfile(pjoin(proj, c))]
+        if elsewhere:
+            rep.warnings.append(
+                "seeded a blank %s (Version [X.Y.Z], which reads as 'not ratified'), but %s "
+                "exists. If that is the ratified constitution, move it to %s: every harness link "
+                "and every agent reads it there" % (CONST_MEMORY, " and ".join(elsewhere),
+                                                     CONST_MEMORY))
+    if nested:
+        rep.warnings.append(
+            "this project root is not the git repository's root (%s). The documented layout is "
+            "one project per repository (model/SPEC-FLOW.md); --install-git-hook would set "
+            "core.hooksPath for every commit in that whole repository" % top)
 
     new_manifest = {
         "kit_version": kit.version,
@@ -1258,17 +1602,19 @@ def install(proj, kit, manifest, args):
         rep.warnings.append("AGENTS.md exists: with .claude/CLAUDE.md present Claude Code reads "
                             "CLAUDE.md instead of it by default. Add a line @../AGENTS.md to "
                             ".claude/CLAUDE.md to keep both.")
-    print_report(kit, rep, mode, profile, dropped)
+    print_report(kit, rep, mode, profile, dropped, (manifest or {}).get("kit_commit"), legacy)
 
     if mode == "upgrade":
         if any(d.startswith(".claude/hooks/") for d in rep.replaced + rep.installed) or any(
-                d.startswith(".claude/hooks/") for d, _ in rep.offered):
-            say("  note  the guard changed: re-run the careful skill's two live probes")
+                o[0].startswith(".claude/hooks/") for o in rep.offered):
+            say("  note  the guard changed: once every .factory-new under .claude/hooks/ is "
+                "taken, run bash .claude/hooks/check-careful.test.sh, then the careful skill's "
+                "two live probes")
         say("")
         return run_check(proj, kit, load_manifest(proj), args) or (0 if ok else 1)
 
-    offered = set(d + NEW for d, _ in rep.offered)
-    errors, warnings = audit_disk(proj, lambda d: d in ours or d in offered)
+    offered = set(o[0] + NEW for o in rep.offered)
+    errors, warnings = audit_disk(proj, lambda d: d in ours or d in offered, kit)
     for w in warnings:
         say("  WARN  " + w)
     for e in errors:

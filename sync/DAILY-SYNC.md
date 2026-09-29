@@ -129,21 +129,31 @@ python3 factory/bin/adopt.py --upgrade             # a human runs this, or appro
 
 | File | Unmodified since install | Modified by you |
 |---|---|---|
-| **kit-owned** — hooks, gates and their tests, agents, skills, `HARNESS.md`, the overrides | replaced | kept; when the kit's version changed, it is written beside yours as `<file>.factory-new` |
-| **adopter-filled** — `.claude/CLAUDE.md`, `.claude/rules/*.md`, `.specify/memory/constitution.md`, `gates/chain.conf`, `.claude/hooks/careful.json` | never replaced; a `.factory-new` when the kit's source changed | never replaced; a `.factory-new` when the kit's source changed |
+| **kit-owned** — hooks, gates and their tests, skills, `HARNESS.md`, the overrides | replaced | kept; when the kit's version changed, it is written beside yours as `<file>.factory-new`. For the guard (`.claude/hooks/check-careful.*`) and the gate scripts a local edit is unsupported: `--check` fails until the kit's copy is back |
+| **adopter-filled** — `.claude/CLAUDE.md`, `.claude/rules/*.md`, `.claude/agents/*.md` (their INVARIANTS block), `.specify/memory/constitution.md`, `gates/chain.conf`, `.claude/hooks/careful.json`, `.github/workflows/factory-gates.yml` (your toolchain steps) | never replaced; a `.factory-new` when the kit's source changed | never replaced; a `.factory-new` when the kit's source changed |
 
 It then runs `adopt.py --check`, which exits non-zero while any `.factory-new` is waiting. For
-each: `diff -u <file> <file>.factory-new`, merge what applies, delete the `.factory-new`. Then:
+each: `diff -u <file> <file>.factory-new`, merge what applies, delete the `.factory-new`. That
+diff mixes the kit's change with your own fill shown as removed; `--upgrade` also prints a
+`git -C factory diff <old>..<new> -- <source>` per file, which is the kit's change alone. A
+script's `.factory-new` is executable, so taking it with `mv` keeps the execute bit. Then:
 
 1. `python3 factory/bin/adopt.py --check` exits 0. If it reports the guard registration as
    stale (the kit's `harness/settings.json.template` changed — it did in 1.4.0), run
    `python3 factory/bin/adopt.py --register-guard`, then `--check` again.
-2. Re-run the two live probes in [careful](../harness/skills/careful/SKILL.md)
-   ("Verification") — the guard's own files may be among those just replaced.
-3. One commit: `factory` (the new pointer), `.claude/`, `gates/`, the manifest.
+2. If anything under `.claude/hooks/` changed: `bash .claude/hooks/check-careful.test.sh`
+   (the whole table, in the project), then the two live probes in
+   [careful](../harness/skills/careful/SKILL.md) ("Verification"). The probes alone pass on a
+   guard that is otherwise years out of date.
+3. One commit: everything `git status` shows except `*.factory-new` — `factory` (the new
+   pointer), `.claude/` with the manifest, `gates/`, `.specify/` (overrides the kit added, a
+   seeded constitution), `.gitattributes`, and `.github/workflows/` if the CI job changed.
 4. Teammates: `git pull`, then `git submodule update --init` — or set
    `git config submodule.recurse true` once. A plain `git pull` leaves their `factory/` on the
-   old commit, shown as ` M factory`; committing that undoes your upgrade.
+   old commit, shown as ` M factory`; committing that undoes your upgrade. On such a clone
+   `adopt.py --check` says `factory/` is behind what the project installed and names
+   `git submodule update --init`; `adopt.py` and `--upgrade` refuse to run there (only
+   `--upgrade --allow-downgrade`, a deliberate rollback, installs an older kit).
 
 **Why a human.** `--upgrade` replaces the guard's own files. The guard asks before an agent
 runs it, and denies an agent's file edits under `.claude/hooks/`: approve the ask only if you
@@ -151,9 +161,26 @@ will review the result.
 
 **A project adopted before 1.4.0** has no manifest (`.claude/.factory-manifest.json`), so
 `--upgrade` cannot tell your edits from the kit's: every file that differs gets a
-`.factory-new` and a printed review list, and the v1.3.x duplicate of the guard under
-`.claude/skills/careful/hooks/` is removed. Spec files need the 1.4.0 frontmatter before the
-spec gates pass: [GATES §7](../gates/GATES.md), "Upgrading from 1.3.x".
+`.factory-new` and a printed review list, and a v1.3.x duplicate of the guard under
+`.claude/skills/careful/hooks/` is removed when it matches the live copy or any kit version in
+`factory/`'s git history (a vendored copy has none: delete a duplicate you did not edit by
+hand). Three things to do on
+that first upgrade:
+
+- **Pass your profile**: `python3 factory/bin/adopt.py --upgrade --profile <p>` (or
+  `--without <rule>`). Without a manifest the kit has no record of the rules you dropped, so it
+  would install them again; it lists every file new to the project, by name, for you to check.
+- **Take the guard wholesale.** 1.4.0's `check-careful.py` replaces the matcher; a local rule
+  you added to the old one moves into `.claude/hooks/careful.json`, the only extension point
+  from 1.4.0 on. `--check` fails while the old matcher is kept.
+- **Find your constitution.** 1.3.x had you save it as `.specify/memory/constitution.md` from
+  the kit's template, with links written for `factory/constitution/` — `--check` names each
+  dead one and its new target (re-pointing them is an amendment the owner approves). If yours
+  lives elsewhere (a root `constitution.md`), move it there: adopt.py seeds a blank one and
+  warns.
+
+Spec files need the 1.4.0 frontmatter, and tasks the `- [ ] T001` checklist, before the spec
+gates pass: [GATES §7](../gates/GATES.md), "Upgrading from 1.3.x".
 
 **A vendored copy** (no submodule): replace `factory/` with the target release, then run
 `--upgrade` the same way.

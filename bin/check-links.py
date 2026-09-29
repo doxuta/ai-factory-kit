@@ -25,6 +25,8 @@ BLIND TO - what a green run does NOT prove:
     worktree checkouts under .claude/worktrees/, are not walked.
 A dead link whose case differs from the file on disk IS reported: it resolves on macOS and
 Windows and dies on a Linux CI runner.
+One file is checked from somewhere else on purpose: .specify/templates/overrides/
+constitution-template.md, whose links are written for .specify/memory/ (RESOLVE_FROM below).
 """
 import os
 import re
@@ -186,11 +188,31 @@ def check_text(text, base_dir, cache=None):
     return dead
 
 
+# Files whose links are written for ANOTHER file, and checked from there. Spec Kit's
+# /speckit-constitution drafts .specify/memory/constitution.md from the constitution override,
+# links included, so adopt.py writes the override's links for .specify/memory/ (review
+# 2026-09-29: written for the override's own depth, they left 18 dead links in the constitution
+# after one /speckit-constitution run).
+RESOLVE_FROM = (("/.specify/templates/overrides/constitution-template.md", "../../memory"),)
+
+
+def base_dir_for(path):
+    """The directory the links in `path` are written to resolve from (see RESOLVE_FROM)."""
+    here = os.path.dirname(os.path.abspath(path))
+    p = os.path.abspath(path).replace(os.sep, "/")
+    if p.endswith(".factory-new"):
+        p = p[:-len(".factory-new")]
+    for suffix, rel in RESOLVE_FROM:
+        if p.endswith(suffix):
+            return os.path.normpath(os.path.join(here, rel))
+    return here
+
+
 def check_file(path, cache=None):
     """Dead relative links in one file: [(line, target, why)]."""
     with open(path, "rb") as fh:
         text = fh.read().decode("utf-8", "replace")
-    return check_text(text, os.path.dirname(os.path.abspath(path)), cache)
+    return check_text(text, base_dir_for(path), cache)
 
 
 def is_markdown(name):

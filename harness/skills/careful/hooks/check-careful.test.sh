@@ -325,6 +325,13 @@ filecheck deny  Edit  factory/harness/settings.json.template     # what --regist
 filecheck allow Edit  src/settings.json.template.bak
 filecheck deny  MultiEdit .claude/hooks/check-careful.py
 filecheck deny  NotebookEdit .claude/settings.json
+filecheck ask   Edit  .github/workflows/factory-gates.yml             # the CI half of the chain
+filecheck ask   Write .github/workflows/factory-gates.yaml
+filecheck ask   Edit  .git/config                                      # core.hooksPath lives here
+filecheck ask   Write .git/hooks/pre-commit
+filecheck allow Edit  .github/workflows/release.yml                    # the adopter's own jobs
+filecheck allow Edit  .git/info/exclude
+filecheck allow Edit  src/.git/configure.ac
 filecheck ask   Edit  gates/chain.conf                                 # ask, not deny
 filecheck ask   Write gates/orphan-endpoints.conf
 filecheck ask   Edit  gates/orphan-allowlist.txt
@@ -385,7 +392,15 @@ check deny 'echo x > .claude/hook?/check-careful.sh'      # a glob that expands 
 check deny 'rm -rf .clau*'
 check deny 'rm .claude/*/check-careful.sh'
 check deny "find . -name '*.sh' -delete"                   # from the root, the filter reaches it
-check ask  "find . -name '*.pyc' -delete"
+check allow "find . -name '*.pyc' -delete"                  # bytecode: rm -rf __pycache__ is silent too
+check allow 'find . -type d -name __pycache__ -exec rm -rf {} +'
+check allow "find src -name '*.py[co]' -delete"
+check ask  "find . -name '*.log' -delete"                   # not a cache pattern
+check ask  "find . -name '*.pyc' -o -name '*.go' -delete"  # -o widens the match
+check ask  "find / -name '*.pyc' -delete"                  # the root is not the project
+check ask  "find ../other -name '*.pyc' -delete"
+check ask  'find . -name __pycache__ -exec shred {} +'
+check deny 'find .claude -name __pycache__ -exec rm -rf {} +'   # guarded root stays deny
 check deny 'cat x | sponge .claude/settings.json'
 check deny 'cp -r newconf/. .claude/'                      # copies CONTENTS over the guard
 check deny 'rsync -a evil/ .claude/'
@@ -402,6 +417,21 @@ check allow 'find .claude -name "*.md" -exec cat {} +'
 check allow 'find . -name "*.log" | xargs rm -f'
 check deny "echo '{\"disableAllHooks\":true}' > /etc/claude-code/managed-settings.json"
 check ask  'echo "format: TODO" >> gates/chain.conf'           # gate config: ask, not deny
+check ask  "printf 'on: push\\n' > .github/workflows/factory-gates.yml"   # the CI job: ask
+check ask  'rm .github/workflows/factory-gates.yml'
+check ask  'git rm -q .github/workflows/factory-gates.yml'
+check ask  'mv .github/workflows/factory-gates.yml /tmp/off.yml'
+check ask  'rm gates/chain.conf'
+check ask  'git rm gates/chain.conf'
+check ask  'echo "[core]" >> .git/config'
+check ask  'cp /tmp/hook .git/hooks/pre-commit'
+check allow 'cat .github/workflows/factory-gates.yml'
+check allow 'cp .github/workflows/factory-gates.yml /tmp/ci.bak'
+check allow 'git diff .github/workflows/factory-gates.yml'
+check allow 'echo "*.log" >> .git/info/exclude'
+check allow 'rm .github/workflows/old-release.yml'
+check allow 'git add .github/workflows/factory-gates.yml'
+check allow 'cat .git/config' 
 check ask  $'cat > gates/check-orphan-routes.py <<\'EOF\'\nprint(1)\nEOF'   # new gate: ask
 check ask  'python3 -c "import json; json.dump({}, open(\".claude/settings.json\", \"w\"))"'
 check allow 'cat .claude/settings.json'                         # reading is harmless
@@ -542,6 +572,37 @@ check ask 'git config --unset core.hooksPath'
 check ask 'git -c core.hooksPath=/dev/null commit -m x'
 check ask 'GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.hooksPath GIT_CONFIG_VALUE_0=/x git commit -m y'
 check ask 'python3 factory/bin/adopt.py --upgrade'
+
+section "abbreviated long options are the option (F32: each returned {} and ran)"
+check deny 'rm --recurs --forc ~'              # GNU getopt_long accepts unique prefixes
+check deny 'rm --recur -f /'
+check deny 'rm -f --recu $HOME'
+check deny 'rm --r ~'
+check deny 'git push --delet origin main'       # git parse-options does too
+check deny 'git push --de origin main'
+check deny 'git push --mirro origin'
+check deny 'git push --forc origin main'        # ambiguous in git: an error, so deny costs nothing
+check ask  'git push --force-with origin main'  # = --force-with-lease
+check ask  'git push --no-verif origin feat/x'
+check ask  'git commit --no-verif -m x'
+check ask  'git commit --no-veri -m x'
+check ask  'git reset --har HEAD~1'
+check ask  'git config --uns core.hooksPath'
+check ask  'git branch --del --forc feat/x'
+check ask  'python3 factory/bin/adopt.py --upg'   # argparse's allow_abbrev
+check ask  'python3 factory/bin/adopt.py --u'
+check deny "sed --in-pl s/deny/allow/ .claude/hooks/check-careful.py"
+check deny "sed -i --expression=s/deny/allow/ .claude/hooks/check-careful.py"
+check deny 'cp --rec evil/ .claude/'
+check deny 'cp --target .claude/hooks evil.py'   # --target-directory, abbreviated and spaced
+check deny 'cp --target-directory .claude/hooks evil.py'
+check allow 'git push --dry origin main'        # --dry-run, not --delete
+check allow 'git push --set-up origin feat/x'
+check allow 'git commit --amen --no-edit'
+check allow 'rm --r build'                      # recursive, but a safe build dir
+check allow 'git config --get core.hooksPath'
+check allow 'python3 factory/bin/adopt.py --che'
+check allow 'python3 factory/bin/adopt.py --register-g'
 check allow 'git commit -m "feat: x"'
 check allow 'git commit -am "fix: y"'
 check allow 'git commit -m "no verify was needed"'
@@ -782,11 +843,16 @@ else:
             open(os.path.join(work, "default", ".claude", "hooks", f)).read())
     e = base_env(); e["CLAUDE_PROJECT_DIR"] = proj
     payload = json.dumps({"tool_name": "Bash", "tool_input": {"command": "rm -rf /"}}).encode()
+    # "empty" and "no decision": `bash <empty file>` exits 0 printing nothing, which the host
+    # reads as no decision - a silent pass (review 2026-09-29). The wrapper must block both.
     for label, mutate, want_rc in (("present", None, 0), ("broken", "exit 3\n", 2),
+                                   ("empty", "EMPTY", 2), ("no decision", "echo hello\n", 2),
                                    ("missing", "", 2)):
         shim_path = os.path.join(proj, ".claude", "hooks", "check-careful.sh")
         if mutate == "":
             os.remove(shim_path)
+        elif mutate == "EMPTY":
+            open(shim_path, "w").close()
         elif mutate:
             open(shim_path, "w").write(mutate)
         for c in cmds:
@@ -853,9 +919,29 @@ for core in CORES:
         d, r = m.decide({"tool_name": "Bash", "tool_input": {"command": c}, "cwd": "/tmp"})
         if d != "deny":
             gen_bad.append((d, c))
+# F32: the same cores spelled with abbreviated long options (GNU getopt_long and git accept any
+# unique prefix). Each option is cut to a random length at or above its shortest unique prefix
+# in the real tool (coreutils 9.4, git 2.43), then wrapped as above. Own seed: the variants
+# above stay exactly what they were.
+LONG_CORES = [("rm --recursive --force /", {"--recursive": 3, "--force": 3}),
+              ("rm --recursive ~", {"--recursive": 3}),
+              ("git push --delete origin main", {"--delete": 4}),
+              ("git push --mirror origin", {"--mirror": 3})]
+lrng = random.Random(20260930)
+n_long = 0
+for core, cut in LONG_CORES:
+    for _ in range(120):
+        c = " ".join(t[:lrng.randint(cut[t], len(t))] if t in cut else t for t in core.split())
+        for _ in range(lrng.randint(1, 3)):
+            c = lrng.choice(WRAP)(c)
+        n_long += 1
+        d, r = m.decide({"tool_name": "Bash", "tool_input": {"command": c}, "cwd": "/tmp"})
+        if d != "deny":
+            gen_bad.append((d, c))
 for d, c in gen_bad[:10]:
     print("  FAIL  got=%-5s %s" % (d, c.replace("\n", "\\n")[:120]))
-print("  %d generated variants, %d escaped the deny tier" % (len(CORES) * 120, len(gen_bad)))
+print("  %d generated variants (%d with abbreviated long options), %d escaped the deny tier"
+      % (len(CORES) * 120 + n_long, n_long, len(gen_bad)))
 ok = not gen_bad
 passed, failed = passed + ok, failed + (not ok)
 

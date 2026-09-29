@@ -324,6 +324,26 @@ run_in 1 "a specs dir passed as the docs argument (audit: '0 plans in format', e
 said "reason" "docs mode would check nothing here"
 never_said "specs as docs" "Docs in sync"
 
+echo "== 1.3.x table tasks are read, not skipped (review 2026-09-29) =="
+# A migrated 1.3.x spec kept its ✅/⬜ table; TASK_LINE saw no task, so "shipped" over an open
+# ⬜ row was green in both spec gates.
+spec "$TMP/m-open" 001-post shipped
+tasks "$TMP/m-open" 001-post "| St | ID | Task |" "|----|----|------|" "| ✅ | M1-T1 | model |" "| ⬜ | M1-T2 | post |"
+run_in 1 "shipped over an open 1.3.x table row" "$TMP/m-open"
+said "the open row is named" "1 task is still open (M1-T2)"
+said "the format is reported" "rows in the 1.3.x table format"
+spec "$TMP/m-done" 001-post shipped
+tasks "$TMP/m-done" 001-post "| ✅ | M1-T1 | model |" "| ✅ | M1-T2 | post |"
+run_in 0 "every 1.3.x row done: green, with the convert warning" "$TMP/m-done"
+said "warned" "convert them"
+spec "$TMP/m-none" 001-post accepted
+tasks "$TMP/m-none" 001-post "Model the post. Done." "Wire the route. Done."
+run_in 1 "accepted over a tasks.md with no task in any format" "$TMP/m-none"
+said "no task" "holds no task at all"
+spec "$TMP/m-draft" 001-post draft
+tasks "$TMP/m-draft" 001-post "(tasks come after approval)"
+run_in 0 "a draft with a task-less tasks.md is fine" "$TMP/m-draft"
+
 echo "== docs mode details =="
 mkdir -p "$TMP/total"
 { echo "M1 [✅] 1/2"; echo "Total: 2/8"; echo "| ✅ | M1-T1 |"; echo "| ⬜ | M1-T2 |"; } > "$TMP/total/core-plan.md"

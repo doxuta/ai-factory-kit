@@ -21,7 +21,11 @@ Formats it reads (the contract; model/SPEC-FLOW.md explains them for humans):
   specs/<id>/tasks.md       Spec Kit checklist lines "- [ ] T001 ..." / "- [x] T001 ..." ("[X]"
                             counts as checked; "*", "+" and "1." list markers count too). A line containing "(deferred ->" or "(deferred →"
                             does not block acceptance. Lines inside ``` fences and <!-- comments -->
-                            are not tasks.
+                            are not tasks. Rows of the 1.3.x table ("| ✅ | M1-T1 |", "| ⬜ | …")
+                            are read as tasks too, with a warning to convert them; a tasks.md
+                            with no task in either format is red once status is past draft.
+  [NEEDS CLARIFICATION …]   in spec.md, outside comments, fences and code spans: red in approval
+                            mode once status is past draft (superseded excepted).
   specs/<id>/acceptance.md  "# Acceptance — <id>", then accepted_on, accepted_by, run_as and
                             "result: pass" as "key: value" lines. Required once status is
                             accepted, released or shipped.
@@ -54,6 +58,7 @@ REQUIRED = ("feature", "status", "epic")
 KEY_LINE = re.compile(r"^([A-Za-z_][A-Za-z0-9_-]*)[ \t]*:(.*)$")
 TASK_LINE = re.compile(r"^[ \t]*(?:[-*+]|\d+[.)])[ \t]+\[([ xX])\](?:[ \t]+(.*))?$")
 TASK_ID = re.compile(r"\bT\d{3,}\b")
+LEGACY_ID = re.compile(r"\bM\d+-T\d+\b")
 DEFERRED = re.compile(r"\(deferred[ \t]*(?:→|->)", re.IGNORECASE)
 FENCE = re.compile(r"^[ ]{0,3}(`{3,}|~{3,})")
 DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -64,6 +69,13 @@ TS_DIR = re.compile(r"^(\d{8}-\d{6})-.+")
 ACC_HEADING = re.compile(r"^#[ \t]+Acceptance\b[ \t]*[—–:-]*[ \t]*(\S*)")
 ACC_KEYS = ("accepted_on", "accepted_by", "run_as", "result")
 ACC_KEY_LINE = re.compile(r"^(accepted_on|accepted_by|run_as|result)[ \t]*:(.*)$")
+# The 1.3.x task format: a status column of ✅/⬜ and an M<n>-T<n> id. Read as tasks (so an open
+# ⬜ row still blocks acceptance and a ✅ row on a draft is still work ahead of approval) and
+# reported, because only the checklist is the format Spec Kit writes. Review 2026-09-29: before
+# this a migrated 1.3.x spec was "shipped" with an open ⬜ row and both gates were green.
+LEGACY_ROW = re.compile("^[ \t]*\\|[ \t]*(\u2705|\u2b1c)[ \t]*\\|[ \t]*(M\\d+-T\\d+)\\b(.*)$")
+# An open clarification Spec Kit's /speckit-specify leaves for /speckit-clarify to resolve.
+CLARIFY = re.compile(r"\[NEEDS CLARIFICATION\b[^\]]*\]?", re.IGNORECASE)
 
 
 class Spec(object):
@@ -77,13 +89,18 @@ class Spec(object):
         self.meta = None     # dict when the frontmatter parsed
         self.has_spec = os.path.isfile(os.path.join(self.dir, "spec.md"))
         self.tasks = None    # list of (lineno, checked, deferred, text) when tasks.md exists
+        self.legacy_rows = 0  # of those, rows in the 1.3.x ✅/⬜ table format
+        self.clarify = []    # line numbers of open [NEEDS CLARIFICATION] markers in spec.md
         if self.has_spec:
             self.meta = self._frontmatter(os.path.join(self.dir, "spec.md"))
+            body = self._read(os.path.join(self.dir, "spec.md"), "spec.md") if self.meta else None
+            if body is not None:
+                self.clarify = open_clarifications(body)
         tasks_path = os.path.join(self.dir, "tasks.md")
         if os.path.isfile(tasks_path):
             text = self._read(tasks_path, "tasks.md")
             if text is not None:
-                self.tasks = parse_tasks(text)
+                self.tasks, self.legacy_rows = parse_tasks(text)
 
     # -- helpers -------------------------------------------------------------------------
     def _read(self, path, label):
@@ -163,7 +180,7 @@ class Spec(object):
                 deferred += 1
             else:
                 blocking += 1
-                tid = TASK_ID.search(text or "")
+                tid = TASK_ID.search(text or "") or LEGACY_ID.search(text or "")
                 ids.append(tid.group(0) if tid else "line %d" % lineno)
         return checked, blocking, deferred, ids
 
@@ -204,7 +221,8 @@ def strip_comments(text):
 
 
 def parse_tasks(text):
-    out, fence = [], None
+    """([(lineno, checked, deferred, text)], number of those in the 1.3.x table format)."""
+    out, fence, legacy = [], None, 0
     for idx, line in enumerate(strip_comments(text).split("\n")):
         line = line.rstrip("\r")
         f = FENCE.match(line)
@@ -222,6 +240,29 @@ def parse_tasks(text):
             text_part = m.group(2) or ""
             out.append((idx + 1, m.group(1) in ("x", "X"), bool(DEFERRED.search(text_part)),
                         text_part))
+            continue
+        m = LEGACY_ROW.match(line)
+        if m:
+            legacy += 1
+            text_part = m.group(2) + m.group(3)
+            out.append((idx + 1, m.group(1) == "\u2705", bool(DEFERRED.search(text_part)),
+                        text_part))
+    return out, legacy
+
+
+def open_clarifications(text):
+    """Line numbers of [NEEDS CLARIFICATION ...] markers outside comments, fences and code spans."""
+    out, fence = [], None
+    for idx, line in enumerate(strip_comments(text).split("\n")):
+        f = FENCE.match(line)
+        if f:
+            mark = f.group(1)[0]
+            fence = mark if fence is None else (None if fence == mark else fence)
+            continue
+        if fence:
+            continue
+        if CLARIFY.search(re.sub(r"`[^`]*`", "", line)):
+            out.append(idx + 1)
     return out
 
 
@@ -287,6 +328,15 @@ def check_corpus(specs):
         by_status[status or "?"] = by_status.get(status or "?", 0) + 1
         checked, blocking, deferred, ids = s.counts()
         total = checked + blocking + deferred
+        if s.legacy_rows:
+            msg = ("tasks.md: %s in the 1.3.x table format (| \u2705 | M1-T1 |) - read as tasks here, "
+                   "but Spec Kit and this kit write '- [ ] T001' checklist lines: convert them "
+                   "(GATES.md section 7, 'Upgrading from 1.3.x')" % plural(s.legacy_rows, "row"))
+            w(msg)
+        if s.tasks is not None and not s.tasks and status not in ("draft", "superseded", ""):
+            p("tasks.md: holds no task at all ('- [ ] T001 ...' lines) while status is %s - a "
+              "tasks file in another format is invisible to this gate, so it cannot tell whether "
+              "the work is done. Convert it, or delete an empty tasks.md" % status)
         checked_all += checked
         total_all += total
         deferred_all += deferred
@@ -342,6 +392,13 @@ def check_approval(specs):
                   "approves the spec (HARD-GATE). Get the approval, then record status: approved, "
                   "approved_by and approved_on" % plural(checked, "task"))
             continue
+        if s.clarify and status != "superseded":
+            shown = ", ".join(str(n) for n in s.clarify[:5]) + (", ..." if len(s.clarify) > 5 else "")
+            p("spec.md: status is %s but %s still open (line %s) - an approved spec answers "
+              "its questions first: resolve them (/speckit-clarify) and date the answers in "
+              "Clarifications, or set status back to draft" % (
+                  status, "1 [NEEDS CLARIFICATION] marker is" if len(s.clarify) == 1
+                  else "%d [NEEDS CLARIFICATION] markers are" % len(s.clarify), shown))
         by, on = s.meta.get("approved_by", ""), s.meta.get("approved_on", "")
         if is_placeholder(by):
             p("spec.md: status is %s but approved_by is %s" % (

@@ -51,14 +51,28 @@ the product — no routes in a CLI, no authorization boundary in a single-user t
 that leaves out a standard slot, and one in which every slot is N/A, because a chain that checks
 nothing is not green. Whether the reason is true is a review question.
 
-**No commit on red. No exceptions. Fix or explicitly revert.** Two mechanisms enforce it, both
-installed by feature 001 once its slots are wired, never at adoption (before that they would
-refuse every commit): [`hooks/pre-commit`](hooks/pre-commit) (`adopt.py --install-git-hook`)
-refuses the commit locally — `git commit --no-verify` skips it, and the careful guard asks
-before an agent does that — and [`ci/github-actions.yml`](ci/github-actions.yml)
-(`adopt.py --ci github`) runs the same chain on every push and pull request, where nothing
-skips it. `gates/chain.conf` decides what "green" means, so the careful guard asks before an
-agent edits it; the gate scripts themselves are denied to agent edits.
+**No commit on red. Fix or explicitly revert.** There is one exception, and this paragraph is
+its only definition; every other file that states the rule points here. **The bootstrap:** while
+feature 001, the walking skeleton, is wiring the chain, its commits may be red **only at a
+`TODO` slot** — `run-chain.sh` stops there with `not wired (TODO)` — and never at a wired one;
+the three spec gates, which sit after the `TODO` slots, are run directly
+(`./gates/check-spec-approval.sh`, `./gates/check-spec-numbers.sh`,
+`./gates/check-plan-sync.sh`) and must be green. The exception ends when the last `TODO` is
+wired, and feature 001 then installs the hook and CI
+([`../model/PHASE-0.md`](../model/PHASE-0.md) §7). After that there is none.
+
+Two mechanisms enforce the rule, both installed by feature 001 once its slots are wired, never
+at adoption (before that they would refuse every commit): [`hooks/pre-commit`](hooks/pre-commit)
+(`adopt.py --install-git-hook`, **once in every clone**: `core.hooksPath` is per clone, so a
+teammate's fresh clone refuses nothing until it runs that) refuses the commit locally —
+`git commit --no-verify` skips it, and the careful guard asks before an agent does that — and
+[`ci/github-actions.yml`](ci/github-actions.yml) (`adopt.py --ci github`) runs the same chain on
+every push and pull request, where no `--no-verify` reaches it. `gates/chain.conf` decides what
+"green" means and the installed CI job decides whether CI runs it at all, so the careful guard
+asks before an agent edits, moves or deletes either; the gate scripts themselves are denied to
+agent edits. The guard sees only an agent's tool calls: a human, or a change merged without
+review, can still weaken the CI job — what catches that is review, and on the git host a
+protected branch's required review ([`../model/PHASE-0.md`](../model/PHASE-0.md) §10).
 
 ## 2. Claims are not evidence
 
@@ -156,7 +170,7 @@ findings by hand. See [`../harness/agents/tech-lead-review.md`](../harness/agent
   no gate. Measured: this kit's guardrail passed 127/127 of its own cases while interrupting one
   in eight of 6,638 real commands, 85% of it from three over-broad rules of its own. Replay a
   real corpus through any gate that interrupts a human, and treat the false-positive rate as a
-  safety number. Since 1.4.0 the guard's own test enforces it: 381 ordinary commands in
+  safety number. Since 1.4.0 the guard's own test enforces it: 384 ordinary commands in
   `careful-corpus.txt` must pass uninterrupted, so a rule that starts crying wolf fails the
   build instead of a user's patience.
 - **A hook does not run in your shell's environment.** Measured with git 2.43: committing from a
@@ -200,17 +214,28 @@ to — methods, and paths built by concatenation, above all.
 **What you wire, and where it lives:** the five stack slots in `gates/chain.conf`; an eval
 suite for judged behaviour (§8) as an extra slot; release gates (§9) in the release lane. A
 gate you write yourself goes beside the kit's as `gates/check-<name>.sh`, where the careful
-guard protects it like the kit's, and joins the chain as a slot.
+guard protects it like the kit's, and joins the chain as a slot. Keep that script generic and
+put what grows feature by feature — expected outputs, the list of exported names, a consumer
+program — in a data file or test module outside `gates/`, which review reads: once the script
+exists, every change to it is a human's edit, and a gate that must be edited by hand on every
+feature soon stops being edited.
 
 **Ownership.** Kit scripts are kit-owned: `adopt.py --upgrade` replaces them when unmodified,
-and agents may not edit them. `gates/chain.conf`, `gates/*.conf` and `orphan-allowlist.txt` are
-yours; the guard asks before an agent edits them.
+agents may not edit them, and `adopt.py --check` fails while one differs from the kit's copy (a
+changed gate is a gate that may be off; your own gate goes in its own file). `gates/chain.conf`,
+`gates/*.conf`, `orphan-allowlist.txt` and the installed CI job are yours; the guard asks
+before an agent edits, moves or deletes them.
 
 **Upgrading from 1.3.x.** The bare `./gates/check-plan-sync.sh` now finds `specs/` itself
 (before, it read only `docs/` and was red without one); a wired `check-plan-sync.sh docs` is
 unchanged. Existing specs need the frontmatter at line 1 — the pre-1.4.0 worked example put it
 in a ```` ```yaml ```` fence, which is now red. Specs past `draft` need `approved_by` and
-`approved_on`; specs marked `shipped` need `acceptance.md`. For work accepted before 1.4.0 whose
+`approved_on`; specs marked `shipped` need `acceptance.md`. **Convert `tasks.md` to Spec Kit's
+checklist**, one `- [ ] T001 …` / `- [x] T001 …` line per task: the 1.3.x table
+(`| ✅ | M1-T1 | … |`) is still read as tasks — so an open `⬜` row blocks acceptance and a `✅`
+row on a draft is work ahead of approval — but every such row is reported until it is converted,
+and a `tasks.md` with no task in either format is red once its spec is past draft. For work
+accepted before 1.4.0 whose
 evidence lives in a commit or pull request, the record says so, dated when it happened. Where no
 evidence exists, the honest status is `approved` until someone runs `quickstart.md`. The
 1.3.x blueprint "understate" check (the `epic_sentinels` map inside `check-plan-sync.sh`) is
@@ -263,8 +288,8 @@ commands it knows; a release gate does not rely on that.
 | Product | Gate before the step | The irreversible step (a human's) |
 |---|---|---|
 | Web service / SaaS | deploy to a staging environment, smoke test, rollback rehearsed; migrations ordered expand → deploy → contract, backfills as their own step | production deploy; production migration |
-| Library / SDK | public-API diff against the last release; version bump that matches it (semver); a publish dry run (`npm publish --dry-run`, `cargo publish --dry-run`) | publishing to the registry |
-| CLI | release artefacts built; installed from the artefact (not the source tree) in a clean environment; `quickstart.md` run there | tagging and publishing the release |
+| Library / SDK | public-API diff against the last release; version bump that matches it (semver); a publish dry run (`npm publish --dry-run`, `cargo publish --dry-run`) where the registry has one | publishing to the registry — where it has no dry run, the step that publishes: for a Go module, pushing the version tag, which the module proxy makes permanent |
+| CLI | release artefacts built; installed from the artefact (not the source tree) in a clean environment; `quickstart.md` run there | publishing the release — or pushing its tag, where a tag triggers the pipeline (the release commit comes first: [NON-FEATURE-WORK](../model/NON-FEATURE-WORK.md) release step 4) |
 | Mobile | signed store build; internal or beta track; staged rollout plan | store submission; widening the rollout |
 | Embedded / firmware | signed image; smoke on real hardware; a proven recovery path; OTA to a canary group first | flashing or OTA to the fleet |
 | Infrastructure as code | `terraform plan -out=FILE` (or `tofu`), and a human reads that plan (`terraform show FILE`) | `terraform apply FILE` — a saved plan applies **without a confirmation prompt** (Terraform 1.16 and OpenTofu docs), so handing over the file is the approval |

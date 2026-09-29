@@ -11,9 +11,11 @@
 # and in a fresh repo, and nothing noticed (readiness audit F26, F35). The same suite now runs
 # once as checked out and once after `git checkout --detach`.
 #
-# Why macOS: README states the support envelope as tested on macOS, and the scripts claim bash
-# 3.2 compatibility. Before 1.4.0 that was checked only with a Linux build of bash 3.2.57. The
-# macOS rows run every suite under the system /bin/bash (3.2) and BSD userland.
+# Why macOS: README states macOS as supported, and the scripts claim bash 3.2 compatibility.
+# Before 1.4.0 that was checked only with a Linux build of bash 3.2.57, which missed a real
+# failure: BSD `seq 5 4` counts down where GNU prints nothing, and the first macOS run of this
+# job (072be93) failed on it. The macOS rows run every suite under the system /bin/bash (3.2)
+# and BSD userland.
 #
 # fetch-depth 0: bin/adopt.test.sh upgrades a v1.3.2 adoption with this adopt.py, and needs
 # commit af7f324 (tag v1.3.2) in the history; in a shallow clone that row is skipped, not run.

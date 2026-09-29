@@ -179,16 +179,26 @@ The API is the product; its callers live in other repositories.
 - **Chain** — `orphan-endpoints: NA: a library has no routes; public exports are exercised by
   the consumer tests`. `acceptance:` tests that install the built artifact into a fresh
   environment and import it — they catch what the source tree hides (a module left out of the
-  package).
+  package). **Go**, which has no built artifact: a consumer module in a temporary directory that
+  requires the library through `go mod edit -replace` pointed at a copy of the *tracked* files
+  (`git ls-files`), builds and runs — the copy is what makes it catch a package that exists on
+  disk but was never `git add`-ed (a review adopter's check caught exactly that). Keep the
+  script generic and the consumer program and its expected output in a test directory outside
+  `gates/`: a `gates/check-*` script is guarded once it exists, so every new exported function
+  would otherwise need a human's edit to the gate ([GATES §7](../gates/GATES.md)).
 - **Public-API gate** — Python: `uvx griffe check <package> -s src --against <last tag>`;
   checked on this release, it exits 1 with `Public object was removed` and 0 on an unchanged
-  API. Rust's `cargo semver-checks` and TypeScript's API Extractor do the same job; neither was
-  run for this release. Run it in the release lane: an intended break is legitimate once the
+  API. Rust's `cargo semver-checks`, TypeScript's API Extractor and Go's `gorelease` (or
+  `apidiff` against the last tag) do the same job; none of them was run for this release, and
+  `gorelease -base=<tag>` needs that tag to be fetchable through the module proxy. Run it in the release lane: an intended break is legitimate once the
   spec records the MAJOR decision, and a per-commit slot would stay red until then.
 - **careful.json** — publishing already asks by default (`npm`, `cargo`, `twine`, `uv`,
   `poetry` publish and friends); add the CLI's tag-push patterns.
 - **Acceptance** — a consumer snippet from `quickstart.md`, run against the installed artifact.
-- **Release** — API diff, version bump that matches it, publish dry run, then publish.
+- **Release** — API diff, version bump that matches it, publish dry run, then publish. A Go
+  module has no publish dry run: publishing is pushing the version tag, which the module proxy
+  makes permanent, so the tag push is the human's step ([GATES §9](../gates/GATES.md)); a
+  consumer that fetches the tag through `GOPROXY` is the check after it.
 - **Known gaps** — an API diff sees signatures, not behaviour: a function that keeps its
   signature and changes its result is a breaking change nothing flags.
 
@@ -387,7 +397,12 @@ test: out=$(node --test --test-reporter=tap 2>&1); rc=$?; printf "%s\n" "$out"; 
 The Go test guard was red with no tests and green with one; the Node guard was red with none,
 green with one passing test, red with one failing. For JavaScript the same exclusion applies
 to formatting: Prettier formats Markdown, and `npx prettier@3 --check .` flagged a kit document
-under `factory/` — list `factory/`, `gates/`, `.claude/` and `.specify/` in `.prettierignore`.
+under `factory/` — list `factory/`, `gates/`, `.claude/`, `.specify/` **and `specs/`** in
+`.prettierignore`. Without `specs/` the `format` slot went red at spec 001 in a review run
+(prettier 3.6.2 flagged `spec.md`, `plan.md`, `tasks.md` and `acceptance.md`), and
+`prettier --write` there rewrites `acceptance.md`, which GATES §3 says is kept exactly as the
+acceptor returned it. If the team wants Spec Kit's Markdown formatted, format everything in
+`specs/` except `acceptance.md`, and do it before the acceptance run, not after.
 
 ## What the kit does not have an answer for yet
 

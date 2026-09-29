@@ -174,6 +174,16 @@ Examples of foundational tasks (adjust based on your project):
 - [ ] TXXX Security hardening
 - [ ] TXXX Acceptance: someone other than the builder runs quickstart.md through the product's real entry point (constitution Article V) and records specs/[###-feature-name]/acceptance.md
 
+<!--
+  FEATURE 001 ONLY (the walking skeleton, model/PHASE-0.md §7): its final phase installs the
+  kit's hook and CI job; it never writes its own. The tasks read like:
+    - [ ] TXXX Install the gate hook and CI job: python3 factory/bin/adopt.py --install-git-hook --ci github
+    - [ ] TXXX Add the toolchain setup steps the chain.conf commands need to .github/workflows/factory-gates.yml
+    - [ ] TXXX Prove the hook refuses a red commit (a deliberately unformatted file), then revert it
+  A hand-written pre-commit hook, hook installer or gate workflow is outside the guard's
+  protection and outside adopt.py --check. Remove this comment in a feature other than 001.
+-->
+
 ---
 
 ## Dependencies & Execution Order
@@ -264,7 +274,7 @@ With multiple developers:
 - Each user story should be independently completable and testable
 - Verify tests fail before implementing
 - A task without a test says why on its line: `(test-exempt: <reason>)`
-- Commit after each task or logical group, with the gate chain green (`./gates/run-chain.sh`); tick a task `[x]` in the commit that lands it
+- Commit after each task or logical group, with the gate chain green (`./gates/run-chain.sh`); tick a task `[x]` in the commit that lands it. Feature 001 alone, while it wires the chain, may commit red only at a `TODO` slot, never at a wired one (GATES.md §1, the bootstrap)
 - A task moved out of this feature stays listed, unticked, marked `(deferred → <spec id or issue>)`; the gates do not count it as open
 - Stop at any checkpoint to validate story independently
 - Avoid: vague tasks, same file conflicts, cross-story dependencies that break independence

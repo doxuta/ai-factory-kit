@@ -13,18 +13,23 @@ Spec trước code · cổng kiểm chạy được · review đối kháng · m
 
 > Giống [GitHub Spec Kit](https://github.com/github/spec-kit) — nhưng không dừng lại ở spec.
 > Kit này là **cả nhà máy**: hiến pháp đứng trên spec, agent làm việc quanh spec, cổng kiểm chặn
-> dưới spec, và kỷ luật hằng ngày giữ cho tất cả trung thực. Mọi luật trong này đều rút ra từ
-> kinh nghiệm thật (kèm học phí thật) trên một nền tảng production do AI viết ~100% qua hơn
-> 730 commit.
+> dưới spec, và kỷ luật hằng ngày giữ cho tất cả trung thực. Vòng lõi — hiến pháp, quy trình
+> spec-first, cổng kiểm, nghiệm thu bởi người thứ ba, guard `careful` — rút ra từ kinh nghiệm
+> thật (kèm học phí thật) trên một nền tảng production do AI viết ~100% qua hơn 730 commit.
+> Phần hướng dẫn mới hơn (các archetype, các lane phát hành, quy tắc eval cho LLM/ML) chưa qua
+> một lần áp dụng thật nào, và ghi rõ chỗ nào là học thuyết chứ chưa phải số đo.
 
-**Chạy được ở đâu.** Đã kiểm thử: Claude Code trên Linux, macOS và WSL (dự án nằm trên hệ thống
+**Chạy được ở đâu.** Hỗ trợ: Claude Code trên Linux, macOS và WSL (dự án nằm trên hệ thống
 file Linux). Hỗ trợ ở mức cố gắng: Windows gốc, khi Claude Code chạy hook qua Git Bash (không có Git Bash
 thì không có guard). Các AI
 host khác (Codex, Gemini CLI, Copilot, Cursor, …): mô hình, spec, quy trình Spec Kit và các cổng
 kiểm dùng lại được nguyên vẹn; còn harness (cấu trúc `.claude/`, agent, rules) và guard `careful`
 thì phải tự chuyển đổi. Khác biệt theo từng host và nền tảng: [HARNESS §7](harness/HARNESS.md).
-Ở bản 1.4.0, mọi bộ test đều qua trên Linux với bash 5.2 + Python 3.11, và với bash 3.2.57 (bản
-macOS cài sẵn) + Python 3.8; chưa có lần chạy nào được ghi nhận trên máy Mac hay Windows thật.
+**Những gì đã thực sự chạy cho bản 1.4.0:** mọi bộ test trong CI trên Linux (bash 5.2) và trên
+macOS (bash 3.2 có sẵn của hệ thống và bộ công cụ BSD), cả khi checkout bình thường lẫn detached —
+lần chạy macOS đầu tiên hỏng ở một fixture test, đã sửa trước khi phát hành; các phiên Claude Code
+headless trên Linux, gồm cả hai phép thử trực tiếp của guard `careful`. Chưa có gì chạy trên WSL
+hay trên máy Windows.
 Phiên bản 1.4.0 ([VERSION](VERSION)), kiểm thử với Spec Kit (specify-cli) 1.0.12.
 
 ---
@@ -101,7 +106,8 @@ chỉ bạn mới được đưa ra nằm ở [PHASE-0 §8](model/PHASE-0.md). T
 bước để lại, nằm ở [`AI-ONBOARDING.md`](AI-ONBOARDING.md) §2.
 
 - **Bắt đầu từ một ý tưởng**, chưa có dòng code nào: [`model/PHASE-0.md`](model/PHASE-0.md).
-- **Dự án đã có sẵn**: `adopt.py` gộp vào `.claude/` hiện có và không bao giờ ghi đè file nào —
+- **Dự án đã có sẵn**: `adopt.py` gộp vào `.claude/` hiện có và không bao giờ ghi đè file nào
+  do bạn viết (thứ duy nhất nó thay là bản khung hiến pháp chưa điền của Spec Kit) —
   [AI-ONBOARDING §3](AI-ONBOARDING.md).
 - **Không muốn dùng submodule?** Một bản sao thường của kit trong `factory/`, không có `.git` bên
   trong, cũng dùng được. Nhưng đừng `git clone` thẳng vào `factory/`: git sẽ ghi nó thành một
@@ -109,7 +115,9 @@ bước để lại, nằm ở [`AI-ONBOARDING.md`](AI-ONBOARDING.md) §2.
   (`adopt.py` có cảnh báo).
 - **Đồng đội và CI** clone bằng `git clone --recurse-submodules`, hoặc chạy
   `git submodule update --init` sau khi clone; `factory/` mà rỗng thì mọi link trỏ vào nó đều
-  gãy.
+  gãy. Khi feature 001 đã cài hook, mỗi bản clone còn phải chạy
+  `python3 factory/bin/adopt.py --install-git-hook` một lần: `core.hooksPath` chỉ nằm trong
+  từng bản clone, và bản clone chưa chạy lệnh này sẽ không chặn commit khi chain đỏ (CI vẫn chặn).
 - **Cập nhật kit**: ghim theo tag, nâng cấp bằng `adopt.py --upgrade` —
   [`sync/DAILY-SYNC.md`](sync/DAILY-SYNC.md).
 

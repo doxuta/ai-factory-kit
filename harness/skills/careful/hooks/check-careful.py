@@ -237,6 +237,93 @@ GUARDED_ANCESTOR_RX = re.compile(
 # Gate configuration: the adopter wires it, so an edit is legitimate — but quietly changing it
 # turns a red gate green, so it is always shown (ask), never silent.
 GATE_CONFIG_RX = re.compile(r"(?:^|/)gates/(?:[^/]+\.conf|orphan-allowlist\.txt)$")
+# The other two places that decide whether the chain runs at all, same treatment (ask):
+#   - the CI job `adopt.py --ci github` installs. GATES §1 calls CI the check nothing skips, yet
+#     an agent could Edit it to `run: true`, or `git rm` it, with {} (review 2026-09-29) while an
+#     edit to chain.conf asked. Ask, not deny: the kit tells adopters to add toolchain steps to it.
+#   - git's own hook wiring. `git config --unset core.hooksPath` asked; an Edit of .git/config
+#     that deleted the same line passed. A hook dropped into .git/hooks/ is the same lever.
+GATE_WIRING_RX = re.compile(
+    r"(?:^|/)\.github/workflows/factory-gates\.ya?ml$"
+    r"|(?:^|/)\.git/(?:config(?:\.worktree)?|hooks/[^/]+)$"
+    r"|(?:^|/)\.git/modules/.+/(?:config(?:\.worktree)?|hooks/[^/]+)$")
+
+
+def gate_wiring(p):
+    """Why path p (normalised) is gate configuration or wiring, or None."""
+    f = fold(p)
+    if GATE_CONFIG_RX.search(f):
+        return "gate configuration (%s) — changing it can turn a red gate green" % p
+    if GATE_WIRING_RX.search(f):
+        if "/.github/" in "/" + f:
+            return ("the CI job that runs the gate chain (%s) — changing or removing it changes "
+                    "what CI enforces" % p)
+        return "git's hook wiring (%s) — it decides whether the gate chain's hook runs" % p
+    return None
+
+
+# F32 (review 2026-09-29): GNU getopt_long, git's parse-options and Python's argparse all accept
+# any unambiguous PREFIX of a long option. `rm --recurs --forc ~`, `git push --delet origin main`,
+# `git commit --no-verif` and `adopt.py --upg` each RAN as the full option (measured: git 2.43,
+# coreutils 9.4) while every rule below, matching the full spelling, returned {}. Per command,
+# the long options a rule keys on, dangerous ones first: an argument that is a prefix of one of
+# them is read as that option. An ambiguous prefix makes the real tool stop with an error, so
+# reading it the dangerous way can only cost a false alarm on a command that would not have run.
+# Every real option that is itself a prefix of a listed dangerous one (git push --force, a prefix
+# of --force-with-lease) must be listed too, so that its exact spelling wins.
+LONG_OPTS = {
+    "rm": ("--recursive", "--force", "--dir", "--interactive", "--no-preserve-root",
+           "--preserve-root", "--one-file-system", "--verbose", "--help", "--version"),
+    "cp": ("--recursive", "--archive", "--target-directory"),
+    "sed": ("--in-place", "--expression", "--file"),
+    "adopt.py": ("--upgrade",),
+}
+GIT_LONG_OPTS = {
+    "push": ("--delete", "--mirror", "--force", "--force-with-lease", "--force-if-includes",
+             "--prune", "--all", "--branches", "--no-verify", "--dry-run", "--tags",
+             "--follow-tags", "--set-upstream", "--atomic", "--porcelain", "--progress",
+             "--quiet", "--verbose", "--signed", "--thin", "--verify", "--repo", "--receive-pack",
+             "--exec", "--push-option", "--recurse-submodules", "--ipv4", "--ipv6"),
+    "commit": ("--no-verify",), "merge": ("--no-verify",), "rebase": ("--no-verify",),
+    "am": ("--no-verify",), "cherry-pick": ("--no-verify",), "revert": ("--no-verify",),
+    "reset": ("--hard",),
+    "clean": ("--force",),
+    "checkout": ("--force", "--discard-changes"),
+    "switch": ("--force", "--discard-changes"),
+    "restore": (),
+    "branch": ("--delete", "--force"),
+    "worktree": ("--force",),
+    "gc": ("--prune",),
+    "config": ("--unset", "--unset-all", "--add", "--replace-all", "--edit", "--get", "--get-all",
+               "--get-regexp", "--list", "--show-origin", "--show-scope"),
+}
+
+
+def canon_long(a, options):
+    """`--recurs` -> `--recursive` when it is a prefix of a listed long option (see LONG_OPTS)."""
+    if not a.startswith("--") or len(a) < 3 or not options:
+        return a
+    name, eq, val = a.partition("=")
+    if name in options:
+        return a
+    for o in options:
+        if o.startswith(name):
+            return o + eq + val
+    return a
+
+
+def canon_args(args, options):
+    """canon_long over every argument before a `--` end-of-options marker; words keep their type."""
+    out, done = [], False
+    for a in args:
+        s = str(a)
+        if done or s == "--":
+            done = True
+            out.append(a)
+            continue
+        c = canon_long(s, options)
+        out.append(a if c == s else _word(c, getattr(a, "opaque", False)))
+    return out
 SYSTEM_RX = re.compile(r"^/(?:etc|usr|bin|sbin|lib|lib32|lib64|boot|system|library|private/etc)"
                        r"(?:/|$)|^[a-z]:/windows(?:/|$)")
 BLOCK_DEVICE_RX = re.compile(
@@ -1040,9 +1127,9 @@ def judge_write(w, ctx, what):
                 return (DENY, "%s onto a raw block device (%s) — overwrites a disk; one wrong "
                               "letter erases the machine." % (what, w))
     for v, rel, ab in _forms(w, ctx):
-        if GATE_CONFIG_RX.search(fold(rel)) or GATE_CONFIG_RX.search(fold(ab)):
-            return (ASK, "%s onto gate configuration (%s) — changing it can turn a red gate "
-                         "green; a human should see it." % (what, w))
+        why = gate_wiring(rel) or gate_wiring(ab)
+        if why:
+            return (ASK, "%s onto %s; a human should see it." % (what, why))
         f = fold(ab)
         home = fold(norm(_HOME))
         if f.startswith(home + "/.") and not f.startswith(home + "/.claude/projects/"):
@@ -1116,8 +1203,9 @@ def judge_delete(w, ctx, recursive, what="recursive delete"):
                 if f.endswith("/" + which) and _remote_less_repo(ab, which, ctx):
                     return (DENY, "%s of %s in a repository with NO remote — this is the only "
                                   "copy of that history. Push to a remote first." % (what, w)), False
-        if GATE_CONFIG_RX.search(fold(rel)) or GATE_CONFIG_RX.search(fold(ab)):
-            return (ASK, "deleting gate configuration (%s)." % w), False
+        why = gate_wiring(rel) or gate_wiring(ab)
+        if why:
+            return (ASK, "deleting %s." % why), False
     if not recursive:
         return None, True
     if getattr(w, "opaque", False):
@@ -1370,7 +1458,8 @@ def rule_git(argv, seg, ctx):
         i += 2 if (o in GIT_GLOBAL_WITH_ARG and "=" not in o) else 1
     if i >= len(words):
         return verdict
-    sub, args = words[i], words[i + 1:]
+    sub = words[i]
+    args = [str(a) for a in canon_args(words[i + 1:], GIT_LONG_OPTS.get(sub, ()))]
     gitdir = gitdir or ctx.base()
     opts, ops = split_opts(args)
     anyarg = lambda *xs: any(a in xs for a in args)
@@ -1423,6 +1512,14 @@ def rule_git(argv, seg, ctx):
                 return worse(verdict, (DENY, "git %s on a guardrail file or a directory holding "
                                              "one (%s) — it rewrites or removes the guard." %
                                        (sub, pth)))
+        if sub != "clean":
+            for pth in paths:
+                for v, rel, ab in _forms(_word(pth, False), ctx):
+                    why = gate_wiring(rel) or gate_wiring(ab)
+                    if why:
+                        verdict = worse(verdict, (ASK, "git %s on %s; a human should see it."
+                                                  % (sub, why)))
+                        break
     if sub in ("checkout", "restore") and "." in ops:
         return worse(verdict, (ASK, "git checkout/restore . — discards all uncommitted "
                                     "working-tree changes."))
@@ -1525,7 +1622,7 @@ def rule_git_push(args, gitdir, ctx):
 
 
 def rule_rm(argv, seg, ctx, a0):
-    opts, targets = split_opts(argv[1:])
+    opts, targets = split_opts(canon_args(argv[1:], LONG_OPTS["rm"] if a0 in ("rm", "srm") else ()))
     # rimraf (the npm package, often run through npx) is rm -rf under another name.
     rec = a0 in ("rimraf", "del-cli") or (a0 in ("rm", "srm") and any(
         o == "--recursive" or (not o.startswith("--") and ("r" in o[1:] or "R" in o[1:]))
@@ -1552,7 +1649,7 @@ def _t_arg(argv):
     out, tdir, i = [], None, 0
     while i < len(argv):
         a = str(argv[i])
-        if a == "-t" and i + 1 < len(argv):
+        if a in ("-t", "--target-directory") and i + 1 < len(argv):
             tdir = argv[i + 1]
             i += 2
             continue
@@ -1572,6 +1669,8 @@ def _join(dest, src):
 
 def rule_copyish(argv, seg, ctx, a0):
     """mv / cp / ln / install / rsync: what gets removed, and what gets written."""
+    if a0 == "cp":
+        argv = argv[:1] + canon_args(argv[1:], LONG_OPTS["cp"])
     argv, tdir = _t_arg(argv)
     opts, ops = split_opts(argv[1:])
     if a0 == "install" and short_has(opts, "d"):
@@ -1605,12 +1704,19 @@ def rule_copyish(argv, seg, ctx, a0):
     if recursive and touches_guard(dest, ctx, ancestors=True):
         return (DENY, "recursive copy into a directory holding guardrail files (%s) — it can "
                       "overwrite the guard." % dest)
+    verdict = None
     if a0 in ("mv", "rename", "ln"):
         for s in sources:
             if touches_guard(s, ctx, ancestors=True):
                 return (DENY, "%s of a guardrail file or a directory holding one (%s) — it "
                               "moves the guard away or gives it a second, unguarded name." % (a0, s))
-    verdict = None
+            if a0 != "ln":
+                for v, rel, ab in _forms(s, ctx):
+                    why = gate_wiring(rel) or gate_wiring(ab)
+                    if why:
+                        verdict = worse(verdict, (ASK, "%s moves away %s; a human should see it."
+                                                  % (a0, why)))
+                        break
     for t in [dest] + [_join(dest, s) for s in sources]:
         v = judge_write(t, ctx, a0)
         if v and v[0] == DENY:
@@ -1883,14 +1989,14 @@ def _cluster_has(opt, letter, stop):
 
 
 def rule_inplace(argv, seg, ctx, a0):
-    opts, ops = split_opts(argv[1:])
+    opts, ops = split_opts(canon_args(argv[1:], LONG_OPTS["sed"]) if a0 == "sed" else argv[1:])
     if a0 == "sed":
         inplace = any(o in ("-i", "--in-place") or o.startswith("--in-place=") or
                       _cluster_has(o, "i", "ef") for o in opts)
         if not inplace:
             return None
-        explicit = any(o.startswith("-e") or o.startswith("-f") or o in ("--expression", "--file")
-                       for o in opts)
+        explicit = any(o.startswith("-e") or o.startswith("-f") or
+                       o.split("=", 1)[0] in ("--expression", "--file") for o in opts)
         files = ops if explicit else ops[1:]
     else:  # perl -i / ruby -i: letters after M m I e E l 0 x C d D r are that option's argument
         if not any(_cluster_has(o, "i", "MmIeEl0xCdDrV") for o in opts):
@@ -1988,8 +2094,54 @@ def rule_find(argv, seg, ctx):
             v, _ = judge_delete(w, ctx, True, "find -delete of everything under")
             if v and v[0] == DENY:
                 return v
+    if _find_cache_cleanup(args, roots, ctx):
+        return None
     return (ASK, "find -delete / -exec rm — removes every file the traversal matches; the match "
                  "set is not visible before it runs.")
+
+
+# Bytecode a Python interpreter rewrites on the next import.
+CACHE_FILE_PATTERNS = {"*.pyc", "*.pyo", "*.py[co]", "*.py[cod]"}
+
+
+def _find_cache_cleanup(args, roots, ctx):
+    """True for `find . -name '*.pyc' -delete` and `find . -type d -name __pycache__ -exec rm -rf
+    {} +`: the find spelling of a cache cleanup that `rm -rf __pycache__` already does silently.
+
+    Review 2026-09-29: both asked, careful.json could not silence them (safe_dirs was read for rm
+    targets only), and the corpus had no find-based cleanup to notice. Silent only when every
+    root is relative and inside the project, every -name/-iname is a safe_dirs entry or a
+    bytecode pattern, and nothing else in the expression can widen the match: no -o, no !, no
+    -path, no other -exec. Anything outside that shape keeps the ask.
+    """
+    for r in roots or ["."]:
+        if is_abs(r) or r.startswith(("~", "$")) or ".." in _slash(r).split("/"):
+            return False
+    safe_names = {e for e in ctx.cfg["safe_dirs"] if "/" not in e and not e.startswith("~")}
+    rest = args[len(roots):]
+    i, names = 0, 0
+    while i < len(rest):
+        a = rest[i]
+        nxt = rest[i + 1] if i + 1 < len(rest) else None
+        if a in ("-name", "-iname") and nxt is not None:
+            if nxt not in CACHE_FILE_PATTERNS and nxt not in safe_names:
+                return False
+            names, i = names + 1, i + 2
+        elif (a == "-type" and nxt in ("f", "d")) or (
+                a in ("-maxdepth", "-mindepth") and nxt is not None and nxt.isdigit()):
+            i += 2
+        elif a in ("-delete", "-print", "-print0", "-depth", "-prune"):
+            i += 1
+        elif a in ("-exec", "-execdir") and nxt is not None and base_name(nxt) == "rm":
+            j = i + 2
+            while j < len(rest) and re.fullmatch(r"-[rRf]+|--recursive|--force", rest[j]):
+                j += 1
+            if j + 1 >= len(rest) or rest[j] != "{}" or rest[j + 1] not in ("+", ";", "\\;"):
+                return False
+            i = j + 2
+        else:
+            return False
+    return names > 0
 
 
 def rule_extract(argv, seg, ctx, a0):
@@ -2012,7 +2164,8 @@ def rule_extract(argv, seg, ctx, a0):
 
 def rule_adopt(argv, seg, ctx):
     words = [str(w) for w in argv]
-    if any(base_name(w) == "adopt.py" for w in words) and "--upgrade" in words:
+    if any(base_name(w) == "adopt.py" for w in words) and "--upgrade" in [
+            canon_long(w, LONG_OPTS["adopt.py"]) for w in words]:
         return (ASK, "adopt.py --upgrade — replaces the installed guard, gates and harness files; "
                      "meant to be run and reviewed by a human.")
     return None
@@ -2617,10 +2770,10 @@ def decide(payload, cfg=None, cfg_error=None):
                 if guarded(q):
                     return DENY, ("edit to a guardrail file (%s) — changing it disables the "
                                   "protection itself. Have a human make this edit." % p)
-            for q in (norm(p), norm(p, cwd)):
-                if GATE_CONFIG_RX.search(fold(q)):
-                    verdict = (ASK, "edit to gate configuration (%s) — it decides which gates "
-                                    "run; a human should see the change." % p)
+            for q in (norm(p), norm(p, cwd) if cwd else norm(p)):
+                why = gate_wiring(q)
+                if why:
+                    verdict = (ASK, "edit to %s; a human should see the change." % why)
         return verdict or ("allow", None)
 
     # Bash and PowerShell carry `command`. Any other tool routed here with a string `command`

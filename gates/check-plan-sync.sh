@@ -21,8 +21,10 @@
 #     released | superseded (legacy shipped = accepted); feature: differs from the dir name;
 #   * status is superseded without superseded_by: <an existing spec dir>;
 #   * status is accepted/released/shipped while tasks.md still has an unchecked "- [ ]" task
-#     that is not marked "(deferred -> <where>)".
-#   WARNS (exit 0) when every task is checked but status is still draft or approved.
+#     (or an open "| ⬜ | M1-T2 |" row of the 1.3.x table) not marked "(deferred -> <where>)";
+#   * status is past draft and tasks.md exists but holds no task in either format.
+#   WARNS (exit 0) when every task is checked but status is still draft or approved, and on
+#   every 1.3.x table row (read as a task, but convert it: GATES.md §7).
 #
 # DOCS MODE — the original job, unchanged for any dir that holds plans:
 #  1. PLAN SYNC — for EVERY <docs>/*-plan.md that carries the progress format
@@ -50,6 +52,10 @@
 #     check-spec-approval.sh's job (acceptance.md), and even that only checks the record exists.
 #   * DELETED TASKS. A task removed from tasks.md (or hidden in an HTML comment or a code
 #     fence) is not open any more, as far as this gate can see.
+#   * TASKS IN ANY OTHER FORMAT. Only "- [ ] T001" checklist lines and 1.3.x "| ✅ | M1-T1 |"
+#     rows are tasks. A prose list, a table with other columns or a task in another file is
+#     invisible; one checklist line beside them is enough to make the rest unseen.
+#   * OPEN QUESTIONS. [NEEDS CLARIFICATION] markers are check-spec-approval.sh's job.
 #   * WHETHER A DEFERRAL IS REAL. "(deferred -> 014-export)" unblocks acceptance; the gate does
 #     not check that 014-export exists or mentions the task. Review does.
 #   * APPROVAL. Who approved what is check-spec-approval.sh; duplicate numbers are

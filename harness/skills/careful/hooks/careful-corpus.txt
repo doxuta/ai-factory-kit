@@ -134,6 +134,9 @@ python train.py --epochs 3 --seed 42
 jupyter nbconvert --to notebook --execute analysis.ipynb
 rm -rf .venv && uv sync
 rm -rf .pytest_cache .mypy_cache .ruff_cache __pycache__
+find . -name "*.pyc" -delete
+find . -type d -name __pycache__ -exec rm -rf {} +
+find . -name '*.py[co]' -delete
 rm -rf build dist *.egg-info
 tox -e py311
 python3 -m build
