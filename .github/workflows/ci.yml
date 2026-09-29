@@ -1,0 +1,91 @@
+# WHO READS ME: the kit maintainer, and GitHub Actions on every push and pull request to this
+# kit. I POINT TO: every *.test.sh the repository tracks (git ls-files) · bin/check-links.py
+# (the kit-wide relative-link check) · .gitattributes (the LF rule the first step enforces) ·
+# gates/check-*.sh (run against each worked example's specs/).
+#
+# This is the KIT's own CI. Adopters get gates/ci/github-actions.yml instead, installed by
+# `adopt.py --ci github` as .github/workflows/factory-gates.yml.
+#
+# Why two checkouts: in v1.3.2 one row of the careful test asked the caller's own checkout which
+# branch it was on, so the table read 141/142 on every feature branch, in a detached CI checkout
+# and in a fresh repo, and nothing noticed (readiness audit F26, F35). The same suite now runs
+# once as checked out and once after `git checkout --detach`.
+#
+# Why macOS: README states the support envelope as tested on macOS, and the scripts claim bash
+# 3.2 compatibility. Before 1.4.0 that was checked only with a Linux build of bash 3.2.57. The
+# macOS rows run every suite under the system /bin/bash (3.2) and BSD userland.
+#
+# fetch-depth 0: bin/adopt.test.sh upgrades a v1.3.2 adoption with this adopt.py, and needs
+# commit af7f324 (tag v1.3.2) in the history; in a shallow clone that row is skipped, not run.
+
+name: kit-ci
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  kit:
+    name: tests + links (${{ matrix.os }}, ${{ matrix.head }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        head: [as-checked-out, detached]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detach HEAD
+        if: matrix.head == 'detached'
+        run: |
+          git checkout --detach
+          git status | head -n 1
+
+      - name: Pick the bash under test
+        run: |
+          if [ "$RUNNER_OS" = macOS ]; then b=/bin/bash; else b=$(command -v bash); fi
+          echo "KIT_BASH=$b" >> "$GITHUB_ENV"
+          "$b" --version | head -n 1
+          python3 --version
+          git --version
+
+      - name: No CR line endings in tracked files
+        run: |
+          bad=$(git ls-files --eol | awk '$1 ~ /crlf|mixed/ || $2 ~ /crlf|mixed/')
+          if [ -n "$bad" ]; then
+            echo "$bad"
+            echo "::error::CRLF in tracked files - bash exits 2 on a CRLF hook shim (see .gitattributes)"
+            exit 1
+          fi
+          echo "no CRLF in $(git ls-files | wc -l | tr -d ' ') tracked files"
+
+      - name: Every tracked *.test.sh
+        run: |
+          fail=0; n=0
+          for t in $(git ls-files '*.test.sh'); do
+            n=$((n+1))
+            echo "::group::$t"
+            if "$KIT_BASH" "$t"; then res=PASS; else res=FAIL; fail=1; fi
+            echo "::endgroup::"
+            echo "$res  $t"
+          done
+          if [ "$n" -eq 0 ]; then echo "::error::no *.test.sh found"; exit 1; fi
+          exit "$fail"
+
+      - name: Kit-wide relative links
+        run: python3 bin/check-links.py .
+
+      - name: Spec gates on each worked example
+        run: |
+          for d in examples/*/specs; do
+            echo "== $d"
+            "$KIT_BASH" gates/check-plan-sync.sh --specs "$d" &&
+              "$KIT_BASH" gates/check-spec-approval.sh "$d" &&
+              "$KIT_BASH" gates/check-spec-numbers.sh "$d" || exit 1
+          done

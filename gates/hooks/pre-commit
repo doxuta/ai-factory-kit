@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# gates/hooks/pre-commit — refuses a commit while the gate chain is red (from the AI Factory Kit).
+#
+# Installed by `python3 factory/bin/adopt.py --install-git-hook`, which points core.hooksPath at
+# gates/hooks — normally as the last step of feature 001 (the walking skeleton), once
+# gates/chain.conf has no TODO slot left; before that the chain is honestly red and this hook
+# would refuse every commit. It runs ./gates/run-chain.sh; the chain's own output says which
+# slot is red.
+#
+# BLIND TO:
+#   * git commit --no-verify (or -n): git skips every pre-commit hook. The careful guard asks
+#     before an agent does that; CI (gates/ci/github-actions.yml) cannot be skipped.
+#   * CLONES THAT NEVER RAN --install-git-hook: core.hooksPath lives in .git/config, which is
+#     not versioned. Each clone opts in once; CI is the check that covers everyone.
+#   * A HOOK WITHOUT ITS EXECUTE BIT: git prints a hint and commits anyway. Keep this file at
+#     mode 100755 in git (git update-index --chmod=+x gates/hooks/pre-commit).
+#   * COMMITS THAT DO NOT RUN pre-commit. Checked with git 2.43: merge (it runs
+#     pre-merge-commit, not shipped here), rebase, cherry-pick and revert all commit without
+#     it; --amend does run it. CI checks what they produce.
+#   * THE STAGED SNAPSHOT: the chain checks the working tree (see run-chain.sh).
+set -u
+HERE="$(cd "$(dirname "$0")" && pwd)"
+CHAIN="$HERE/../run-chain.sh"
+if [ ! -f "$CHAIN" ]; then
+  echo "pre-commit: $CHAIN is missing - commit REFUSED (the gate chain cannot run)." >&2
+  exit 1
+fi
+bash "$CHAIN"
+rc=$?
+if [ "$rc" -ne 0 ]; then
+  echo "pre-commit: commit REFUSED by gates/hooks/pre-commit - gates/run-chain.sh exited $rc." >&2
+  echo "pre-commit: fix the red slot or explicitly revert; do not --no-verify (GATES.md section 1)." >&2
+fi
+exit "$rc"

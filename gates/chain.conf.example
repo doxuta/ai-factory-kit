@@ -1,0 +1,34 @@
+# gates/chain.conf — the gate chain. ./gates/run-chain.sh runs these slots in order and stops
+# at the first red; "done" means it exits 0 (the kit's gates/GATES.md §1). The pre-commit hook
+# and CI run the same script.
+#
+#   <slot>: <shell command>   run from the project root; exit 0 = ok, anything else = red
+#   <slot>: NA: <reason>      does not apply to this product; the reason is printed every run
+#   <slot>: TODO              not wired yet: RED ("not wired")
+#
+# Every slot below must stay declared: delete a line and the chain refuses to run. Extra
+# slots (eval, ...) may be added. Feature 001 (the walking skeleton) replaces every TODO with
+# a real command or an NA with its reason — until then the chain is honestly red.
+# The kit's model/ARCHETYPES.md lists typical commands and NA reasons per kind of product.
+
+# Formatter in check mode: fails on unformatted files, rewrites nothing.
+format: TODO
+# Static analysis / lint / type check, zero warnings tolerated.
+static: TODO
+# The test suite. It must print how many tests ran; a filter matching zero tests is not green.
+test: TODO
+# The artefact actually builds.
+build: TODO
+# Every route has a caller or a recorded reason: ./gates/check-orphan-endpoints.sh once
+# gates/orphan-endpoints.conf exists, or NA: <why the product has no routes>.
+orphan-endpoints: TODO
+# Automated isolation / acceptance tests that run per commit (e.g. the cross-tenant probe),
+# or NA: <reason>. The per-feature acceptance run by someone other than the builder is
+# recorded in specs/<id>/acceptance.md and checked by spec-approval below.
+acceptance: TODO
+# Specs agree with their tasks and names (and docs/*-plan.md views, if you keep them).
+doc-sync: ./gates/check-plan-sync.sh
+# No ticked task on a draft spec; approval and acceptance records present.
+spec-approval: ./gates/check-spec-approval.sh
+# No two specs share a number.
+spec-numbers: ./gates/check-spec-numbers.sh

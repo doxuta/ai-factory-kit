@@ -1,37 +1,54 @@
 ---
 name: spec-first
-description: >
-  HARD-GATE discipline for any new feature or behavior change: clarify the request, present
-  2-3 design options, get explicit approval — only then write code. Use BEFORE creating any
-  feature/endpoint/schema change, and especially when a task "looks too simple to need it".
-  Adapted from obra/superpowers brainstorming (MIT).
+description: >-
+  The discipline to apply INSIDE /speckit-specify and /speckit-clarify (Spec Kit) for a new
+  feature or behavior change: read the repo first, challenge the premise, clarify one question
+  at a time, weigh 2-3 options with a stance, and get the owner's explicit approval before any
+  code (the HARD-GATE). Not an entry point: a feature starts with /speckit-specify; use this
+  while running it, and whenever a change looks "too simple to need a spec". Adapted from
+  obra/superpowers brainstorming (MIT).
 ---
 <!-- WHO READS ME: an agent about to build something new — before any code exists.
-     I POINT TO: ../../../model/SPEC-FLOW.md (the full Level-1 loop) ·
-     ../../../constitution/constitution-template.md (Article IV mandates this gate) ·
-     ../plan-and-tdd/SKILL.md (the step after approval). -->
+     I POINT TO (kit paths; factory/... once adopted): model/SPEC-FLOW.md (the full Level-1
+     loop) · the project's constitution (Article IV mandates this gate) ·
+     harness/agents/requirement-researcher.md (who drafts the input for a vague request) ·
+     model/NON-FEATURE-WORK.md (lanes for work that is not a feature) ·
+     harness/skills/plan-and-tdd/SKILL.md (the discipline inside /speckit-implement). -->
 
-# Spec-first — no code before an approved design
+# Spec-first — no code before an approved spec
 
 The [constitution](../../../constitution/constitution-template.md) Article IV makes this a
-HARD-GATE: implementation waits for spec approval. This skill is the procedure that carries a
-raw request to that approval. Artifact shapes: [SPEC-FLOW](../../../model/SPEC-FLOW.md).
+HARD-GATE: implementation waits for spec approval. Spec Kit's commands produce the artifacts;
+this skill is how you conduct them so that the approval means something. It is never a second
+way in: if no `specs/<id>/` exists for the request, the next action is `/speckit-specify`.
+Artifact shapes and the order of commands: [SPEC-FLOW](../../../model/SPEC-FLOW.md).
 
 ## The procedure
 
 1. **Read before asking.** The code the request touches, prior specs, recent history. Half of
-   all clarifying questions are already answered by the repo.
+   all clarifying questions are already answered by the repo. For a vague or large request,
+   dispatch [`requirement-researcher`](../../agents/requirement-researcher.md) and give its
+   draft to `/speckit-specify` as the argument.
 2. **Challenge the premise before solving it.** Is this the right problem? What happens if
    nothing is built — real pain or assumption? What existing capability already covers part of
-   it? Put the premises to the human as agree/disagree statements.
-3. **Clarify one question at a time**, multiple-choice where possible. Answers are written
-   back into `spec.md` (SPEC-FLOW step 2) — never into a side file.
+   it? Put the premises to the owner as agree/disagree statements. Is it a feature at all? A
+   bug in shipped behaviour, a refactor, a spike or a release has its own lane
+   ([NON-FEATURE-WORK](../../../model/NON-FEATURE-WORK.md)).
+3. **Run `/speckit-specify`, then clarify one question at a time.** Specify keeps at most three
+   `[NEEDS CLARIFICATION]` markers and asks the owner about them; `/speckit-clarify` asks up to
+   five more, one at a time, multiple-choice where possible. Answers are written back into
+   `spec.md` (its `Clarifications` section) — never into a side file.
 4. **Present 2–3 options — mandatory, even when one clearly wins**: minimum-viable (smallest
-   diff) · architectural-ideal · one lateral. Each with effort, risk, and what it reuses.
-   **Take a stance** and name what evidence would change it. "Either works, up to you" is
-   banned — that is sycophancy wearing a neutrality costume.
-5. **Get explicit approval** on the chosen option. Silence is not approval.
-6. **Hand off** to [`plan-and-tdd`](../plan-and-tdd/SKILL.md).
+   slice) · fuller · one lateral. Scope options belong in the spec, before approval; technical
+   options come back in `/speckit-plan`'s `research.md` (Decision · Rationale · Alternatives
+   considered). Each option with effort, risk, and what it reuses. **Take a stance** and name
+   what evidence would change it. "Either works, up to you" is banned — that is sycophancy
+   wearing a neutrality costume.
+5. **Get explicit approval** on the spec. Silence is not approval. Record it in the spec's
+   frontmatter — `status: approved`, `approved_by: <owner>`, `approved_on: <YYYY-MM-DD>` — the
+   `spec-approval` gate reads exactly that, and it is red for a ticked task on a draft spec.
+6. **Hand off**: `/speckit-plan` → `/speckit-tasks` → `/speckit-analyze` → `/speckit-implement`,
+   with [`plan-and-tdd`](../plan-and-tdd/SKILL.md) as the discipline inside the last one.
 
 ## The "too simple to need approval" anti-pattern
 

@@ -1,18 +1,24 @@
-<!-- WHO READS ME: any agent editing source in the layers scoped below — lazy-loaded detail
-     behind the Article-III mirror in ../CLAUDE.md.template. I POINT TO: ../HARNESS.md §3
-     (loading traps) · ../../constitution/constitution-template.md (Article III, authoritative)
-     · ../../gates/GATES.md §5 (adversarial review) · api-conventions.md (error envelope). -->
-
 ---
-# ⚠️ LOADING TRAP (measured on a production repo — ../HARNESS.md §3): path-scoped rules load
-# LAZILY — this file is read only when a matching file is touched — and a scoping key your
-# platform doesn't recognize is ignored SILENTLY (one repo shipped 84KB of "scoped" rules
-# every session for months because the frontmatter used another tool's syntax). Verify
-# `paths:` against YOUR platform's docs. Most platforms require frontmatter as the FIRST
-# lines — when adopting, drop the header comment above this block.
+# ⚠️ LOADING TRAP (measured on a production repo — HARNESS.md §3): path-scoped rules load
+# LAZILY — this file is read only when Claude opens a file matching `paths` — and a scoping key
+# the host doesn't recognize is ignored SILENTLY (one repo shipped 84KB of "scoped" rules
+# every session for months because the frontmatter used another tool's syntax). Claude Code
+# parses this block only when its opening fence is the file's first line (before v1.4.0 a
+# comment sat above it, so by Claude Code's docs every rule loaded in every session), and
+# reads only `paths` from it. An unfilled "[GLOB …]" is not a usable pattern (a glob reads
+# `[` as a bracket expression): fill it, or delete this rule. Never type three dashes inside
+# this block: Claude Code 2.1.284 ends the frontmatter at the first three dashes it meets,
+# even mid-line. Other hosts: HARNESS.md §7.
 paths:
   - "[GLOB matching your source layers, EXAMPLE: src/**/*.EXT]"
 ---
+<!-- WHO READS ME: any agent editing source in the layers scoped above — lazy-loaded detail
+     behind the Article-III mirror in .claude/CLAUDE.md. APPLIES TO: every archetype; no
+     adopt.py profile drops it — fill the layer names for the product (model/ARCHETYPES.md).
+     I POINT TO (kit paths; factory/... once adopted): constitution/constitution-template.md
+     (Article III, authoritative) · gates/GATES.md §5 (adversarial review) ·
+     harness/rules/api-conventions.md (the HTTP error envelope, where installed) ·
+     harness/HARNESS.md §3 (loading traps). -->
 
 # Architecture — the layering contract
 
@@ -22,12 +28,14 @@ is the lazy-loaded detail — where it contradicts either of those, this file is
 ## The chain
 
 ```
-[TRANSPORT LAYER]  →  [BUSINESS LAYER]  →  [PERSISTENCE LAYER]  →  [DOMAIN MODEL]
- parses/validates      decides              reads/writes            plain data + rules
+[ENTRY LAYER]  →  [CORE / BUSINESS LAYER]  →  [ADAPTERS: persistence, I/O]  →  [DOMAIN MODEL]
+ parses/validates      decides                    reads/writes                 plain data + rules
 ```
 
-[EXAMPLE: handler → service → repository → entity in a Go service; controller → use-case →
-gateway → entity in a TypeScript backend.]
+[EXAMPLE: web service — handler → service → repository → entity in Go, or controller →
+use-case → gateway → entity in TypeScript; CLI — argument parsing → command → pure core → file
+and terminal adapters; library — public API → internal modules; data pipeline — extract →
+validate → transform → load.]
 
 Dependencies point one way: a layer calls the next layer down — never upward, never skipping.
 
@@ -35,9 +43,9 @@ Dependencies point one way: a layer calls the next layer down — never upward, 
 
 | Never | Because |
 |---|---|
-| [persistence concern, EXAMPLE: SQL] in the [TRANSPORT LAYER] | untestable, unauditable |
-| [transport concern, EXAMPLE: HTTP codes/request types] in the [BUSINESS LAYER] | business logic married to a protocol |
-| [BUSINESS LAYER] importing [TRANSPORT LAYER] types | inverted dependency |
+| [persistence or I/O concern, EXAMPLE: SQL, file writes] in the [ENTRY LAYER] | untestable, unauditable |
+| [entry concern, EXAMPLE: HTTP codes, argv, terminal output] in the [CORE] | business logic married to one interface |
+| [CORE] importing [ENTRY LAYER] types | inverted dependency |
 | [DOMAIN MODEL] importing anything above it | the domain must stand alone |
 
 ## Error discipline
@@ -45,8 +53,9 @@ Dependencies point one way: a layer calls the next layer down — never upward, 
 - Every layer wraps errors with their origin before passing them up:
   `[package.method]: <underlying>` [EXAMPLE: Go — `fmt.Errorf("svc.CreateOrder: %w", err)`].
 - No swallowed errors — `[_ = err or your language's equivalent]` is a defect, not a style.
-- Only the transport layer turns errors into protocol responses; the envelope lives in
-  [`api-conventions.md`](api-conventions.md).
+- Only the entry layer turns errors into what the user sees: for an HTTP API the envelope in
+  [`api-conventions.md`](api-conventions.md) where the profile installed it; for a CLI the
+  exit code and one stderr line; for a library the documented exception or error type.
 
 ## The exception that is not one
 

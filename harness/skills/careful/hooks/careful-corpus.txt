@@ -1,0 +1,452 @@
+# careful-corpus.txt — ordinary developer commands that the careful guard must leave SILENT.
+#
+# WHO READS ME: check-careful.test.sh (replays every entry and reports the false-positive rate);
+# whoever changes the matcher. I POINT TO: ../SKILL.md (lesson 3: a guard's false-positive rate
+# is a safety property — one dialog in eight commands trains people to dismiss, then to switch
+# the guard off).
+#
+# Every entry here is routine work on some stack. None may be interrupted. If a matcher change
+# flags one of them, the change is wrong or the entry is not ordinary — decide which, with
+# evidence, before editing either. Commands that are ordinary but destructive by design
+# (`sed -i`, `rm -rf src`, `git reset --hard`) do NOT belong here; they are pinned as asks in the
+# test table.
+#
+# This is a CONSTRUCTED corpus, not real traffic. Replay your own shell history too (SKILL.md).
+#
+# Format: one command per line; `#` lines and blank lines are skipped; a line ending in `\`
+# continues on the next; a block between `<<<CMD` and `CMD>>>` is one multi-line command;
+# `PS> ` marks a PowerShell command.
+
+# --- git -----------------------------------------------------------------------------------
+git status
+git status --short
+git log --oneline -20
+git log --graph --decorate --oneline --all | head -40
+git diff
+git diff --stat HEAD~1
+git diff --cached
+git show HEAD
+git add -A
+git add src/ tests/
+git commit -m "feat(api): add task endpoint"
+git commit -am "fix: handle empty list"
+git commit --amend --no-edit
+git push
+git push origin main
+git push -u origin feat/task-api
+git push origin --tags
+git pull --rebase
+git fetch --all --prune
+git checkout -b feat/task-api
+git checkout main
+git switch -c fix/login
+git switch main
+git merge --no-ff feat/task-api
+git rebase main
+git cherry-pick abc1234
+git stash
+git stash pop
+git stash list
+git tag -a v1.4.0 -m "v1.4.0"
+git branch -d feat/merged
+git branch -a
+git remote -v
+git blame src/app.py
+git reset HEAD~1
+git reset --soft HEAD~1
+git restore --staged src/app.py
+git restore src/app.py
+git checkout -- src/app.py
+git clean -n
+git submodule update --init --recursive
+git submodule add https://github.com/example/ai-factory-kit factory
+git -C factory checkout v1.4.0
+git rev-parse --abbrev-ref HEAD
+git config user.email "dev@example.com"
+git worktree add ../wt-feature feat/x
+git worktree remove ../wt-feature
+git grep -n "TODO"
+git log -p -- .claude/settings.json
+
+# --- JavaScript / TypeScript -----------------------------------------------------------------
+npm install
+npm ci
+npm run build
+npm test
+npm run lint -- --fix
+npm run dev
+npm install --save-dev vitest
+npm uninstall left-pad
+npm run migrate:up
+npx tsc --noEmit
+npx eslint . --ext .ts
+npx prettier --write "src/**/*.ts"
+npx vitest run
+npx jest --coverage
+npx playwright test
+npx prisma generate
+npx prisma migrate dev --name add_tasks
+npx prisma migrate deploy
+pnpm install
+pnpm -r build
+pnpm dlx create-vite@latest app
+yarn install --frozen-lockfile
+yarn build
+bun install
+bun test
+node scripts/seed.js
+node --version
+rm -rf node_modules && npm install
+rm -rf .next && npm run build
+rm -rf dist build coverage
+npm run build 2>&1 | tee build.log
+npx turbo run build --filter=web
+npx nx run-many -t test
+rm -rf .turbo .nx
+
+# --- Python ------------------------------------------------------------------------------------
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+pip install -e ".[dev]"
+uv sync
+uv add httpx
+uv run pytest -q
+uv tool install specify-cli==1.0.12
+pytest
+pytest -x -k test_create_task
+python -m pytest tests/ --maxfail=1
+ruff check --fix .
+ruff format .
+mypy src
+black .
+poetry install
+poetry run pytest
+python manage.py migrate
+python manage.py makemigrations tasks
+python manage.py runserver 0.0.0.0:8000
+python manage.py test
+alembic upgrade head
+alembic revision --autogenerate -m "add tasks"
+python3 -c "import sys; print(sys.version)"
+python3 -m http.server 8000
+python train.py --epochs 3 --seed 42
+jupyter nbconvert --to notebook --execute analysis.ipynb
+rm -rf .venv && uv sync
+rm -rf .pytest_cache .mypy_cache .ruff_cache __pycache__
+rm -rf build dist *.egg-info
+tox -e py311
+python3 -m build
+
+# --- Go ------------------------------------------------------------------------------------------
+go build ./...
+go test ./... -race
+go test ./internal/... -run TestMigrateDown
+go vet ./...
+go mod tidy
+go run ./cmd/server
+go generate ./...
+golangci-lint run
+go install golang.org/x/tools/cmd/goimports@latest
+
+# --- Rust ----------------------------------------------------------------------------------------
+cargo build
+cargo build --release
+cargo test
+cargo clippy -- -D warnings
+cargo fmt --all
+cargo run -- --help
+cargo add serde --features derive
+cargo check
+cargo clean
+rm -rf target
+
+# --- JVM ---------------------------------------------------------------------------------------
+mvn -q test
+mvn clean install -DskipTests
+./gradlew build
+./gradlew test --tests "*TaskTest"
+./gradlew clean
+gradle assemble
+rm -rf .gradle build
+
+# --- .NET ----------------------------------------------------------------------------------------
+dotnet build
+dotnet test
+dotnet run --project src/Api
+dotnet restore
+dotnet ef database update
+dotnet format
+
+# --- Ruby / PHP / Elixir ------------------------------------------------------------------------
+bundle install
+bundle exec rspec
+bundle exec rails db:migrate
+rails db:migrate
+rails db:seed
+rails s -p 3001
+rake test
+composer install
+php artisan migrate
+php artisan test
+vendor/bin/phpunit
+mix deps.get
+mix test
+mix ecto.migrate
+mix format
+
+# --- Apple / mobile ---------------------------------------------------------------------------
+xcodebuild -scheme App -destination "platform=iOS Simulator,name=iPhone 15" build
+swift build
+swift test
+pod install
+rm -rf ios/Pods && pod install
+rm -rf ~/Library/Developer/Xcode/DerivedData
+flutter pub get
+flutter test
+flutter build apk --release
+dart format lib
+rm -rf .dart_tool && flutter pub get
+npx expo start
+
+# --- containers and clusters -----------------------------------------------------------------
+docker build -t api:dev .
+docker run --rm -p 8080:8080 api:dev
+docker run --rm -v "$(pwd)":/app -w /app node:20 npm test
+docker compose up -d
+docker compose down
+docker compose down --remove-orphans
+docker compose logs -f api
+docker compose exec db psql -U app -c "SELECT count(*) FROM tasks"
+docker ps -a
+docker images
+docker rm old-container
+docker image prune -f
+docker builder prune -f
+kubectl get pods -A
+kubectl describe pod api-7f9
+kubectl logs deploy/api --tail=100
+kubectl apply -f k8s/
+kubectl rollout status deploy/api
+kubectl port-forward svc/api 8080:80
+helm install api ./chart
+helm upgrade --install api ./chart -f values.yaml
+helm template api ./chart
+helm lint ./chart
+helm list -A
+kind create cluster
+
+# --- infrastructure ------------------------------------------------------------------------------
+terraform init
+terraform plan -out plan.tfplan
+terraform apply plan.tfplan
+terraform apply -auto-approve
+terraform fmt -recursive
+terraform validate
+terraform plan -destroy
+terraform output -json
+tofu plan
+pulumi preview
+pulumi up --yes
+pulumi stack select dev
+rm -rf .terraform && terraform init
+aws sts get-caller-identity
+aws s3 ls s3://my-bucket/
+aws s3 cp dist s3://my-bucket/site --recursive
+aws s3 sync ./site s3://my-bucket/site
+aws logs tail /aws/lambda/api --follow
+aws ecr get-login-password | docker login --username AWS --password-stdin 123.dkr.ecr.us-east-1.amazonaws.com
+gcloud config list
+gcloud auth list
+gcloud compute instances list
+gcloud run deploy api --source .
+az account show
+az group list -o table
+az webapp deploy --src-path app.zip
+
+# --- embedded ----------------------------------------------------------------------------------
+idf.py build
+idf.py -p /dev/ttyUSB0 flash monitor
+esptool.py --port /dev/ttyUSB0 write_flash 0x0 build/fw.bin
+esptool.py chip_id
+pio run
+pio run -t upload
+st-flash write build/fw.bin 0x8000000
+arduino-cli compile --fqbn arduino:avr:uno sketch
+make flash
+dd if=/dev/urandom of=test.bin bs=1k count=4
+dd if=build/fw.bin of=padded.bin bs=4k conv=sync
+lsusb
+
+# --- data and databases ------------------------------------------------------------------------
+psql -c "SELECT count(*) FROM users"
+psql "$DATABASE_URL" -c "UPDATE users SET active = true WHERE id = 42"
+psql -f migrations/001_init.sql
+mysql -e "SHOW TABLES"
+mysql -e "DELETE FROM sessions WHERE expires_at < NOW()"
+sqlite3 app.db ".tables"
+sqlite3 app.db "SELECT * FROM tasks LIMIT 5"
+redis-cli GET session:42
+mongosh --eval "db.tasks.countDocuments()"
+bq query --use_legacy_sql=false "SELECT count(*) FROM analytics.events"
+bq ls analytics
+duckdb warehouse.duckdb "SELECT count(*) FROM facts"
+snowsql -q "SELECT current_version()"
+dbt run
+dbt test --select staging
+spark-submit jobs/aggregate.py
+pg_dump -Fc app > /tmp/app.dump
+grep -rn "DROP TABLE" migrations/
+rg -n "truncate" src/
+echo "DROP TABLE x;" > /tmp/scratch.sql
+
+# --- files and text ------------------------------------------------------------------------------
+ls -la
+ls -la .claude/hooks/
+mkdir -p src/tasks tests/tasks
+touch src/tasks/__init__.py
+cp -r templates/ src/templates/
+cp .env.example .env
+mv src/old_name.py src/new_name.py
+ln -s ../shared shared
+rm notes.tmp
+rm -f *.log
+rm -f build.log coverage.xml
+rm -r build
+chmod +x scripts/dev.sh
+tar -czf release.tar.gz dist/
+unzip -o assets.zip -d assets
+curl -sSL -o /tmp/schema.json https://example.com/schema.json
+curl -s http://localhost:8080/health | jq .
+wget -q https://example.com/data.csv -O data/raw.csv
+grep -rn "TODO" src/
+grep -ri "careful" .claude/
+rg --files | wc -l
+sed -n "1,40p" src/app.py
+awk -F, '{print $1}' data/raw.csv | sort | uniq -c
+jq '.hooks' .claude/settings.json
+cat .claude/settings.json
+head -50 README.md
+tail -n 100 logs/app.log
+wc -l src/**/*.py
+find . -name "*.py" -type f | xargs grep -l "import os"
+find . -name "*.md" -newer README.md
+diff -u old.txt new.txt
+sort -u words.txt > /tmp/words.sorted
+echo "PORT=3000" >> .env
+printf '%s\n' "line one" "line two" > notes.md
+tee -a build.log < output.txt
+<<<CMD
+cat > docs/decisions/0001-stack.md <<'EOF'
+# ADR 0001: stack
+
+Decision: Python 3.12 + FastAPI. Rejected: `rm -rf /`-style scripts in CI.
+EOF
+CMD>>>
+<<<CMD
+python3 - <<'PY'
+import json
+print(json.load(open(".claude/settings.json"))["hooks"].keys())
+PY
+CMD>>>
+<<<CMD
+cat <<EOF > /tmp/payload.json
+{"tool_name": "Bash", "tool_input": {"command": "git push --force origin main"}}
+EOF
+CMD>>>
+du -sh node_modules
+df -h
+stat src/app.py
+file build/fw.bin
+realpath ../factory
+basename "$PWD"
+xxd build/fw.bin | head
+
+# --- build tools and task runners ---------------------------------------------------------------
+make
+make test
+make lint build
+make -j8
+just test
+task build
+./scripts/dev.sh
+bash scripts/setup.sh
+sh ./configure && make
+cmake -S . -B build && cmake --build build
+ninja -C build
+bazel build //...
+bazel test //src/...
+
+# --- GitHub and CI --------------------------------------------------------------------------------
+gh pr create --fill
+gh pr list
+gh pr view 42 --comments
+gh pr checkout 42
+gh issue list --label bug
+gh run watch
+gh run list --limit 5
+gh release create v1.4.0 --notes-file CHANGELOG.md
+gh api repos/example/app/pulls
+gh repo clone example/app
+
+# --- this kit's own flow ---------------------------------------------------------------------------
+python3 factory/bin/adopt.py --profile backend
+python3 factory/bin/adopt.py --check
+python3 factory/bin/adopt.py --register-guard
+python3 factory/bin/adopt.py --install-git-hook --ci github
+./gates/run-chain.sh
+./gates/run-chain.sh --list
+bash gates/check-plan-sync.sh
+bash gates/check-spec-approval.sh
+bash .claude/hooks/check-careful.test.sh
+python3 .claude/hooks/check-careful.py --check-config
+specify init --here --force --integration claude
+specify check
+uv tool install specify-cli==1.0.12
+
+# --- shell housekeeping -----------------------------------------------------------------------
+cd frontend && npm ci && npm run build
+cd /tmp && rm -rf build-check && mkdir build-check
+export DATABASE_URL=postgres://localhost/dev && npm run dev
+for f in src/*.py; do python3 -m py_compile "$f"; done
+while read -r line; do echo "$line"; done < hosts.txt
+if [ -f .env ]; then echo "has env"; fi
+test -d node_modules || npm ci
+TMP=$(mktemp -d) && cp -r src "$TMP" && rm -rf "$TMP"
+rm -rf /tmp/build-check /tmp/adopt-scratch
+ps aux | grep node | grep -v grep
+lsof -i :3000
+kill 12345
+which python3
+env | grep -i proxy
+date -u +%Y-%m-%dT%H:%M:%SZ
+uname -a
+sleep 1 && curl -s localhost:8080/ready
+time npm test
+nohup npm run dev > /tmp/dev.log 2>&1 &
+watch -n 5 kubectl get pods
+ssh deploy@staging.example.com "systemctl status api"
+scp dist.tar.gz deploy@staging.example.com:/srv/app/
+rsync -az --delete dist/ deploy@staging.example.com:/srv/app/
+rsync -a src/ /tmp/src-copy/
+echo $((2 << 3))
+echo "done" | tee -a /tmp/progress.log
+open http://localhost:3000
+code .
+
+# --- PowerShell (Windows) ------------------------------------------------------------------------
+PS> Get-ChildItem -Recurse -Filter *.cs
+PS> Get-Content .claude\settings.json
+PS> Select-String -Path src\*.cs -Pattern TODO
+PS> npm test; git status
+PS> git push origin main
+PS> dotnet build
+PS> Remove-Item -Recurse -Force node_modules
+PS> Remove-Item -Recurse -Force .\bin\Debug\obj -WhatIf
+PS> Remove-Item build.log
+PS> Set-Content notes.txt "hello"
+PS> Copy-Item .env.example .env
+PS> New-Item -ItemType Directory -Force src\Tasks
+PS> Test-Path .claude\hooks\check-careful.sh
+PS> $env:ASPNETCORE_ENVIRONMENT = "Development"; dotnet run
+PS> Invoke-WebRequest https://example.com/health -UseBasicParsing

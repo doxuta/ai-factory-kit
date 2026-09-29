@@ -1,0 +1,25 @@
+# Everything this kit ships is LF, whatever core.autocrlf says.
+# Why: with Git for Windows' default core.autocrlf=true, a checkout turns the careful hook shim
+# into CRLF; bash then exits 2 on it for every input, and Claude Code treats a PreToolUse exit 2
+# as "block". Every Bash and Write/Edit call is refused, and the gate and test scripts fail too.
+# (Readiness audit F1: bites GNU bash on a Windows checkout - WSL on /mnt/c, devcontainers.)
+# bin/adopt.py also normalises CRLF when it installs, and pins the installed dirs in the
+# project's own .gitattributes.
+
+*.sh        text eol=lf
+*.py        text eol=lf
+*.json      text eol=lf
+*.template  text eol=lf
+*.md        text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+*.conf      text eol=lf
+*.example   text eol=lf
+*.txt       text eol=lf
+
+# Scripts and data without an extension.
+gates/hooks/*  text eol=lf
+VERSION        text eol=lf
+LICENSE        text eol=lf
+.gitattributes text eol=lf
+.gitignore     text eol=lf

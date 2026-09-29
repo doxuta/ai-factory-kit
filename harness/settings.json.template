@@ -1,30 +1,34 @@
 {
   "_comment": [
-    "Host settings fragment for the careful guardrail. Merge into your host's settings file",
-    "(Claude Code: .claude/settings.json) — do not replace it wholesale.",
+    "Host settings fragment for the careful guardrail (Claude Code). Do not copy it by hand:",
+    "`python3 factory/bin/adopt.py --register-guard` merges the hooks below into",
+    ".claude/settings.json, keeps every other key, and drops this comment.",
     "",
     "BOTH matchers are required and they do different jobs:",
-    "  Bash                            — the destructive-command matcher.",
-    "  Write|Edit|MultiEdit|NotebookEdit — refuses edits to the guard files themselves.",
-    "Registering only the first leaves the guard deletable by one edit that nothing watches,",
-    "which is how it stays inert while looking installed.",
+    "  Bash|PowerShell                   the destructive-command matcher. PowerShell is the",
+    "                                    primary shell on Windows; a Bash-only matcher never",
+    "                                    fires there.",
+    "  Write|Edit|MultiEdit|NotebookEdit refuses edits to the guard's own files.",
+    "Registering only the first leaves the guard deletable by one edit nothing watches.",
     "",
-    "$CLAUDE_PROJECT_DIR is a Claude Code variable. On another host, substitute an absolute",
-    "path, and find that host's own PreToolUse decision contract before trusting the hook —",
-    "the wrong JSON envelope is silently ignored, which is exactly how this guard shipped",
-    "inert for 2.5 months. See skills/careful/SKILL.md.",
+    "The command FAILS CLOSED: if check-careful.sh is missing or cannot run, it exits 2, which",
+    "Claude Code treats as a block, and says so on stderr. A plain `bash <missing file>` exits",
+    "127, which Claude Code treats as a non-blocking error: the tool call would proceed.",
+    "The command is run by `sh -c` on macOS and Linux and by Git Bash on Windows. Native",
+    "Windows WITHOUT Git Bash runs hooks in PowerShell, where this command cannot run and the",
+    "guard is absent: see harness/HARNESS.md section 7 and skills/careful/SKILL.md.",
     "",
-    "Verify with the two live probes in skills/careful/SKILL.md. A green test table is not",
-    "evidence the host enforces anything."
+    "Adapt .claude/hooks/careful.json BEFORE registering. Then run the live probes in",
+    "skills/careful/SKILL.md: a green test table is not evidence the host enforces anything."
   ],
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "Bash",
+        "matcher": "Bash|PowerShell",
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/check-careful.sh\"",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/check-careful.sh\" || { echo \"[careful] BLOCKED: the guard in .claude/hooks/ did not run (check-careful.sh missing or broken). Restore .claude/hooks/ before anything else.\" >&2; exit 2; }",
             "timeout": 10,
             "statusMessage": "careful: checking for a destructive command"
           }
@@ -35,7 +39,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/check-careful.sh\"",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/check-careful.sh\" || { echo \"[careful] BLOCKED: the guard in .claude/hooks/ did not run (check-careful.sh missing or broken). Restore .claude/hooks/ before anything else.\" >&2; exit 2; }",
             "timeout": 10,
             "statusMessage": "careful: checking for an edit to a guardrail file"
           }

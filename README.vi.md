@@ -1,3 +1,9 @@
+<!-- WHO READS ME: người đọc tiếng Việt đang cân nhắc có dùng kit này không, rồi cài nó. AI thì
+     đọc AI-ONBOARDING.md. I POINT TO: AI-ONBOARDING.md (quy trình áp dụng) · model/PHASE-0.md
+     (bắt đầu từ ý tưởng) · harness/HARNESS.md §7 (host và nền tảng) · sync/DAILY-SYNC.md (cập
+     nhật) · THIRD_PARTY_NOTICES.md. Bản song sinh tiếng Việt của README.md: cùng nội dung, sửa
+     bản này thì sửa luôn bản kia. -->
+
 # 🏭 AI Factory Kit
 
 [English](README.md) · **Tiếng Việt**
@@ -10,6 +16,16 @@ Spec trước code · cổng kiểm chạy được · review đối kháng · m
 > dưới spec, và kỷ luật hằng ngày giữ cho tất cả trung thực. Mọi luật trong này đều rút ra từ
 > kinh nghiệm thật (kèm học phí thật) trên một nền tảng production do AI viết ~100% qua hơn
 > 730 commit.
+
+**Chạy được ở đâu.** Đã kiểm thử: Claude Code trên Linux, macOS và WSL (dự án nằm trên hệ thống
+file Linux). Hỗ trợ ở mức cố gắng: Windows gốc, khi Claude Code chạy hook qua Git Bash (không có Git Bash
+thì không có guard). Các AI
+host khác (Codex, Gemini CLI, Copilot, Cursor, …): mô hình, spec, quy trình Spec Kit và các cổng
+kiểm dùng lại được nguyên vẹn; còn harness (cấu trúc `.claude/`, agent, rules) và guard `careful`
+thì phải tự chuyển đổi. Khác biệt theo từng host và nền tảng: [HARNESS §7](harness/HARNESS.md).
+Ở bản 1.4.0, mọi bộ test đều qua trên Linux với bash 5.2 + Python 3.11, và với bash 3.2.57 (bản
+macOS cài sẵn) + Python 3.8; chưa có lần chạy nào được ghi nhận trên máy Mac hay Windows thật.
+Phiên bản 1.4.0 ([VERSION](VERSION)), kiểm thử với Spec Kit (specify-cli) 1.0.12.
 
 ---
 
@@ -47,8 +63,8 @@ flowchart TB
 
 ```mermaid
 flowchart LR
-    S["📄 spec<br/>WHAT/WHY"] --> C["❓ clarify<br/>hỏi-đáp ghi vào spec"] --> P["📐 plan<br/>+ contracts<br/>+ quickstart"] --> T["☑️ tasks"]
-    T --> A{"🔍 analyze"} --> I["⚙️ implement<br/>TDD + cổng kiểm"] --> V{"🔄 converge"} --> D(["✅ shipped"])
+    S["📄 spec<br/>WHAT/WHY"] --> C["❓ clarify<br/>hỏi-đáp ghi vào spec"] --> G{"✍️ approved<br/>chủ dự án duyệt"} --> P["📐 plan<br/>+ contracts<br/>+ quickstart"] --> T["☑️ tasks"]
+    T --> A{"🔍 analyze"} --> I["⚙️ implement<br/>TDD + cổng kiểm"] --> V{"🔄 converge"} --> D(["✅ accepted<br/>người khác nghiệm thu"])
     style D fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
 ```
 
@@ -56,21 +72,46 @@ flowchart LR
 
 | 🕵️ [requirement-researcher](harness/agents/requirement-researcher.md) | 🎼 [task-orchestra](harness/agents/task-orchestra.md) | 🧪 [tester-e2e](harness/agents/tester-e2e.md) | 🧨 [tech-lead-review](harness/agents/tech-lead-review.md) |
 |---|---|---|---|
-| yêu cầu thô → bản nháp spec sạch ~80% | chia việc không giẫm chân nhau, tự tay merge | chạy `quickstart.md` bằng tài khoản **thường, không đặc quyền** | review đối kháng nhiều góc nhìn; finding phải được sửa hoặc bác có căn cứ |
+| yêu cầu thô → bản nháp spec sạch ~80% | chia việc không giẫm chân nhau, tự tay merge | chạy `quickstart.md` qua đúng lối vào thật của sản phẩm, không bao giờ là người đã xây — dùng tài khoản **thường, không đặc quyền** nếu sản phẩm có tài khoản | review đối kháng nhiều góc nhìn; finding phải được sửa hoặc bác có căn cứ |
+
+Ba tầng, một luật: **thư mục spec `specs/NNN-<feature>/` là đơn vị công việc duy nhất.**
+Roadmap chỉ là *góc nhìn* lên các spec. Backlog chỉ là *con trỏ* trỏ vào spec. Ngoài spec ra,
+không nơi nào khác được giữ nội dung.
 
 ## Bắt đầu nhanh — dành cho bạn
 
+Bạn cần git, python3 (từ 3.8 trở lên), bash, [uv](https://docs.astral.sh/uv/) và Claude Code.
+Riêng Spec Kit (cài bằng uv) cần Python từ 3.11 trở lên.
+
 ```bash
-cd du-an-cua-ban
-git submodule add https://github.com/doxuta/ai-factory-kit factory   # hoặc clone vào factory/
-cat factory/AI-ONBOARDING.md   # rồi đưa file đó cho AI của bạn — nó tự lo phần còn lại
+mkdir san-pham && cd san-pham && git init -b main         # hoặc cd vào repo sẵn có của bạn
+git submodule add https://github.com/doxuta/ai-factory-kit factory
+git -C factory checkout v1.4.0 && git add .gitmodules factory
+python3 factory/bin/adopt.py --profile full               # hoặc backend, frontend, cli, library, …
+uv tool install specify-cli==1.0.12
+specify init --here --force --non-interactive --integration claude
 ```
 
-AI sẽ làm theo [`AI-ONBOARDING.md`](AI-ONBOARDING.md) §2: đặt kit tại `factory/`, copy
-`factory/harness/` → `.claude/` (kèm bước sửa link đã ghi sẵn), điền hiến pháp vào
-`.specify/memory/constitution.md`, cài [Spec Kit](https://github.com/github/spec-kit)
-(`uv tool install specify-cli && specify init --here --integration claude`), rồi chạy feature
-đầu tiên: `/speckit-specify <mô tả điều bạn muốn>`.
+Sau đó mở Claude Code trong dự án và nói: *"Đọc factory/AI-ONBOARDING.md rồi thiết lập dự án
+này."* AI sẽ phỏng vấn bạn về tầm nhìn, đề xuất loại sản phẩm (archetype) cùng hai hoặc ba phương
+án stack, rồi soạn hiến pháp để **chính bạn** duyệt. Tiếp theo, nó điền `.claude/CLAUDE.md`, đăng
+ký guard `careful` và chứng minh guard thực sự chặn được, rồi xây feature 001: một "bộ xương
+biết đi" (walking skeleton) nối sẵn chuỗi cổng kiểm, git hook pre-commit và CI. Những quyết định
+chỉ bạn mới được đưa ra nằm ở [PHASE-0 §8](model/PHASE-0.md). Thứ tự chính xác, kèm những gì mỗi
+bước để lại, nằm ở [`AI-ONBOARDING.md`](AI-ONBOARDING.md) §2.
+
+- **Bắt đầu từ một ý tưởng**, chưa có dòng code nào: [`model/PHASE-0.md`](model/PHASE-0.md).
+- **Dự án đã có sẵn**: `adopt.py` gộp vào `.claude/` hiện có và không bao giờ ghi đè file nào —
+  [AI-ONBOARDING §3](AI-ONBOARDING.md).
+- **Không muốn dùng submodule?** Một bản sao thường của kit trong `factory/`, không có `.git` bên
+  trong, cũng dùng được. Nhưng đừng `git clone` thẳng vào `factory/`: git sẽ ghi nó thành một
+  repo lồng (embedded repository), và mọi bản clone khác của dự án sẽ nhận một `factory/` rỗng
+  (`adopt.py` có cảnh báo).
+- **Đồng đội và CI** clone bằng `git clone --recurse-submodules`, hoặc chạy
+  `git submodule update --init` sau khi clone; `factory/` mà rỗng thì mọi link trỏ vào nó đều
+  gãy.
+- **Cập nhật kit**: ghim theo tag, nâng cấp bằng `adopt.py --upgrade` —
+  [`sync/DAILY-SYNC.md`](sync/DAILY-SYNC.md).
 
 ## Bắt đầu nhanh — dành cho AI
 
@@ -82,34 +123,51 @@ những bất biến không bao giờ được phá, và cách mọi file trong 
 
 Bảng tra cứu lệnh đầy đủ (mỗi lệnh `/speckit-*` sinh ra file gì, chạy vào lúc nào, agent và
 skill nào tham gia ở bước đó) nằm trong [`model/SPEC-FLOW.md`](model/SPEC-FLOW.md) — tương đương
-bảng lệnh của Spec Kit, nhưng gắn thêm vai trò và cổng kiểm quanh từng bước.
+bảng lệnh của Spec Kit, nhưng gắn thêm vai trò và cổng kiểm quanh từng bước. Những việc không
+phải feature — sửa bug, hotfix, refactor, spike, phát hành — có làn riêng trong
+[`model/NON-FEATURE-WORK.md`](model/NON-FEATURE-WORK.md). "Xong" nghĩa là `./gates/run-chain.sh`
+xanh. Kit có sẵn script cho ba khâu kiểm spec của chuỗi (doc-sync, spec-approval, spec-numbers)
+và một bản tham chiếu cấu hình được cho khâu thứ tư (orphan-endpoints); còn format, static,
+test, build và acceptance là lệnh của stack bạn chọn, và chúng đỏ — "not wired" — cho tới khi
+feature 001 nối chúng vào ([GATES §1](gates/GATES.md)).
 
 ## Bên trong có gì
 
 ```
 ai-factory-kit/
 ├── AI-ONBOARDING.md          ← cửa vào dành cho AI: thứ tự đọc + cách áp dụng kit
-├── constitution/             ← Tầng 0: khung hiến pháp (7 điều + cơ chế tu chính)
-├── model/                    ← mô hình 3 tầng · dòng chảy spec · playbook retro-fit
-├── harness/                  ← khung .claude/: CLAUDE.md, rules, agents, skills dùng lại được
-├── gates/                    ← definition-of-done dạng script + cổng plan-sync
-├── sync/                     ← cách kit luôn được cập nhật (giao thức daily-ship sync)
-└── examples/todo-api/        ← ví dụ trọn vẹn: hiến pháp đã điền + một chu trình spec thật
+├── bin/                      ← adopt.py (cài · gộp · nâng cấp · tự kiểm) · kiểm link · số đo
+├── constitution/             ← Tầng 0: khung hiến pháp (7 điều) + khung tầm nhìn (vision)
+├── model/                    ← 3 tầng · dòng chảy spec · Phase 0 · archetype · làn khác · retro-fit
+├── harness/                  ← khung .claude/: CLAUDE.md, rules, agents, skills, guard careful
+├── gates/                    ← definition-of-done dạng script: bộ chạy chuỗi + cổng spec, đồng bộ
+├── speckit/                  ← template ghi đè cho Spec Kit (spec, tasks), do adopt.py cài
+├── sync/                     ← cách kit luôn được cập nhật, và cách dự án dùng kit theo kịp
+├── examples/todo-api/        ← ví dụ: web app đa tổ chức, bộ xương đã nghiệm thu + một feature đang làm
+├── examples/budget-cli/      ← ví dụ: CLI một người dùng, một feature nghiệm thu trọn vẹn
+├── VERSION                   ← phiên bản kit (1.4.0)
+└── THIRD_PARTY_NOTICES.md    ← phần nào lấy từ dự án MIT nào, kèm thông báo bản quyền của họ
 ```
 
-Mỗi file đều khai ngay ở header **ai đọc nó và nó trỏ tới đâu** — kit là một đồ thị có chủ đích,
-không phải một đống file. Link gãy được coi là bug.
+Mọi tài liệu trong `constitution/`, `model/`, `harness/`, `gates/`, `speckit/`, `sync/` và
+`examples/` đều mở đầu bằng một comment khai **ai đọc nó và nó trỏ tới đâu** — đặt ngay sau
+YAML frontmatter ở những file bắt buộc mở đầu bằng frontmatter (agent, rules, skill, spec,
+template spec) — kit là một đồ thị có chủ đích, không phải một đống file. Link gãy được coi là bug: CI chạy `python3 bin/check-links.py .` ở mỗi
+lần push.
 
 ## Nguồn gốc & giấy phép
 
 Đúc kết từ nhà máy phần mềm Nexus (DOTB, 2026) — một engine metadata-driven đa tổ chức, xây
 theo lối spec-first bằng AI dưới sự chỉ huy của con người. Kế thừa:
-[github/spec-kit](https://github.com/github/spec-kit) (MIT) ·
-[obra/superpowers](https://github.com/obra/superpowers) (MIT) ·
-[juliusbrussee/caveman](https://github.com/juliusbrussee/caveman) (MIT) ·
+[github/spec-kit](https://github.com/github/spec-kit) (MIT — quy trình lệnh, và template spec,
+tasks được điều chỉnh trong [`speckit/overrides/`](speckit/overrides/)) ·
+[obra/superpowers](https://github.com/obra/superpowers) (MIT — spec-first, plan-and-tdd) ·
+[juliusbrussee/caveman](https://github.com/juliusbrussee/caveman) (MIT — skill của họ) ·
 [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail) (MIT) ·
 [garrytan/gstack](https://github.com/garrytan/gstack) (MIT — logic so khớp và thiết kế hai tầng
-của guard `careful`) · chuẩn skill [agentskills.io](https://agentskills.io).
+của guard `careful`) · định dạng skill [agentskills.io](https://agentskills.io). Thông báo bản
+quyền và giấy phép của từng dự án, cùng chính xác phần nào lấy từ đâu:
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 Giấy phép MIT — xem [LICENSE](LICENSE). Kit được cập nhật qua
 [daily-ship sync](sync/DAILY-SYNC.md); lịch sử thay đổi: [CHANGELOG.md](CHANGELOG.md).

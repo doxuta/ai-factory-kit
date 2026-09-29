@@ -1,6 +1,8 @@
 <!-- WHO READS ME: an AI absorbing a legacy doc corpus into specs/ — brownfield projects only.
-     I POINT TO: SPEC-FLOW.md (the target shape) · ../gates/GATES.md (gates must stay green
-     through every deletion). Proven on 3 retro-fit batches (3 legacy docs → 8 specs, ~120 code anchors) on a production repo. -->
+     I POINT TO: SPEC-FLOW.md (the target shape: frontmatter, statuses, the code-vs-spec rule)
+     · ../gates/GATES.md (gates must stay green through every deletion; §3 the acceptance
+     record) · ../gates/check-plan-sync.sh (the self-globbing doc-sync gate). Proven on 3
+     retro-fit batches (3 legacy docs → 8 specs, ~120 code anchors) on a production repo. -->
 
 # The Retro-fit Playbook — absorbing legacy docs into specs/
 
@@ -28,6 +30,15 @@ independent verification agents (one per subsystem) that must return
 **TRUE / FALSE / PARTIAL with `file:line` evidence** from the *executing code* — comments don't
 count. Add a **both-direction critic**: (a) what's in the doc that no claim covered, (b) what's
 in the code that the doc never knew (post-freeze features, changed gates, renamed builders).
+
+A FALSE is not yet a verdict on which side is right. Apply the kit's rule
+([SPEC-FLOW](SPEC-FLOW.md), "When code and spec disagree") claim by claim: when code and spec
+disagree, find out which one moved. If the spec states intended behaviour the code does not
+deliver, the code is wrong: record a new task (converge). If the code reflects a deliberate,
+owner-approved change the spec never recorded, fix the spec with the correction marked (≠old)
+and a dated Clarifications entry. If you cannot tell, ask the owner. In a retro-fit the doc is
+the old spec: most FALSEs are the second case — git log shows the later decision — but the
+unpaid mandates in §1b are the first, and transcribing the code there would bury a bug.
 
 > Real yields from production runs of this step: an inverted rule (a "forbidden" combination
 > had become legal), a closed gap still documented as open, an auth surface whose gate tier
@@ -63,7 +74,33 @@ Code comments cite `docs/foo.md §4` or `§"#7" MUST-FIX 2`. Keep those tokens m
 - **Preserve verbatim phrases that comments quote** (grep the anchors for quoted strings; keep
   those sentences in the new spec, or hand-edit the comment).
 - Mark every place the doc was wrong: a `(≠old-doc)` tag + a dated `Clarifications` entry.
-  The spec states **current code truth**, with the correction visible.
+  Where the code moved deliberately, the spec states **current code truth**, with the
+  correction visible; where the code falls short of what was intended, the spec states the
+  intent and the gap is a task (§1).
+
+## 2b. Frontmatter and status for a retro-fitted spec
+
+A retro-fitted spec gets the same frontmatter as any other, at line 1
+([SPEC-FLOW](SPEC-FLOW.md)); the gates do not know it is a retro-fit.
+
+- **`status: approved`** once the owner has read it and confirmed it describes the product as
+  intended, with `approved_by` and `approved_on`. The work shipped long ago; the spec is new,
+  and approving it is what the owner does now.
+- **`released`** only after someone who wrote neither the spec nor the code has run its
+  runnable Success Criteria against the live code and written `acceptance.md`
+  ([GATES §3](../gates/GATES.md)). The code is already with its users, so the status skips
+  straight from `approved` to `released`. Where the evidence exists already — a pull request,
+  a recorded run — the record says so and is dated when it happened. Until one of the two
+  exists, the honest status is `approved`; the `spec-approval` gate is red for `released`
+  without a valid record.
+- **`plan.md` and `tasks.md` stay optional** (the constitution's RETRO-FIT mode), with one
+  catch: in specify-cli 1.0.12, `/speckit-converge`'s instructions stop it when either file is
+  missing.
+  To converge a retro-fitted spec, give it a short `plan.md` (where the code lives, the stack)
+  and a `tasks.md` in the `- [x] T001 …` format holding the retro-fit's own work. An open task
+  on a `released` spec is red in `doc-sync`, so converge's new tasks land with their fixes
+  (the bug lane, [NON-FEATURE-WORK](NON-FEATURE-WORK.md)) or the spec returns to `approved`
+  until they do.
 
 ## 3. Adversarial review before the swap
 
@@ -83,8 +120,10 @@ In the SAME commit:
 4. Fix code comments that *contradict their own code* — you just proved they exist; leaving
    them is knowingly shipping lies.
 5. `git rm` the old doc.
-6. Run the full gate chain. Then re-run your doc-consistency gate — it must be **self-globbing**
-   ([`../gates/check-plan-sync.sh`](../gates/check-plan-sync.sh)): a gate hard-pointing at a
+6. Run the full gate chain, `./gates/run-chain.sh`. Its `doc-sync` slot is
+   [`../gates/check-plan-sync.sh`](../gates/check-plan-sync.sh), and it is **self-globbing**:
+   with no argument it checks the whole `specs/` corpus, and with a docs directory argument
+   the `*-plan.md` views in it — it never names a single doc. A gate hard-pointing at a
    deletable doc turns every future deletion into a red-gate hostage.
 
 ## 5. What deliberately stays behind
