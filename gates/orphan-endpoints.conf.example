@@ -1,0 +1,31 @@
+# gates/orphan-endpoints.conf — configures gates/check-orphan-endpoints.sh (GATES.md §4, §7).
+# Copy this file to gates/orphan-endpoints.conf and keep ONE of the two shapes below.
+# Globs are relative to the project root; ** recurses (not into .hidden dirs).
+# Full-line "#" comments only: a regex may contain " #". Keys may repeat.
+# Check what it extracts with: ./gates/check-orphan-endpoints.sh --list
+#
+# ---- Shape 1: the product has no routes — say why (printed on every run) ----
+# NA: single-user CLI; no network surface
+#
+# ---- Shape 2: routes and callers ----
+# server:  files that DEFINE routes
+# route:   regex over each server file; group 1 (or (?P<path>...)) = the path
+# client:  files that CALL routes (a server file never counts as a caller)
+# exclude: files left out on both sides
+# param:   how a parameter is written in a route (optional; the default understands
+#          :id {id} <id> <int:id> [id] and *)
+#
+# Example: Python server (FastAPI / Flask style decorators) + TypeScript client
+# server: src/api/**/*.py
+# route: @(?:app|router|bp|api)\.(?:get|post|put|patch|delete|route)\(\s*["']([^"']+)["']
+# client: web/src/**/*.ts
+# client: web/src/**/*.tsx
+# exclude: **/*.test.ts
+#
+# Example: Express (JavaScript / TypeScript)
+# server: server/**/*.js
+# route: \b(?:app|router)\.(?:get|post|put|patch|delete|all)\(\s*['"`]([^'"`]+)['"`]
+#
+# Example: Go net/http (1.22+ patterns, method optional)
+# server: internal/http/**/*.go
+# route: \.HandleFunc\(\s*"(?:(?:GET|POST|PUT|PATCH|DELETE) )?([^"]+)"

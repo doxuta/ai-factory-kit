@@ -1,62 +1,127 @@
-<!-- WHO READS ME: every agent, every session, on the adopting project — I am the ALWAYS-LOADED
-     context. An AI fills my [BRACKETS] during adoption (../AI-ONBOARDING.md §2 step 3).
-     I POINT TO: HARNESS.md §3 (the mirror rule) · ../constitution/constitution-template.md ·
-     ../model/SPEC-FLOW.md · ../gates/GATES.md · rules/ (lazy-loaded detail). -->
+<!-- WHO READS ME: every agent, every session, on the adopting project. adopt.py installs me as
+     .claude/CLAUDE.md, the ALWAYS-LOADED context; an AI fills my [BRACKETS] after Phase 0 has
+     ratified the constitution (AI-ONBOARDING.md §2). Claude Code strips block-level HTML
+     comments like this one before it loads the file, so nothing an agent must obey lives in a
+     comment here.
+     I POINT TO (kit paths; factory/... once adopted): harness/HARNESS.md §3 (the mirror rule) ·
+     the project's .specify/memory/constitution.md · model/SPEC-FLOW.md ·
+     model/NON-FEATURE-WORK.md · gates/GATES.md · harness/rules/ (lazy-loaded detail). -->
+
+<!-- AGENTS.md: by default Claude Code reads a root AGENTS.md only when no CLAUDE.md exists,
+     and .claude/CLAUDE.md counts, so adopting the kit silently stops an existing AGENTS.md
+     from loading. If the project has one, add a line above the title below that holds only an
+     at-sign immediately followed by ../AGENTS.md — no space, no backticks. Claude Code resolves
+     such an import relative to the file that contains it, so from .claude/ the root file is
+     ../AGENTS.md. Then open a fresh session, run /context and check that AGENTS.md is listed
+     under Memory files. Delete this comment either way. -->
 
 # [PROJECT_NAME] — always-loaded context
 
 [ONE SENTENCE: what this project is and for whom. No adjective you can't defend.
 EXAMPLE: "a metadata-driven multi-tenant engine that generates business apps from specs."]
 
-**Constitution**: `[PATH/TO/constitution.md]` — the invariants. It outranks this file and every
-casual instruction. This file is its always-loaded mirror plus the daily mechanics.
+**Constitution**: [the project's constitution](../constitution/constitution-template.md)
+(`.specify/memory/constitution.md`) — the invariants. It outranks this file and every casual
+instruction. **Ownership**: the constitution's Platform Constraints owns the STACK; this file
+owns the COMMANDS. Neither restates the other.
 
 ## Safety invariants — MIRROR, do not delete this section
 
 <!-- Why a copy exists: path-scoped rules load LAZILY, and foreign scoping syntax fails
      SILENTLY — both measured on a production repo (HARNESS.md §3). An invariant that must
      never be violated cannot live only in a file that might not load. These bullets mirror
-     constitution Articles I–III and VI. The constitution is the AUTHORITATIVE copy; amending
-     it means re-syncing this block in the SAME commit (the mirror rule). -->
+     constitution Articles I–III and VI, and each agent in .claude/agents/ carries the same
+     block. The constitution is the AUTHORITATIVE copy; amending it means re-syncing this
+     block and the agents' blocks in the SAME commit (the mirror rule). -->
 
 - **I — [DOMAIN INVARIANT]**: [the rule that IS the product. EXAMPLE: "business objects are
   registered in metadata and read at runtime — never hardcoded as structs."]
-- **II — [SAFETY INVARIANT]**: [the rule whose violation is a breach, not a bug. EXAMPLE:
-  "every transactional query filters `tenant_id` — no exceptions, admin included; dynamic
-  queries are parameterized, never concatenated."]
-- **III — [ARCHITECTURE SHAPE]**: [LAYER] → [LAYER] → [LAYER] → [LAYER]; [one-line forbidden
-  coupling, EXAMPLE: "no queries in the transport layer"]. Detail:
-  [`rules/architecture.md`](rules/architecture.md).
-- **VI — Executable gates over claims**: "done" = the gate chain green — never a claim, mine
-  included. Acceptance is proven by a **non-privileged third person**
-  ([GATES §3](../gates/GATES.md)).
+- **II — [SAFETY INVARIANT]**: [the rule whose violation is a breach, not a bug. EXAMPLE
+  (multi-tenant web): "every transactional query filters `tenant_id` — no exceptions, admin
+  included; dynamic queries are parameterized, never concatenated." Or `N/A — <reason>` if the
+  constitution says so.]
+- **III — [ARCHITECTURE SHAPE]**: [LAYER] → [LAYER] → [LAYER]; [one-line forbidden coupling,
+  EXAMPLE: "no queries in the transport layer"]. Detail: `.claude/rules/architecture.md`.
+- **VI — Gates and independent acceptance**: "done" = `./gates/run-chain.sh` green — never a
+  claim, mine included. Tests first: a failing test before the code it proves. Each feature is
+  accepted by [ACCEPTOR — someone other than the builder] running its `quickstart.md`,
+  recorded in `specs/<id>/acceptance.md`[, as a non-privileged account — keep this clause only
+  where the product has an authorization boundary] (GATES.md §3).
+
+The four bullets above carry no relative link on purpose: each agent in `.claude/agents/`
+copies them verbatim, one directory deeper, and a link would die there. The links are in
+[GATES §3](../gates/GATES.md) and [`rules/architecture.md`](rules/architecture.md).
 
 ## Dev commands (run from `[REPO_ROOT_OR_SUBDIR]`)
 
+A command that feature 001 has not wired yet reads `TBD — wired by
+specs/001-[walking-skeleton]`; never invent one before the code it runs exists. The format,
+static, test and build rows are the commands `gates/chain.conf` runs in those slots: change
+both in one commit (`./gates/run-chain.sh --list` shows what the chain runs).
+
 | Task | Command |
 |---|---|
-| Build | `[BUILD_COMMAND]` |
-| Test | `[TEST_COMMAND]` |
+| Format (check mode) | `[FORMAT_CHECK_COMMAND]` |
 | Static analysis | `[LINT_COMMAND]` |
+| Test | `[TEST_COMMAND]` — prints how many tests ran |
+| Build | `[BUILD_COMMAND]` |
 | Run locally | `[RUN_COMMAND]` |
-| Full gate chain | `[GATE_CHAIN_COMMAND]` — ritual in [`rules/workflow.md`](rules/workflow.md) |
+| Full gate chain | `./gates/run-chain.sh` (`--list` shows each slot) — ritual in [`rules/workflow.md`](rules/workflow.md) |
 
 ## The flow — one line
 
-Every feature is one directory, `specs/NNN-<name>/`: spec → clarify → plan → tasks → analyze →
-implement → converge ([SPEC-FLOW](../model/SPEC-FLOW.md)). **HARD-GATE: no code before the
-spec is approved.**
+Every feature is one directory, `specs/<id>/`: `/speckit-specify` → `/speckit-clarify` →
+`/speckit-plan` → `/speckit-tasks` → `/speckit-analyze` → `/speckit-implement` →
+`/speckit-converge` ([SPEC-FLOW](../model/SPEC-FLOW.md)). **HARD-GATE: no code before the
+spec's frontmatter says `status: approved`, with `approved_by` and `approved_on`.** The
+`spec-first` and `plan-and-tdd` skills are the discipline inside `/speckit-specify` and
+`/speckit-implement`, never a second way in. Not a feature — a bug in shipped behaviour, a
+hotfix, a refactor, a spike, a release? It has a lane:
+[NON-FEATURE-WORK](../model/NON-FEATURE-WORK.md).
 
 ## The gate chain — one line
 
-`[format] && [static-analysis] && [tests] && [build] && [orphan-endpoint] &&
-[third-person-acceptance] && [doc-sync]` before every commit; no commit on red, no exceptions
-([GATES](../gates/GATES.md)).
+`./gates/run-chain.sh` runs the slots in `gates/chain.conf` in order — format → static → test →
+build → orphan-endpoints → acceptance → doc-sync → spec-approval → spec-numbers — and stops at
+the first red. No commit on red ([GATES §1](../gates/GATES.md)). A `TODO` slot is red until
+feature 001 wires it, and that is the one exception GATES §1 defines: while feature 001 wires
+the chain, a commit may be red only at a `TODO` slot, never at a wired one, with the three spec
+gates run directly. An `NA: <reason>` slot prints its reason every run. The per-feature
+acceptance run is not a chain slot: it is the `acceptance.md` record that the `spec-approval`
+slot checks.
 
-## Lazy-loaded detail (`rules/`)
+Feature 001 installs the kit's hook and CI job with
+`python3 factory/bin/adopt.py --install-git-hook --ci github`, then adds its toolchain steps to
+`.github/workflows/factory-gates.yml`. Never hand-write a pre-commit hook, a hook installer or a
+gate workflow: the kit's are the ones the guard protects and `adopt.py --check` audits. In a
+fresh clone, `git config core.hooksPath` prints nothing until someone runs
+`python3 factory/bin/adopt.py --install-git-hook` there; run it once per clone.
 
-[`architecture`](rules/architecture.md) · [`data`](rules/data.md) ·
-[`api-conventions`](rules/api-conventions.md) · [`workflow`](rules/workflow.md) — each scopes
-to file paths and loads only when a matching file is touched. Verify their `paths:` syntax
-against YOUR platform's docs: a key the platform doesn't recognize is ignored without any
-warning (HARNESS.md §3).
+## When code and spec disagree
+
+Find out which one moved. If the spec states intended behaviour the code does not deliver, the
+code is wrong: record a new task (converge). If the code reflects a deliberate, owner-approved
+change the spec never recorded, fix the spec with the correction marked (≠old) and a dated
+Clarifications entry. If you cannot tell, ask the owner.
+
+## The guard
+
+`.claude/hooks/check-careful.py`, registered in `.claude/settings.json`, asks before destructive
+commands and denies the ones nothing undoes — including any change to its own files and to the
+gate scripts ([careful](skills/careful/SKILL.md)). Its `careful.json` is adapted before
+`adopt.py --register-guard`; after that the guard denies an agent's edit to it, and a human
+makes the change. A deny is a wall: report it to the owner, never route around it. If
+`factory/` is empty, run `git submodule update --init` before anything else — every link into
+it is dead until then.
+
+## Roles and lazy-loaded detail
+
+Roles in `.claude/agents/`: `requirement-researcher` · `task-orchestra` · `tech-lead-review` ·
+`tester-e2e`. Each carries an INVARIANTS block mirroring the section above.
+
+Rules in `.claude/rules/`: [`architecture`](rules/architecture.md) · [`data`](rules/data.md) ·
+[`api-conventions`](rules/api-conventions.md) · [`workflow`](rules/workflow.md). The adopt.py
+profile may have left some out (a CLI has no API conventions); a rule it dropped shows here as
+plain text — delete its name. Each rule scopes itself with a `paths:` key (Claude Code's) in
+frontmatter that opens on line 1; a rule without one loads in every session, and so does a
+rule whose frontmatter does not open on line 1 (HARNESS.md §3).
