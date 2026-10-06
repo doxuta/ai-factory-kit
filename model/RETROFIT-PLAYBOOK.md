@@ -107,7 +107,10 @@ A retro-fitted spec gets the same frontmatter as any other, at line 1
 Independent lenses, each prompted to *refute*: **accuracy-vs-code** (spot-check ≥12 citations;
 verify every test command actually matches real test names — zero-match filters exit green),
 **fidelity-vs-source** (what normative content got lost?), **anchor-safety** (walk every citing
-comment; would it mislead after the swap?). Fix or explicitly refute every finding.
+comment; would it mislead after the swap?). Fix or explicitly refute every finding. A
+test command carried over from a legacy doc proves nothing until you have seen it go red:
+break the code it names on purpose, run it, restore ([GATES §3](../gates/GATES.md), "Watch it
+fail first").
 
 ## 4. The swap — one commit, atomically
 

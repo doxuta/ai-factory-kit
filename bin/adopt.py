@@ -60,7 +60,7 @@ KIT = os.path.dirname(HERE)
 # new rendering that hashes differently means the kit changed since then.
 MANIFEST = ".claude/.factory-manifest.json"
 NEW = ".factory-new"
-TESTED_SPECKIT = "1.0.12"
+TESTED_SPECKIT = "1.1.0"
 
 # Rules NOT installed per archetype profile (model/ARCHETYPES.md explains each choice).
 PROFILES = {
@@ -1429,7 +1429,7 @@ def next_steps(proj, kit):
     ci = os.path.exists(pjoin(proj, ".github/workflows/factory-gates.yml"))
     phase0 = k + ("/model/PHASE-0.md" if kit.exists("model/PHASE-0.md") else "/AI-ONBOARDING.md")
     steps = [
-        (spec, ["Spec Kit: uv tool install specify-cli==%s" % TESTED_SPECKIT,
+        (spec, ["Spec Kit: uv tool install specify-cli --from git+https://github.com/github/spec-kit.git@v%s" % TESTED_SPECKIT,
                 "specify init --here --force --non-interactive --integration claude",
                 "(add --ignore-agent-tools if the claude CLI is not on PATH)"]),
         (None, ["Phase 0: %s - vision, archetype, stack, constitution;" % phase0,

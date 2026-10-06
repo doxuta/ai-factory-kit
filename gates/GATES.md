@@ -112,6 +112,22 @@ product has an authorization boundary, and says `n/a` with that reason where it 
 independent part is not conditional. The gate proves a well-formed record exists — not that
 the run happened, nor who ran it; its BLIND TO block says so, and review covers the rest.
 
+**Watch it fail first.** A green acceptance run is evidence only if the same script was seen
+red against a build without the change. For every fix or new behavior, run the script twice
+against a real server and record both in `acceptance.md`'s free text: against a build of the
+tree *without* the change (a worktree at the parent commit, the change reverted or flagged off,
+or a build overlay that swaps in the old files), where it must fail, and by how many points; then
+against the real build, where it must pass. Measured in the production factory this kit comes
+from: an acceptance script run against a build that lacked one wire ended `CHƯA ĐẠT (7 điểm)`
+(seven points not reached) and against the finished build `ĐẠT 11/11` (all eleven reached); a
+second script, run against the pre-review sources, failed four checks that the review's fixes
+then closed. Two checks keep the experiment honest: confirm that the process listening on the
+port is the one you just started (`lsof -i :<port>`; a stale server from an earlier run will
+answer for a build that no longer exists), and read the failing points: they must be the ones the
+change is about, not an unrelated break. No gate can prove this was done (the
+`spec-approval` BLIND TO block says as much), so it is a review question: "show me the red
+run." A script that cannot be made to fail proves nothing about the feature.
+
 ## 4. The deadliest bug class: the joint nobody wired
 
 > Backend correct + frontend correct + **the connection never written** — and every gate green,
@@ -180,6 +196,18 @@ findings by hand. See [`../harness/agents/tech-lead-review.md`](../harness/agent
   committed into the outer repository, set `core.bare=true` on it, and the real commit died with
   "cannot lock ref 'HEAD'". Every test passed when run by hand. `run-chain.sh` now unsets those
   variables, and its test commits through the real hook from a worktree.
+- **An acceptance script rots when the contract it asserts moves — derive expectations from
+  the source the user sees.** In the production factory a report screen began printing the
+  Vietnamese stage label ("Dam phan") where it had printed the stored code ("Negotiation"); the
+  acceptance script still compared against the hard-coded codes, so a correct server would
+  have gone red, and a script that goes red for the wrong reason gets edited until it is green
+  for the wrong reason too. The fix: the script reads labels from the same API call the screen
+  makes, and falls back to the code only where the tenant defines no label.
+- **Cleanup that only hides a record is not cleanup.** An acceptance run created webhook rules
+  holding secret keys and "cleaned up" by soft-deleting them; the next run found ten deleted
+  rules whose plaintext keys were still in the database. A script that creates secrets,
+  personal data or anything else that must not linger either removes it for real, or runs
+  against a disposable clone of the database, or ends with a check that the residue is zero.
 - When a fix turns out to be "needed on every install", promote it from a repair path to a
   numbered migration — reconcilers don't replace versioned baselines.
 

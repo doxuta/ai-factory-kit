@@ -3,6 +3,41 @@
 All kit updates land here via the [daily-ship sync](sync/DAILY-SYNC.md) — one entry per sync,
 newest first.
 
+## 2026-10-07 — v1.4.1 (Spec Kit 1.1.0, and three lessons about acceptance runs)
+
+A patch release: the tested Spec Kit moves from 1.0.12 to **1.1.0**, and the factory's last
+six commits (`3a7388b3`, `9af68bf8`, `2cf42948`, `88d8cbb5`, all acceptance scripts) yield three
+lessons that were not in the kit.
+
+- **Spec Kit 1.1.0 is the tested version.** Installed side by side with 1.0.12 and 1.0.13, each in
+  its own `UV_TOOL_DIR`. The core templates and every `/speckit-*` skill are byte-identical, so
+  the three overrides carry over unchanged; only `common.sh` and `create-new-feature.sh` differ.
+  The scripted checks of `speckit/README.md` were re-run (from an idea without a terminal and under
+  a pseudo-terminal, brownfield, template resolution, the three spec gates) and all pass; the two
+  live `claude -p` runs were not repeated. One reason to move: 1.0.12 turned the feature name
+  "Quản lý khách hàng tiềm năng" into `002-qu-n-l`; 1.1.0 writes `002-quản-lý-khách`, and the
+  gates accept it. Another thing to know: **1.1.0 is not on PyPI** (the newest there is 1.0.13),
+  so the install line is now `uv tool install specify-cli --from
+  git+https://github.com/github/spec-kit.git@v1.1.0`; `adopt.py`'s "Next:" list prints it.
+  Dated "checked with 1.0.12" claims in `harness/HARNESS.md`, `model/RETROFIT-PLAYBOOK.md`, the
+  worked examples and `vision-template.md` were not re-run and still say 1.0.12.
+- **Watch it fail first** (new in [GATES §3](gates/GATES.md); pointers in `model/SPEC-FLOW.md`
+  step 9 and `model/RETROFIT-PLAYBOOK.md` §3). An acceptance run counts only if the same script was
+  seen red against a build without the change; the record carries both runs. Factory evidence:
+  a build missing one wire ended 7 points short, the finished build reached 11 of 11.
+- **Acceptance scripts rot and leave residue** (two new bullets in GATES §6). A script that
+  hard-codes what the screen now prints as a label turns a correct server red; derive the
+  expectation from the API the screen calls. A cleanup that soft-deletes left ten plaintext
+  secret keys behind; remove for real, use a disposable clone, or assert zero residue.
+
+**Adopters — action required:** `python3 factory/bin/adopt.py --upgrade`. Run from a 1.4.0
+adoption it replaced 3 unmodified kit-owned files and offered
+`.specify/memory/constitution.md` as a `.factory-new` (the kit's Spec Kit version line changed):
+`diff -u` it, merge what applies, delete the `.factory-new`, and `adopt.py --check` is green again.
+Moving your own project to Spec Kit 1.1.0 is optional (1.0.12 still works with this kit); the
+steps are "Upgrade Spec Kit" in [`sync/DAILY-SYNC.md`](sync/DAILY-SYNC.md), with the
+`--from git+…@v1.1.0` install form.
+
 ## 2026-09-29 — v1.4.0 (from an idea, for more than one kind of product — and the gates ship)
 
 A readiness assessment asked one question of v1.3.2: *can this kit take any project from an

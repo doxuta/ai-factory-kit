@@ -30,7 +30,7 @@ macOS (bash 3.2 có sẵn của hệ thống và bộ công cụ BSD), cả khi 
 lần chạy macOS đầu tiên hỏng ở một fixture test, đã sửa trước khi phát hành; các phiên Claude Code
 headless trên Linux, gồm cả hai phép thử trực tiếp của guard `careful`. Chưa có gì chạy trên WSL
 hay trên máy Windows.
-Phiên bản 1.4.0 ([VERSION](VERSION)), kiểm thử với Spec Kit (specify-cli) 1.0.12.
+Phiên bản 1.4.1 ([VERSION](VERSION)), kiểm thử với Spec Kit (specify-cli) 1.1.0.
 
 ---
 
@@ -91,9 +91,9 @@ Riêng Spec Kit (cài bằng uv) cần Python từ 3.11 trở lên.
 ```bash
 mkdir san-pham && cd san-pham && git init -b main         # hoặc cd vào repo sẵn có của bạn
 git submodule add https://github.com/doxuta/ai-factory-kit factory
-git -C factory checkout v1.4.0 && git add .gitmodules factory
+git -C factory checkout v1.4.1 && git add .gitmodules factory
 python3 factory/bin/adopt.py --profile full               # hoặc backend, frontend, cli, library, …
-uv tool install specify-cli==1.0.12
+uv tool install specify-cli --from git+https://github.com/github/spec-kit.git@v1.1.0
 specify init --here --force --non-interactive --integration claude
 ```
 

@@ -8,13 +8,15 @@
 
 # Spec Kit template overrides
 
-**Tested with specify-cli 1.0.12** (github/spec-kit tag `v1.0.12`). Every claim below was
-checked against that version on 2026-09-29; for another version, check them again
+**Tested with specify-cli 1.1.0** (github/spec-kit tag `v1.1.0`). Every claim below was
+checked against 1.0.12 on 2026-09-29, and the scripted ones again against 1.1.0 on 2026-10-07
+([Verified on 2026-10-07](#verified-on-2026-10-07-specify-cli-110)); the two live
+`claude -p` runs were not repeated. For another version, check them again
 ([Keeping them current](#keeping-them-current)).
 
 ## Why the kit overrides Spec Kit's templates
 
-Spec Kit 1.0.12 finds each template through a stack, highest first
+Spec Kit 1.0.12 and 1.1.0 find each template through a stack, highest first
 (`.specify/scripts/bash/common.sh`, `resolve_template`):
 
 1. `.specify/templates/overrides/<name>.md` — the project's overrides
@@ -43,7 +45,7 @@ not tried.
 
 ## What each override changes
 
-| Installed as | Kit source | Changes from Spec Kit 1.0.12 | Why |
+| Installed as | Kit source | Changes from Spec Kit 1.0.12 (the same text in 1.1.0) | Why |
 |---|---|---|---|
 | `.specify/templates/overrides/spec-template.md` | [`overrides/spec-template.md`](overrides/spec-template.md) | Frontmatter at line 1: `feature`, `status: draft`, `epic`, `owner`, `approved_by`, `approved_on`, as placeholders. The body line `**Status**: Draft` is removed. One `**Tests**: required …` line under "User Scenarios & Testing". Everything else is upstream text. | The gates read the frontmatter ([SPEC-FLOW](../model/SPEC-FLOW.md)); one status field, not two; `/speckit-tasks` writes test tasks when "explicitly requested in the feature specification", and that line is the request. |
 | `.specify/templates/overrides/tasks-template.md` | [`overrides/tasks-template.md`](overrides/tasks-template.md) | Tests REQUIRED instead of optional: the "Tests" line, the three "Tests for User Story N" headings, the unit-test task in the last phase, the ordering rule and the parallel example. `(test-exempt: <reason>)` for a task with no testable behaviour. The last phase's "Run quickstart.md validation" becomes the acceptance run by someone other than the builder, recorded in `acceptance.md`. Notes add tick-in-the-landing-commit and `(deferred → <where>)`. | Constitution Article VI (tests first, independent acceptance); the gates' task format ([`check-plan-sync.sh`](../gates/check-plan-sync.sh)). |
@@ -97,11 +99,11 @@ deleted override and warned on an edited one. Run adopt.py before
 `specify init --here --force`: in the check below, init left all three overrides
 byte-identical.
 
-## Verified on 2026-09-29
+## Verified on 2026-09-29 (specify-cli 1.0.12)
 
 In a scratch git repository: `adopt.py --profile cli` from this kit, then
 `specify init --here --force --integration claude` (specify-cli 1.0.12, installed with
-`uv tool install specify-cli==1.0.12`).
+`uv tool install specify-cli --from git+https://github.com/github/spec-kit.git@v1.1.0`).
 
 | Check | Result |
 |---|---|
@@ -133,12 +135,38 @@ fresh project with the overrides installed:
 One run of each is evidence that the text works, not a guarantee: a model can still drift,
 which is why the gates check the frontmatter and the acceptance record on every commit.
 
+## Verified on 2026-10-07 (specify-cli 1.1.0)
+
+specify-cli 1.1.0 is **not on PyPI** (the newest there is 1.0.13), so the install line is
+`uv tool install specify-cli --from git+https://github.com/github/spec-kit.git@v1.1.0`, the
+form its release notes give; `uv tool install specify-cli==1.1.0` fails with "no solution
+found". Scratch git repositories, 1.0.12 and 1.1.0 side by side, each installed in isolation
+under its own `UV_TOOL_DIR`:
+
+| Check | Result |
+|---|---|
+| `specify init --here --force --integration claude`, 1.0.12 vs 1.1.0 | the core `spec-template`, `tasks-template`, `plan-template` and every `.claude/skills/speckit-*` are byte-identical; only `common.sh` and `create-new-feature.sh` under `.specify/scripts/bash/` differ (plus version stamps in the JSON manifests) |
+| `adopt.py`, then `specify init --here --force --non-interactive --integration claude`, then `adopt.py --check` — from an idea, without a terminal | exit 0, 0, 0; "39 file(s) match the manifest" |
+| the same under a pseudo-terminal | exit 0, 0, 0; without `--non-interactive` `specify init` still waits for an answer |
+| brownfield: an existing `.claude/rules/mine.md`, `CLAUDE.md` and `settings.json` with a permission, then `adopt.py --register-guard` and init | exit 0, 0, 0; the three files and the permission survive; the guard hook is added |
+| `resolve-template.sh spec-template` and `tasks-template`; `specify preset resolve spec-template` | byte-identical to the overrides; `(top layer from: project override)` |
+| `create-new-feature.sh --json --short-name monthly-report "…"`, `setup-plan.sh`, `check-prerequisites.sh --paths-only`, `setup-tasks.sh` | exit 0 each; `TASKS_TEMPLATE` is the override |
+| `create-new-feature.sh --json "Quản lý khách hàng tiềm năng"` under `LC_ALL=en_US.UTF-8` | 1.0.12 wrote `specs/002-qu-n-l` (every accented letter dropped); 1.1.0 wrote `specs/002-quản-lý-khách` |
+| `check-plan-sync.sh`, `check-spec-approval.sh`, `check-spec-numbers.sh`, `check-specs.py` on that Unicode-named spec (frontmatter `feature:` set to the directory name) | all green, 2 specs |
+
+One consequence to know: with 1.1.0 a feature directory, a branch and the `feature:` line can
+hold non-ASCII letters. The gates handled it, but a CI image without a UTF-8 locale makes
+`create-new-feature.sh` stop with "A UTF-8 locale is required to create a Unicode feature
+name" rather than guess (an ASCII `--short-name` avoids it), and anything of yours that assumes `[a-z0-9-]` branch names will
+need to allow it.
+
 ## Keeping them current
 
 When the tested Spec Kit version moves:
 
 1. Install the new version in isolation
-   (`UV_TOOL_DIR=<dir> UV_TOOL_BIN_DIR=<dir>/bin uv tool install specify-cli==<version>`)
+   (`UV_TOOL_DIR=<dir> UV_TOOL_BIN_DIR=<dir>/bin uv tool install specify-cli==<version>`; if PyPI
+   does not have it yet, `--from git+https://github.com/github/spec-kit.git@v<version>`)
    and run `specify init --here --force --integration claude` in a scratch directory, once
    with the old version and once with the new.
 2. Diff the old core templates against the new ones: those are the upstream changes to carry

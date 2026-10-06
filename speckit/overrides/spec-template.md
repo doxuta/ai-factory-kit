@@ -14,7 +14,7 @@ approved_on:                     # YYYY-MM-DD, written with approved_by
      I POINT TO (kit paths; factory/... once adopted): speckit/README.md (what this override
      changes and why) · model/SPEC-FLOW.md (the frontmatter and the status lifecycle) ·
      gates/check-plan-sync.sh and gates/check-spec-approval.sh (the gates that read it).
-     Kit changes to Spec Kit's spec-template (specify-cli 1.0.12): (1) the frontmatter above,
+     Kit changes to Spec Kit's spec-template (specify-cli 1.0.12, unchanged through 1.1.0): (1) the frontmatter above,
      which opens at line 1 and holds the only status - the upstream body line
      "**Status**: Draft" is removed; (2) the "**Tests**:" line under User Scenarios & Testing,
      because /speckit-tasks writes test tasks only when the specification asks for them.

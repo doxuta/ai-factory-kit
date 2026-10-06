@@ -7,8 +7,8 @@
 # The Level-1 Spec Flow
 
 Built on [GitHub Spec Kit](https://github.com/github/spec-kit). Everything this file says about
-Spec Kit was checked against **specify-cli 1.0.12**, the version kit 1.4.0 was tested with;
-install that version (`uv tool install specify-cli==1.0.12`, then
+Spec Kit was checked against **specify-cli 1.1.0**, the version kit 1.4.1 was tested with;
+install that version (`uv tool install specify-cli --from git+https://github.com/github/spec-kit.git@v1.1.0`, then
 `specify init --here --force --non-interactive --integration claude` — the full order is in
 [PHASE-0](PHASE-0.md) §2). Commands are written in Claude Code's form, `/speckit-<name>`; other
 hosts spell them differently ([HARNESS §7](../harness/HARNESS.md)).
@@ -175,7 +175,9 @@ with no `spec.md` is not listed; `spec-approval` reports it.
 8. **converge** — compare the code against spec, plan and tasks; intent the code does not
    deliver becomes **new tasks** (Spec Kit's converge appends them and never edits the spec).
 9. **accept** — someone other than the builder runs `quickstart.md` and writes
-   `acceptance.md`; the status becomes `accepted`. Releasing is a separate lane.
+   `acceptance.md`; the status becomes `accepted`. For a fix or new behavior the record
+   includes the run that failed without it ([GATES §3](../gates/GATES.md), "Watch it fail
+   first"). Releasing is a separate lane.
 
 **Tests vacuous?** A test filter that matches zero tests exits green under several runners;
 the `test` slot guards against it ([ARCHETYPES](ARCHETYPES.md), "Stack stanzas").
