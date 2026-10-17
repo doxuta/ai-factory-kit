@@ -138,8 +138,9 @@ which is why the gates check the frontmatter and the acceptance record on every 
 
 ## Verified on 2026-10-07 (specify-cli 1.1.0)
 
-specify-cli 1.1.0 is **not on PyPI** (on 2026-10-07 the newest there was 1.0.13; PyPI later
-skipped from 1.0.13 to 1.1.1, so `==1.1.0` still fails today), so the install line is
+specify-cli 1.1.0 is **not on PyPI** (when this was checked the newest there was 1.0.13; 1.1.1
+reached PyPI on 2026-10-06 at 18:54 UTC, 42 minutes after kit 1.4.1 was released, and PyPI never
+got 1.1.0, so `==1.1.0` still fails today), so the install line is
 `uv tool install specify-cli --from git+https://github.com/github/spec-kit.git@v1.1.0`, the
 form its release notes give; `uv tool install specify-cli==1.1.0` fails with "no solution
 found". Scratch git repositories, 1.0.12 and 1.1.0 side by side, each installed in isolation
