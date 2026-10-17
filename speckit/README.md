@@ -8,15 +8,16 @@
 
 # Spec Kit template overrides
 
-**Tested with specify-cli 1.1.0** (github/spec-kit tag `v1.1.0`). Every claim below was
+**Tested with specify-cli 1.2.1** (github/spec-kit tag `v1.2.1`, on PyPI). Every claim below was
 checked against 1.0.12 on 2026-09-29, and the scripted ones again against 1.1.0 on 2026-10-07
-([Verified on 2026-10-07](#verified-on-2026-10-07-specify-cli-110)); the two live
+and 1.2.1 on 2026-10-17
+([Verified on 2026-10-17](#verified-on-2026-10-17-specify-cli-121)); the two live
 `claude -p` runs were not repeated. For another version, check them again
 ([Keeping them current](#keeping-them-current)).
 
 ## Why the kit overrides Spec Kit's templates
 
-Spec Kit 1.0.12 and 1.1.0 find each template through a stack, highest first
+Spec Kit 1.0.12 through 1.2.1 find each template through a stack, highest first
 (`.specify/scripts/bash/common.sh`, `resolve_template`):
 
 1. `.specify/templates/overrides/<name>.md` — the project's overrides
@@ -45,7 +46,7 @@ not tried.
 
 ## What each override changes
 
-| Installed as | Kit source | Changes from Spec Kit 1.0.12 (the same text in 1.1.0) | Why |
+| Installed as | Kit source | Changes from Spec Kit 1.0.12 (the same text in 1.1.0 and 1.2.1) | Why |
 |---|---|---|---|
 | `.specify/templates/overrides/spec-template.md` | [`overrides/spec-template.md`](overrides/spec-template.md) | Frontmatter at line 1: `feature`, `status: draft`, `epic`, `owner`, `approved_by`, `approved_on`, as placeholders. The body line `**Status**: Draft` is removed. One `**Tests**: required …` line under "User Scenarios & Testing". Everything else is upstream text. | The gates read the frontmatter ([SPEC-FLOW](../model/SPEC-FLOW.md)); one status field, not two; `/speckit-tasks` writes test tasks when "explicitly requested in the feature specification", and that line is the request. |
 | `.specify/templates/overrides/tasks-template.md` | [`overrides/tasks-template.md`](overrides/tasks-template.md) | Tests REQUIRED instead of optional: the "Tests" line, the three "Tests for User Story N" headings, the unit-test task in the last phase, the ordering rule and the parallel example. `(test-exempt: <reason>)` for a task with no testable behaviour. The last phase's "Run quickstart.md validation" becomes the acceptance run by someone other than the builder, recorded in `acceptance.md`. Notes add tick-in-the-landing-commit and `(deferred → <where>)`. | Constitution Article VI (tests first, independent acceptance); the gates' task format ([`check-plan-sync.sh`](../gates/check-plan-sync.sh)). |
@@ -137,7 +138,8 @@ which is why the gates check the frontmatter and the acceptance record on every 
 
 ## Verified on 2026-10-07 (specify-cli 1.1.0)
 
-specify-cli 1.1.0 is **not on PyPI** (the newest there is 1.0.13), so the install line is
+specify-cli 1.1.0 is **not on PyPI** (on 2026-10-07 the newest there was 1.0.13; PyPI later
+skipped from 1.0.13 to 1.1.1, so `==1.1.0` still fails today), so the install line is
 `uv tool install specify-cli --from git+https://github.com/github/spec-kit.git@v1.1.0`, the
 form its release notes give; `uv tool install specify-cli==1.1.0` fails with "no solution
 found". Scratch git repositories, 1.0.12 and 1.1.0 side by side, each installed in isolation
@@ -159,6 +161,35 @@ hold non-ASCII letters. The gates handled it, but a CI image without a UTF-8 loc
 `create-new-feature.sh` stop with "A UTF-8 locale is required to create a Unicode feature
 name" rather than guess (an ASCII `--short-name` avoids it), and anything of yours that assumes `[a-z0-9-]` branch names will
 need to allow it.
+
+## Verified on 2026-10-17 (specify-cli 1.2.1)
+
+specify-cli 1.2.1 is on PyPI (1.1.1 through 1.2.1 all are), so the install line is
+`uv tool install specify-cli==1.2.1`. Upstream diff `v1.1.0...v1.2.1` touches neither
+`templates/spec-template.md` nor `templates/tasks-template.md`, nor the LICENSE, so the overrides
+carry over unchanged. Scratch git repositories, 1.1.0 and 1.2.1 side by side, each installed in
+isolation under its own `UV_TOOL_DIR`:
+
+| Check | Result |
+|---|---|
+| `specify init --here --force --non-interactive --integration claude`, 1.1.0 vs 1.2.1 | the core `spec-template`, `tasks-template`, `plan-template`, `constitution-template`, `checklist-template` and every `.claude/skills/speckit-*` but one are byte-identical; `speckit-taskstoissues` now opens with a deprecation notice; `setup-plan.sh` and `check-prerequisites.sh` differ (below); `.specify/.gitignore` adds two lines for integration packages; version stamps in the JSON manifests |
+| `adopt.py --profile cli`, then init, then `adopt.py --check` | exit 0, 0, 0; init changed no file `adopt.py` had written; "37 file(s) match the manifest" |
+| `resolve-template.sh spec-template`, `tasks-template`, `constitution-template`; `specify preset resolve` | byte-identical to the overrides; `(top layer from: project override)`; `plan-template` from core |
+| `create-new-feature.sh --json --short-name monthly-report "…"`, `setup-plan.sh --json`, `check-prerequisites.sh --json` (and `--paths-only`), `setup-tasks.sh --json` | exit 0 each; the spec starts with the override's frontmatter; `TASKS_TEMPLATE` is the override |
+| `create-new-feature.sh --json "Quản lý khách hàng tiềm năng"` under `LC_ALL=en_US.UTF-8` | `specs/002-quản-lý-khách`, as in 1.1.0 |
+| The frontmatter as copied, through PyYAML `safe_load` | parses; `approved_by` and `approved_on` are null |
+| `check-plan-sync.sh` on the unfilled copies | exit 1: `feature:` and `epic:` are placeholders |
+| … after filling `feature`, `epic`, `owner` in both specs | `check-plan-sync.sh`, `check-spec-approval.sh`, `check-spec-numbers.sh` exit 0, 2 specs |
+
+Two behaviour changes, neither breaking for the kit:
+
+- **An empty plan is now an error.** 1.1.0's `setup-plan.sh` warned and left an empty `plan.md`
+  when no plan template resolved; 1.2.1 exits 1 and writes nothing. `check-prerequisites.sh` now
+  exits 1 on an empty `plan.md` ("plan.md is empty in …"), checked here. The kit overrides no plan
+  template, so the core one always resolves.
+- **`/speckit-taskstoissues` is deprecated** in favour of the bundled `github` extension
+  (`specify extension add github`, then `/speckit-github-taskstoissues`); the old command still
+  works and prints the notice first.
 
 ## Keeping them current
 

@@ -105,7 +105,7 @@ A submodule records one commit of the kit; pin it to a release tag, not a moving
 ```bash
 git -C factory fetch --tags
 git -C factory tag                          # or: git ls-remote --tags <kit-url>
-git -C factory checkout v1.4.1 && git add factory
+git -C factory checkout v1.4.2 && git add factory
 ```
 
 **Never pin a tag older than v1.3.0.** At v1.0.0–v1.2.0 the careful hook printed its decision
@@ -122,7 +122,7 @@ with an **Adopters — action required** line. Then:
 
 ```bash
 git -C factory fetch --tags
-git -C factory checkout v1.4.1                     # the target tag
+git -C factory checkout v1.4.2                     # the target tag
 python3 factory/bin/adopt.py --upgrade             # a human runs this, or approves the guard's ask
 ```
 
@@ -188,13 +188,13 @@ gates pass: [GATES §7](../gates/GATES.md), "Upgrading from 1.3.x".
 
 ### Upgrade Spec Kit
 
-Stay on the version your kit release was tested with — specify-cli 1.1.0 for kit 1.4.1; the
+Stay on the version your kit release was tested with — specify-cli 1.2.1 for kit 1.4.2; the
 `Next:` list `adopt.py` prints names it — and move when a kit release moves it. Moving ahead of
 the kit is your call; the steps are the same.
 
 ```bash
 uv tool install specify-cli==<version>             # a == pin makes `uv tool upgrade` a no-op
-# 1.1.0 is not on PyPI: uv tool install specify-cli --from git+https://github.com/github/spec-kit.git@v<version>
+# a release not on PyPI (1.1.0 never was): uv tool install specify-cli --from git+https://github.com/github/spec-kit.git@v<version>
 specify integration upgrade claude --force         # refresh Spec Kit's files in the project
 specify extension update                           # only if you installed extensions
 python3 factory/bin/adopt.py --check

@@ -106,7 +106,8 @@ Spec Kit has two kinds of extension, and specify-cli 1.0.12 treats them differen
   from a feature's task list"). `specify extension add <name>` installs them. `github` does
   the job of the built-in `/speckit-taskstoissues`: pick one of the two, never both, or a
   task list becomes two sets of issues. The kit takes no position on which; neither is part of
-  the flow (SPEC-FLOW lists `/speckit-taskstoissues` as optional).
+  the flow (SPEC-FLOW lists `/speckit-taskstoissues` as optional). From specify-cli 1.2.1 the
+  built-in is deprecated and points to the extension, so new projects pick the extension.
 - **Community, discovery only** — 176 entries in `catalog.community.json` when this was
   checked (181 results in all with the five above), tagged by category and effect, browsable on a
   [website](https://speckit-community.github.io/extensions/) that upstream itself calls a

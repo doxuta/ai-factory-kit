@@ -56,7 +56,7 @@ ceremony — not the gates — to a solo project, a small team or a regulated on
 git ≥ 2.28 (`git init -b`) · python3 ≥ 3.8 on PATH under that name (`adopt.py` and the gates
 use the standard library only) · bash (3.2 is enough; Git Bash on Windows) ·
 [uv](https://docs.astral.sh/uv/), which installs Spec Kit · Python ≥ 3.11 for Spec Kit only
-(specify-cli 1.1.0 declares `Requires-Python >=3.11`; uv can fetch one:
+(specify-cli 1.2.1 declares `Requires-Python >=3.11`; uv can fetch one:
 `uv python install 3.11`) · Claude Code.
 
 ### 2.2 The order
@@ -71,14 +71,14 @@ git init -b main
 
 # 2. the kit, as a submodule pinned to a release tag
 git submodule add https://github.com/doxuta/ai-factory-kit factory
-git -C factory checkout v1.4.1          # the release you pin; list them: git -C factory tag
+git -C factory checkout v1.4.2          # the release you pin; list them: git -C factory tag
 git add .gitmodules factory
 
 # 3. harness, careful hooks, gates and Spec Kit template overrides, for the archetype
 python3 factory/bin/adopt.py --profile <profile>   # profiles: model/ARCHETYPES.md; default full
 
 # 4. Spec Kit, pinned to the version this kit release was tested with
-uv tool install specify-cli --from git+https://github.com/github/spec-kit.git@v1.1.0
+uv tool install specify-cli==1.2.1
 specify init --here --force --non-interactive --integration claude
 #   add --ignore-agent-tools when the claude CLI is not on PATH
 
@@ -126,14 +126,14 @@ python3 factory/bin/adopt.py --check               # exit 0
   records a pointer with no `.gitmodules` entry, every other clone gets an empty `factory/`, and
   `git submodule update --init` cannot repair it. `adopt.py` warns and prints both fixes. The
   one alternative to a submodule is a **vendored copy** with no `.git` inside it, e.g.
-  `git clone --depth 1 --branch v1.4.1 <kit-url> factory && rm -rf factory/.git`; you then
+  `git clone --depth 1 --branch v1.4.2 <kit-url> factory && rm -rf factory/.git`; you then
   upgrade by replacing the directory.
 - **Step 4.** Without `--force`, `specify init --here` stops in a non-empty directory to ask for
   confirmation, and with no terminal to answer it exits 1. Under a terminal it also asks for the
   script type and waits (it hung until killed under a pseudo-terminal); `--non-interactive`
   takes the default, `sh`. Without `--ignore-agent-tools` it exits 1 when `claude` is not on
   PATH (desktop or IDE-only users), `--non-interactive` or not.
-  With `--force` after `adopt.py`, specify-cli 1.1.0 changed none of the files `adopt.py` had
+  With `--force` after `adopt.py`, specify-cli 1.1.0 and 1.2.1 changed none of the files `adopt.py` had
   written — `.specify/memory/constitution.md` ("existing file preserved"), `.claude/CLAUDE.md`,
   the rules, hooks and gates, and `.specify/templates/overrides/` — and only added its own
   (`.claude/skills/speckit-*`, `.specify/scripts/`, `.specify/templates/`). It also prints
@@ -169,7 +169,7 @@ prints nothing and the clone commits on red unrefused (CI still runs the chain).
 
 ```bash
 git -C factory fetch --tags
-git -C factory checkout v1.4.1                   # the tag you move to; read its CHANGELOG entry
+git -C factory checkout v1.4.2                   # the tag you move to; read its CHANGELOG entry
 python3 factory/bin/adopt.py --upgrade           # a human runs this, or approves the guard's ask
 ```
 
@@ -209,7 +209,7 @@ Since 1.4.0 `adopt.py` merges into an existing `.claude/` (1.3.x refused to). Th
    `.claude/skills/speckit-*` are never touched. A filled `.specify/memory/constitution.md` is
    kept (the kit's seed is offered as a `.factory-new`); Spec Kit's unfilled scaffold is replaced.
 3. **Spec Kit.** Not installed yet: §2.2 step 4. Already installed: do not re-run init; if its
-   `.specify/init-options.json` shows a version other than 1.1.0, follow the Spec Kit upgrade in
+   `.specify/init-options.json` shows a version other than 1.2.1, follow the Spec Kit upgrade in
    [DAILY-SYNC](sync/DAILY-SYNC.md).
 4. **Resolve every `.factory-new`** (`diff -u`, merge, delete). `adopt.py --check` is red until
    none remain.

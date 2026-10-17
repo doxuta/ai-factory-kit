@@ -30,7 +30,7 @@ macOS (bash 3.2 có sẵn của hệ thống và bộ công cụ BSD), cả khi 
 lần chạy macOS đầu tiên hỏng ở một fixture test, đã sửa trước khi phát hành; các phiên Claude Code
 headless trên Linux, gồm cả hai phép thử trực tiếp của guard `careful`. Chưa có gì chạy trên WSL
 hay trên máy Windows.
-Phiên bản 1.4.1 ([VERSION](VERSION)), kiểm thử với Spec Kit (specify-cli) 1.1.0.
+Phiên bản 1.4.2 ([VERSION](VERSION)), kiểm thử với Spec Kit (specify-cli) 1.2.1.
 
 ---
 
@@ -45,6 +45,27 @@ Phiên bản 1.4.1 ([VERSION](VERSION)), kiểm thử với Spec Kit (specify-cl
 | **Agent tự chấm bài của mình** | "Tôi thử rồi, chạy tốt" — nhưng thử bằng tài khoản admin vốn bỏ qua mọi phân quyền | Luật nghiệm thu bằng người-thứ-ba — [`gates/GATES.md`](gates/GATES.md) §3 |
 | **Sáu kiểu gọi tên công việc** | Epic, milestone, lát, wave, ticket, backlog — kiểu nào cũng sống dở chết dở | MỘT đơn vị duy nhất: `specs/NNN-feature/` — [`model/LEVELS.md`](model/LEVELS.md) |
 | **Bộ nhớ nói dối** | File memory đứng yên ở tháng 6 trong khi code đã ship tới tháng 9 | Cơ chế tu chính hiến pháp + kỷ luật retro-fit — [`model/RETROFIT-PLAYBOOK.md`](model/RETROFIT-PLAYBOOK.md) |
+
+## Bằng chứng
+
+Đo cái gì, trên dữ liệu nào, kết quả bao nhiêu, và cái gì vẫn chưa ổn. Mỗi con số dẫn tới file
+ghi cách đo (tiếng Anh).
+
+| Đo gì | Dữ liệu | Kết quả |
+|---|---|---|
+| Guard chặn nhầm, trước khi sửa ([cách đo](harness/skills/careful/SKILL.md#-the-third-lesson-measure-the-false-positives-or-the-guard-gets-switched-off)) | 6.638 lệnh shell thật trong 48 giờ agent làm việc, qua guard v1.2 | 800 lần hỏi (cứ 8 lệnh hỏi 1); còn 77 sau khi thu hẹp 3 luật |
+| Guard chặn nhầm, lưu lượng thật | 2.002 lệnh shell khác nhau từ các phiên dựng và kiểm định v1.4.0 | v1.3.2 ngắt 165 (8,2%), v1.4.0 ngắt 89 (4,4%), mỗi lần đều do một luật có chủ đích |
+| Guard chặn nhầm, corpus dựng sẵn ([`careful-corpus.txt`](harness/skills/careful/hooks/careful-corpus.txt)) | 408 lệnh bình thường trên 14 stack (395 ở v1.4.0) | 0 lần ngắt; test đỏ nếu có một lần |
+| Test của chính kit ([CI](.github/workflows/ci.yml)) | 8 bộ `*.test.sh`, Linux và macOS `/bin/bash` 3.2, trên nhánh và `HEAD` tách rời | 1.432 kiểm tra, 0 lỗi ngày 2026-10-17; riêng bảng guard có 722 dòng |
+| Một test chấm môi trường chứ không chấm code ([DAILY-SYNC](sync/DAILY-SYNC.md)) | test guard của v1.3.2 trên nhánh feature | đỏ 141/142 trên mọi nhánh feature; bảng giờ tự dựng repo riêng và CI chạy cả trên `HEAD` tách rời |
+| Tương thích Spec Kit ([Verified](speckit/README.md#verified-on-2026-10-17-specify-cli-121)) | specify-cli 1.2.1 so với 1.1.0 trong repo nháp | mọi kiểm tra có script đều xanh; override resolve giống từng byte |
+| Link | mọi link tương đối trong kit (`python3 bin/check-links.py .`) | 460 link, 0 chết |
+
+**Cái gì vẫn chưa ổn hoặc chưa đo.** Hai lần chạy thật `claude -p` các lệnh Spec Kit chỉ làm một
+lần, trên 1.0.12, chưa chạy lại; model vẫn có thể lệch khỏi template, nên gate kiểm lại ở mỗi
+commit. Guard là bộ đọc chuỗi: nó hỏi hoặc chặn theo nội dung lệnh, không theo việc một script
+được gọi sẽ làm. Timeout 7 giây của guard cần SIGALRM, Python trên Windows không có. Số chặn nhầm
+đến từ lưu lượng của một người duy trì; hãy replay lịch sử của bạn để có con số của chính bạn.
 
 ## Toàn cảnh mô hình
 
@@ -91,9 +112,9 @@ Riêng Spec Kit (cài bằng uv) cần Python từ 3.11 trở lên.
 ```bash
 mkdir san-pham && cd san-pham && git init -b main         # hoặc cd vào repo sẵn có của bạn
 git submodule add https://github.com/doxuta/ai-factory-kit factory
-git -C factory checkout v1.4.1 && git add .gitmodules factory
+git -C factory checkout v1.4.2 && git add .gitmodules factory
 python3 factory/bin/adopt.py --profile full               # hoặc backend, frontend, cli, library, …
-uv tool install specify-cli --from git+https://github.com/github/spec-kit.git@v1.1.0
+uv tool install specify-cli==1.2.1
 specify init --here --force --non-interactive --integration claude
 ```
 

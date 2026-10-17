@@ -29,7 +29,7 @@ porting by hand. What differs per host and platform: [HARNESS §7](harness/HARNE
 (the system bash 3.2 and BSD tools), as checked out and detached — the first macOS run failed
 on a test fixture, fixed before release; headless Claude Code sessions on Linux, including the
 careful guard's live probes. Nothing has run on WSL or on a Windows host.
-Version 1.4.1 ([VERSION](VERSION)), tested with Spec Kit (specify-cli) 1.1.0.
+Version 1.4.2 ([VERSION](VERSION)), tested with Spec Kit (specify-cli) 1.2.1.
 
 ## Why this exists
 
@@ -42,6 +42,28 @@ Most "AI coding setups" die from the same five diseases:
 | **The agent grades its own homework** | "I tested it, it works" — with an admin account that bypasses every ACL | Third-person acceptance law — [`gates/GATES.md`](gates/GATES.md) §3 |
 | **Six vocabularies for work** | Epics, milestones, slices, waves, tickets, backlog items — all half-alive | ONE atom: `specs/NNN-feature/` — [`model/LEVELS.md`](model/LEVELS.md) |
 | **Memory that lies** | A memory file frozen in June while the code shipped through September | Constitution governance + retro-fit discipline — [`model/RETROFIT-PLAYBOOK.md`](model/RETROFIT-PLAYBOOK.md) |
+
+## Proof
+
+What was measured, on which inputs, and what still fails. Each number links to the file that
+holds its method.
+
+| What | Inputs | Number |
+|---|---|---|
+| Guard false positives, before the fix ([method](harness/skills/careful/SKILL.md#-the-third-lesson-measure-the-false-positives-or-the-guard-gets-switched-off)) | 6,638 real shell commands from 48 h of agent work, through the v1.2 guard | 800 asks (one in eight commands); 77 after three rules were narrowed |
+| Guard false positives, real traffic | the 2,002 unique shell commands from the sessions that built and audited v1.4.0 | v1.3.2 interrupted 165 (8.2%), v1.4.0 interrupts 89 (4.4%), each by a designed rule |
+| Guard false positives, constructed corpus ([`careful-corpus.txt`](harness/skills/careful/hooks/careful-corpus.txt)) | 408 ordinary commands across 14 stacks (395 at v1.4.0) | 0 interrupted; the test fails if one ever is |
+| The kit's own tests ([CI](.github/workflows/ci.yml)) | 8 `*.test.sh` suites, Linux and macOS `/bin/bash` 3.2, branch and detached `HEAD` | 1,432 checks, 0 failed on 2026-10-17; the guard table alone is 722 rows |
+| A test that graded its environment, not the code ([DAILY-SYNC](sync/DAILY-SYNC.md)) | v1.3.2's guard test on a feature branch | failed 141 of 142 on every feature branch; the table is now hermetic and CI runs it on a detached `HEAD` |
+| Spec Kit compatibility ([Verified](speckit/README.md#verified-on-2026-10-17-specify-cli-121)) | specify-cli 1.2.1 vs 1.1.0 in scratch repositories | every scripted check green; the overrides resolve byte-identical |
+| Links | every relative link in the kit (`python3 bin/check-links.py .`) | 460 links, 0 dead |
+
+**What still fails or is unmeasured.** The two live `claude -p` runs of the Spec Kit commands
+were done once, on 1.0.12, and not repeated; a model can still drift from a template, which is
+why the gates re-check on every commit. The guard's matcher is a string inspector: it asks or
+denies on what a command says, not on what a script it runs will do. The guard's 7 s
+self-timeout needs SIGALRM, which Windows Python lacks. The false-positive numbers come from one
+maintainer's traffic; replay your own history for the number that is yours.
 
 ## The model at a glance
 
@@ -87,9 +109,9 @@ Spec Kit, which uv installs, needs Python 3.11 or later.
 ```bash
 mkdir my-product && cd my-product && git init -b main     # or cd into your existing repository
 git submodule add https://github.com/doxuta/ai-factory-kit factory
-git -C factory checkout v1.4.1 && git add .gitmodules factory
+git -C factory checkout v1.4.2 && git add .gitmodules factory
 python3 factory/bin/adopt.py --profile full               # or backend, frontend, cli, library, …
-uv tool install specify-cli --from git+https://github.com/github/spec-kit.git@v1.1.0
+uv tool install specify-cli==1.2.1
 specify init --here --force --non-interactive --integration claude
 ```
 

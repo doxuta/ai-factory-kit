@@ -36,7 +36,7 @@ installed, and `./gates/run-chain.sh` green. From then on every feature follows
 | python3 ≥ 3.8 | `adopt.py`, the spec gates, `metrics.py`; standard library only | `python3 --version` |
 | bash (3.2 is enough) | the gate scripts and the guard's shim; on Windows, Git Bash | `bash --version` |
 | uv | installs Spec Kit | `uv --version` |
-| Python ≥ 3.11, for Spec Kit only | specify-cli 1.1.0 declares `Requires-Python >=3.11` | if uv picks an older one: `uv python install 3.11`, then add `--python 3.11` to the install below |
+| Python ≥ 3.11, for Spec Kit only | specify-cli 1.2.1 declares `Requires-Python >=3.11` | if uv picks an older one: `uv python install 3.11`, then add `--python 3.11` to the install below |
 | Claude Code | the harness (`.claude/`) and the careful guard target it | `claude --version` |
 | a git host with CI (optional until feature 001) | the remote (§9) and the CI half of the chain; the kit ships a GitHub Actions job | — |
 
@@ -58,20 +58,21 @@ git init -b main
 
 # 2. AI: the kit, vendored as a submodule and pinned to a release tag
 git submodule add https://github.com/doxuta/ai-factory-kit factory
-git -C factory checkout v1.4.1          # the release you pin; list them: git -C factory tag
+git -C factory checkout v1.4.2          # the release you pin; list them: git -C factory tag
 git add .gitmodules factory
 
 # 3. AI: harness, careful hooks, gates and Spec Kit template overrides, for the archetype
 python3 factory/bin/adopt.py --profile <profile>     # profiles: ARCHETYPES.md; default: full
 
 # 4. AI: Spec Kit, pinned to the version this kit release was tested with
-uv tool install specify-cli --from git+https://github.com/github/spec-kit.git@v1.1.0
+uv tool install specify-cli==1.2.1
 specify init --here --force --non-interactive --integration claude
 #   add --ignore-agent-tools if the claude CLI is not on PATH
 ```
 
 5. **AI**: confirm what step 4 left alone — `python3 factory/bin/adopt.py --check` exits 0.
-   Checked with specify-cli 1.1.0 after `adopt.py`: `specify init --here --force` kept
+   Checked with specify-cli 1.1.0 after `adopt.py` (the constitution and the overrides again with
+   1.2.1, 2026-10-17): `specify init --here --force` kept
    `.specify/memory/constitution.md`, `.specify/memory/vision.md` and
    `.specify/templates/overrides/`, and `resolve-template.sh constitution-template` then
    returned the kit's template. Without `--force` it stops in a non-empty directory, and an

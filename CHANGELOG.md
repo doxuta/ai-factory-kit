@@ -3,6 +3,41 @@
 All kit updates land here via the [daily-ship sync](sync/DAILY-SYNC.md) — one entry per sync,
 newest first.
 
+## 2026-10-17 — v1.4.2 (Spec Kit 1.2.1, now from PyPI)
+
+A patch release: the tested Spec Kit moves from 1.1.0 to **1.2.1**, and the install line stops
+going through a git tag. No factory commits absorbed.
+
+- **Spec Kit 1.2.1 is the tested version, installed with `uv tool install specify-cli==1.2.1`.**
+  The kit's claim that 1.1.0 "is not on PyPI (the newest there is 1.0.13)" was stale: PyPI skipped
+  1.1.0 but carries 1.1.1 through 1.2.1. The git-tag form stays documented for a release PyPI
+  lacks. Upstream `v1.1.0...v1.2.1` changes neither template the kit overrides nor the LICENSE, so
+  the three overrides carry over unchanged. Installed side by side with 1.1.0, each in its own
+  `UV_TOOL_DIR`, and every scripted check in `speckit/README.md` re-run (template resolution,
+  the flow scripts, the Vietnamese feature name, the three spec gates red-then-green):
+  [Verified on 2026-10-17](speckit/README.md#verified-on-2026-10-17-specify-cli-121). The two live
+  `claude -p` runs were not repeated.
+- **Two upstream behaviour changes to know.** `setup-plan.sh` now exits 1 instead of leaving an
+  empty `plan.md` when no plan template resolves, and `check-prerequisites.sh` exits 1 on an empty
+  `plan.md`. `/speckit-taskstoissues` is deprecated for the `github` extension; `model/SPEC-FLOW.md`
+  and `harness/HARNESS.md` say so.
+- **A Proof block in the README** (`README.md`, `README.vi.md`): the numbers the kit already
+  measured, each linked to its method — the guard's 6,638-command replay (800 asks, 77 after the
+  fix), the 2,002-command replay (8.2% → 4.4%), the 408-command false-positive corpus (0
+  interrupted), 1,432 test checks across 8 suites, the 141/142 environment-graded test — and a
+  "what still fails" paragraph.
+- Files: `bin/adopt.py` (`TESTED_SPECKIT`, the "Next:" install line), `speckit/README.md`, both
+  overrides' header comment, `constitution/constitution-template.md` (the Spec Kit version line),
+  `README.md`, `README.vi.md`, `AI-ONBOARDING.md`, `model/PHASE-0.md`, `model/SPEC-FLOW.md`,
+  `harness/HARNESS.md`, `sync/DAILY-SYNC.md`, `THIRD_PARTY_NOTICES.md`, `VERSION`.
+
+**Adopters — action required:** `python3 factory/bin/adopt.py --upgrade`. Run from a 1.4.1
+adoption (`--profile cli`) it replaced 4 unmodified kit-owned files and offered
+`.specify/memory/constitution.md` as a `.factory-new` (the Spec Kit version line changed):
+`diff -u` it, merge, delete the `.factory-new`, and `adopt.py --check` is green again
+("37 file(s) match the manifest"). Moving your project to Spec Kit 1.2.1 is optional (1.1.0 still
+works with this kit); the steps are "Upgrade Spec Kit" in [`sync/DAILY-SYNC.md`](sync/DAILY-SYNC.md).
+
 ## 2026-10-07 — v1.4.1 (Spec Kit 1.1.0, and three lessons about acceptance runs)
 
 A patch release: the tested Spec Kit moves from 1.0.12 to **1.1.0**, and the factory's last

@@ -7,8 +7,8 @@
 # The Level-1 Spec Flow
 
 Built on [GitHub Spec Kit](https://github.com/github/spec-kit). Everything this file says about
-Spec Kit was checked against **specify-cli 1.1.0**, the version kit 1.4.1 was tested with;
-install that version (`uv tool install specify-cli --from git+https://github.com/github/spec-kit.git@v1.1.0`, then
+Spec Kit was checked against **specify-cli 1.2.1**, the version kit 1.4.2 was tested with;
+install that version (`uv tool install specify-cli==1.2.1`, then
 `specify init --here --force --non-interactive --integration claude` — the full order is in
 [PHASE-0](PHASE-0.md) §2). Commands are written in Claude Code's form, `/speckit-<name>`; other
 hosts spell them differently ([HARNESS §7](../harness/HARNESS.md)).
@@ -46,7 +46,7 @@ flowchart LR
 | `/speckit-implement` | code | after analyze is clean | TDD + [gate chain](../gates/GATES.md) per commit; it checks checklists, **not** approval |
 | `/speckit-converge` | appends a `## Phase N: Convergence` to `tasks.md` | after implement, when code may not match intent | never edits `spec.md` or `plan.md` |
 | `/speckit-checklist` | a checklist under `checklists/` | optional, after plan | requirement quality, not implementation progress |
-| `/speckit-taskstoissues` | GitHub issues | optional | only with a GitHub remote and the GitHub MCP server |
+| `/speckit-taskstoissues` | GitHub issues | optional | only with a GitHub remote and the GitHub MCP server; deprecated in 1.2.1 for the `github` extension's `/speckit-github-taskstoissues` |
 
 Roles from [`../harness/agents/`](../harness/agents/) plug in around these:
 `requirement-researcher` feeds `specify`; `task-orchestra` runs `implement`; `tester-e2e`

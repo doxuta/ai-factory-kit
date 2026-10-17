@@ -10,7 +10,7 @@ description: "Task list template for feature implementation"
      changes and why) · harness/skills/plan-and-tdd/SKILL.md (the red -> green loop inside each
      task) · gates/check-plan-sync.sh and gates/check-spec-approval.sh (the gates that read the
      checkboxes).
-     Kit changes to Spec Kit's tasks-template (specify-cli 1.0.12, unchanged through 1.1.0): tests are REQUIRED, not
+     Kit changes to Spec Kit's tasks-template (specify-cli 1.0.12, unchanged through 1.2.1): tests are REQUIRED, not
      optional - the "Tests" line, the three "Tests for User Story N" headings, the unit-test
      task in the last phase, the ordering rule and the parallel example no longer say "if
      requested"; the last phase's quickstart task becomes the independent acceptance run and its
