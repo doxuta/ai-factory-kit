@@ -29,7 +29,7 @@ porting by hand. What differs per host and platform: [HARNESS §7](harness/HARNE
 (the system bash 3.2 and BSD tools), as checked out and detached — the first macOS run failed
 on a test fixture, fixed before release; headless Claude Code sessions on Linux, including the
 careful guard's live probes. Nothing has run on WSL or on a Windows host.
-Version 1.4.2 ([VERSION](VERSION)), tested with Spec Kit (specify-cli) 1.2.1.
+Version 1.4.3 ([VERSION](VERSION)), tested with Spec Kit (specify-cli) 1.2.1.
 
 ## Why this exists
 
@@ -109,7 +109,7 @@ Spec Kit, which uv installs, needs Python 3.11 or later.
 ```bash
 mkdir my-product && cd my-product && git init -b main     # or cd into your existing repository
 git submodule add https://github.com/doxuta/ai-factory-kit factory
-git -C factory checkout v1.4.2 && git add .gitmodules factory
+git -C factory checkout v1.4.3 && git add .gitmodules factory
 python3 factory/bin/adopt.py --profile full               # or backend, frontend, cli, library, …
 uv tool install specify-cli==1.2.1
 specify init --here --force --non-interactive --integration claude

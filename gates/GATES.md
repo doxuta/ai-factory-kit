@@ -288,6 +288,12 @@ rate over a recorded corpus, not a pass/fail row, was the number that mattered.
 - **Thresholds are measured, not chosen.** Record a baseline in the repository — score, sample
   size, model id, date, commit — and gate on it with a stated tolerance. Moving the baseline is
   a reviewed commit with its reason, never an edit that turns red into green.
+- **Read every failing transcript before acting on a score.** Label each failure: the model got
+  it wrong, or a tool, a cap or the environment stopped it. Change prompts or models only for
+  the first kind. (Two models tied at pass@1 0.85 on the same failures; two of the three were
+  a tool cap, visible only in the transcripts.)
+- **A grader rule written after seeing a result is disclosed** with the score under the old
+  rule beside the new one.
 - **Pin the model.** An exact model version in the constitution's Platform Constraints, not an
   alias that moves under you. A model bump changes behaviour, so it is a spec: specify,
   approve, re-baseline, accept.
@@ -295,6 +301,10 @@ rate over a recorded corpus, not a pass/fail row, was the number that mattered.
   quarantined with a reason and a task. Never rerun until green. Cut variance where the
   provider allows (temperature 0, a fixed seed); otherwise score N samples, gate on the
   aggregate, and keep the observed spread in the baseline.
+- **Prove a race fix by forcing the race.** Widen the window or script the competing party
+  until the old code fails every run with the production error signature (10 of 10, 20 of 20),
+  then show the fix passing under the same forcing. A bounded retry states its ceiling: how
+  many attempts, and what still fails after them.
 - **Budget the runs.** A small smoke set per commit; the full suite before a spec moves to
   `accepted` and again at release (§9). Say which in chain.conf's comments.
 - **Acceptance of judged behaviour** asserts properties or rubric scores, not exact bytes;

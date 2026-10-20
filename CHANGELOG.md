@@ -3,6 +3,24 @@
 All kit updates land here via the [daily-ship sync](sync/DAILY-SYNC.md) — one entry per sync,
 newest first.
 
+## 2026-10-20 — v1.4.3 (two eval rules and how to prove a race fix)
+
+A doctrine patch to `gates/GATES.md` §8, from three lessons in the source factory on
+2026-10-17. No template, script or hook changes.
+
+- **Read every failing transcript before acting on a score**, and label each failure model vs
+  tool/cap/environment. Two models tied at pass@1 0.85; two of the three failures were a tool
+  cap, found only by reading transcripts.
+- **A grader rule written after a result is disclosed** with the old-rule score beside it.
+- **Prove a race fix by forcing the race** until the old code fails every run with the
+  production signature (10/10 and 20/20 in the source cases), then pass under the same forcing;
+  a bounded retry states its ceiling. §8 already said "never rerun until green" but not how to
+  prove the fix.
+- Files: `gates/GATES.md`, `VERSION`, the version lines in `README.md`, `README.vi.md`,
+  `AI-ONBOARDING.md`, `constitution/constitution-template.md`.
+
+Adopters — action required: none.
+
 ## 2026-10-17 — v1.4.2 (Spec Kit 1.2.1, now from PyPI)
 
 A patch release: the tested Spec Kit moves from 1.1.0 to **1.2.1**, and the install line stops
