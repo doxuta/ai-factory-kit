@@ -55,15 +55,18 @@ holds its method.
 | Guard false positives, constructed corpus ([`careful-corpus.txt`](harness/skills/careful/hooks/careful-corpus.txt)) | 408 ordinary commands across 14 stacks (395 at v1.4.0) | 0 interrupted; the test fails if one ever is |
 | The kit's own tests ([CI](.github/workflows/ci.yml)) | 8 `*.test.sh` suites, Linux and macOS `/bin/bash` 3.2, branch and detached `HEAD` | 1,432 checks, 0 failed on 2026-10-17; the guard table alone is 722 rows |
 | A test that graded its environment, not the code ([DAILY-SYNC](sync/DAILY-SYNC.md)) | v1.3.2's guard test on a feature branch | failed 141 of 142 on every feature branch; the table is now hermetic and CI runs it on a detached `HEAD` |
+| Defects a fresh-context verifier caught on a real codebase ([write-up](https://github.com/doxuta/nexus/blob/main/docs/writeup/turning-the-lights-back-on.md#4-lights-on)) | the first four feature PRs of a public codebase ([#15](https://github.com/doxuta/nexus/pull/15), [#16](https://github.com/doxuta/nexus/pull/16), [#20](https://github.com/doxuta/nexus/pull/20), [#21](https://github.com/doxuta/nexus/pull/21)), each refuted by a verifier with no edit tools, the pattern of [`tech-lead-review`](harness/agents/tech-lead-review.md) | 0 of 4 passed the first round; caught a privilege escalation through a draft/live name collision, a fix that lost grants on rollback, an agent endpoint mounted outside the middleware that read a stale model, a demo script that contradicted its own prompt while green in CI, and a recorded-response replay that crossed users |
 | Spec Kit compatibility ([Verified](speckit/README.md#verified-on-2026-10-17-specify-cli-121)) | specify-cli 1.2.1 vs 1.1.0 in scratch repositories | every scripted check green; the overrides resolve byte-identical |
-| Links | every relative link in the kit (`python3 bin/check-links.py .`) | 460 links, 0 dead |
+| Links | every relative link in the kit (`python3 bin/check-links.py .`) | 462 links, 0 dead |
 
 **What still fails or is unmeasured.** The two live `claude -p` runs of the Spec Kit commands
 were done once, on 1.0.12, and not repeated; a model can still drift from a template, which is
 why the gates re-check on every commit. The guard's matcher is a string inspector: it asks or
 denies on what a command says, not on what a script it runs will do. The guard's 7 s
 self-timeout needs SIGALRM, which Windows Python lacks. The false-positive numbers come from one
-maintainer's traffic; replay your own history for the number that is yours.
+maintainer's traffic; replay your own history for the number that is yours. On that codebase the verifier also needed extra rounds or missed: one PR took three rounds
+(round 2's finding came from round 1's fix), three paths to a hidden table went to an issue
+unfixed, and a known same-second edge failed CI twice before its root cause was fixed.
 
 ## The model at a glance
 
