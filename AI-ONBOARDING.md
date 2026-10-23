@@ -71,7 +71,7 @@ git init -b main
 
 # 2. the kit, as a submodule pinned to a release tag
 git submodule add https://github.com/doxuta/ai-factory-kit factory
-git -C factory checkout v1.4.3          # the release you pin; list them: git -C factory tag
+git -C factory checkout v1.5.0          # the release you pin; list them: git -C factory tag
 git add .gitmodules factory
 
 # 3. harness, careful hooks, gates and Spec Kit template overrides, for the archetype
@@ -126,7 +126,7 @@ python3 factory/bin/adopt.py --check               # exit 0
   records a pointer with no `.gitmodules` entry, every other clone gets an empty `factory/`, and
   `git submodule update --init` cannot repair it. `adopt.py` warns and prints both fixes. The
   one alternative to a submodule is a **vendored copy** with no `.git` inside it, e.g.
-  `git clone --depth 1 --branch v1.4.3 <kit-url> factory && rm -rf factory/.git`; you then
+  `git clone --depth 1 --branch v1.5.0 <kit-url> factory && rm -rf factory/.git`; you then
   upgrade by replacing the directory.
 - **Step 4.** Without `--force`, `specify init --here` stops in a non-empty directory to ask for
   confirmation, and with no terminal to answer it exits 1. Under a terminal it also asks for the
@@ -169,7 +169,7 @@ prints nothing and the clone commits on red unrefused (CI still runs the chain).
 
 ```bash
 git -C factory fetch --tags
-git -C factory checkout v1.4.3                   # the tag you move to; read its CHANGELOG entry
+git -C factory checkout v1.5.0                   # the tag you move to; read its CHANGELOG entry
 python3 factory/bin/adopt.py --upgrade           # a human runs this, or approves the guard's ask
 ```
 

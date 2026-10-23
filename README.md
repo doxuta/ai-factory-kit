@@ -29,7 +29,7 @@ porting by hand. What differs per host and platform: [HARNESS §7](harness/HARNE
 (the system bash 3.2 and BSD tools), as checked out and detached — the first macOS run failed
 on a test fixture, fixed before release; headless Claude Code sessions on Linux, including the
 careful guard's live probes. Nothing has run on WSL or on a Windows host.
-Version 1.4.3 ([VERSION](VERSION)), tested with Spec Kit (specify-cli) 1.2.1.
+Version 1.5.0 ([VERSION](VERSION)), tested with Spec Kit (specify-cli) 1.2.1.
 
 ## Why this exists
 
@@ -53,7 +53,7 @@ holds its method.
 | Guard false positives, before the fix ([method](harness/skills/careful/SKILL.md#-the-third-lesson-measure-the-false-positives-or-the-guard-gets-switched-off)) | 6,638 real shell commands from 48 h of agent work, through the v1.2 guard | 800 asks (one in eight commands); 77 after three rules were narrowed |
 | Guard false positives, real traffic | the 2,002 unique shell commands from the sessions that built and audited v1.4.0 | v1.3.2 interrupted 165 (8.2%), v1.4.0 interrupts 89 (4.4%), each by a designed rule |
 | Guard false positives, constructed corpus ([`careful-corpus.txt`](harness/skills/careful/hooks/careful-corpus.txt)) | 408 ordinary commands across 14 stacks (395 at v1.4.0) | 0 interrupted; the test fails if one ever is |
-| The kit's own tests ([CI](.github/workflows/ci.yml)) | 8 `*.test.sh` suites, Linux and macOS `/bin/bash` 3.2, branch and detached `HEAD` | 1,432 checks, 0 failed on 2026-10-17; the guard table alone is 722 rows |
+| The kit's own tests ([CI](.github/workflows/ci.yml)) | 8 `*.test.sh` suites, Linux and macOS `/bin/bash` 3.2, branch and detached `HEAD` | 1,452 checks, 0 failed on 2026-10-23 (macOS run; CI covers Linux); the guard table alone is 722 rows |
 | A test that graded its environment, not the code ([DAILY-SYNC](sync/DAILY-SYNC.md)) | v1.3.2's guard test on a feature branch | failed 141 of 142 on every feature branch; the table is now hermetic and CI runs it on a detached `HEAD` |
 | Defects a fresh-context verifier caught on a real codebase ([write-up](https://github.com/doxuta/nexus/blob/main/docs/writeup/turning-the-lights-back-on.md#4-lights-on)) | the first four feature PRs of a public codebase ([#15](https://github.com/doxuta/nexus/pull/15), [#16](https://github.com/doxuta/nexus/pull/16), [#20](https://github.com/doxuta/nexus/pull/20), [#21](https://github.com/doxuta/nexus/pull/21)), each refuted by a verifier with no edit tools, the pattern of [`tech-lead-review`](harness/agents/tech-lead-review.md) | 0 of 4 passed the first round; caught a privilege escalation through a draft/live name collision, a fix that lost grants on rollback, an agent endpoint mounted outside the middleware that read a stale model, a demo script that contradicted its own prompt while green in CI, and a recorded-response replay that crossed users |
 | Spec Kit compatibility ([Verified](speckit/README.md#verified-on-2026-10-17-specify-cli-121)) | specify-cli 1.2.1 vs 1.1.0 in scratch repositories | every scripted check green; the overrides resolve byte-identical |
@@ -112,7 +112,7 @@ Spec Kit, which uv installs, needs Python 3.11 or later.
 ```bash
 mkdir my-product && cd my-product && git init -b main     # or cd into your existing repository
 git submodule add https://github.com/doxuta/ai-factory-kit factory
-git -C factory checkout v1.4.3 && git add .gitmodules factory
+git -C factory checkout v1.5.0 && git add .gitmodules factory
 python3 factory/bin/adopt.py --profile full               # or backend, frontend, cli, library, …
 uv tool install specify-cli==1.2.1
 specify init --here --force --non-interactive --integration claude

@@ -30,7 +30,7 @@ macOS (bash 3.2 có sẵn của hệ thống và bộ công cụ BSD), cả khi 
 lần chạy macOS đầu tiên hỏng ở một fixture test, đã sửa trước khi phát hành; các phiên Claude Code
 headless trên Linux, gồm cả hai phép thử trực tiếp của guard `careful`. Chưa có gì chạy trên WSL
 hay trên máy Windows.
-Phiên bản 1.4.3 ([VERSION](VERSION)), kiểm thử với Spec Kit (specify-cli) 1.2.1.
+Phiên bản 1.5.0 ([VERSION](VERSION)), kiểm thử với Spec Kit (specify-cli) 1.2.1.
 
 ---
 
@@ -56,7 +56,7 @@ ghi cách đo (tiếng Anh).
 | Guard chặn nhầm, trước khi sửa ([cách đo](harness/skills/careful/SKILL.md#-the-third-lesson-measure-the-false-positives-or-the-guard-gets-switched-off)) | 6.638 lệnh shell thật trong 48 giờ agent làm việc, qua guard v1.2 | 800 lần hỏi (cứ 8 lệnh hỏi 1); còn 77 sau khi thu hẹp 3 luật |
 | Guard chặn nhầm, lưu lượng thật | 2.002 lệnh shell khác nhau từ các phiên dựng và kiểm định v1.4.0 | v1.3.2 ngắt 165 (8,2%), v1.4.0 ngắt 89 (4,4%), mỗi lần đều do một luật có chủ đích |
 | Guard chặn nhầm, corpus dựng sẵn ([`careful-corpus.txt`](harness/skills/careful/hooks/careful-corpus.txt)) | 408 lệnh bình thường trên 14 stack (395 ở v1.4.0) | 0 lần ngắt; test đỏ nếu có một lần |
-| Test của chính kit ([CI](.github/workflows/ci.yml)) | 8 bộ `*.test.sh`, Linux và macOS `/bin/bash` 3.2, trên nhánh và `HEAD` tách rời | 1.432 kiểm tra, 0 lỗi ngày 2026-10-17; riêng bảng guard có 722 dòng |
+| Test của chính kit ([CI](.github/workflows/ci.yml)) | 8 bộ `*.test.sh`, Linux và macOS `/bin/bash` 3.2, trên nhánh và `HEAD` tách rời | 1.452 kiểm tra, 0 lỗi ngày 2026-10-23 (chạy trên macOS; CI chạy Linux); riêng bảng guard có 722 dòng |
 | Một test chấm môi trường chứ không chấm code ([DAILY-SYNC](sync/DAILY-SYNC.md)) | test guard của v1.3.2 trên nhánh feature | đỏ 141/142 trên mọi nhánh feature; bảng giờ tự dựng repo riêng và CI chạy cả trên `HEAD` tách rời |
 | Lỗi mà verifier context mới bắt được trên một codebase thật ([bài viết](https://github.com/doxuta/nexus/blob/main/docs/writeup/turning-the-lights-back-on.md#4-lights-on)) | bốn PR tính năng đầu tiên của một codebase công khai ([#15](https://github.com/doxuta/nexus/pull/15), [#16](https://github.com/doxuta/nexus/pull/16), [#20](https://github.com/doxuta/nexus/pull/20), [#21](https://github.com/doxuta/nexus/pull/21)), mỗi PR bị một verifier không có công cụ sửa file cố bác bỏ, đúng mẫu [`tech-lead-review`](harness/agents/tech-lead-review.md) | 0/4 qua vòng đầu; bắt được một leo thang quyền qua trùng tên bảng nháp với bảng đang chạy, một bản sửa làm mất quyền khi rollback, một endpoint cho agent gắn ngoài middleware nên đọc model cũ, một script demo trái với chính prompt của nó mà CI vẫn xanh, và một replay phản hồi đã ghi trả nhầm sang người dùng khác |
 | Tương thích Spec Kit ([Verified](speckit/README.md#verified-on-2026-10-17-specify-cli-121)) | specify-cli 1.2.1 so với 1.1.0 trong repo nháp | mọi kiểm tra có script đều xanh; override resolve giống từng byte |
@@ -115,7 +115,7 @@ Riêng Spec Kit (cài bằng uv) cần Python từ 3.11 trở lên.
 ```bash
 mkdir san-pham && cd san-pham && git init -b main         # hoặc cd vào repo sẵn có của bạn
 git submodule add https://github.com/doxuta/ai-factory-kit factory
-git -C factory checkout v1.4.3 && git add .gitmodules factory
+git -C factory checkout v1.5.0 && git add .gitmodules factory
 python3 factory/bin/adopt.py --profile full               # hoặc backend, frontend, cli, library, …
 uv tool install specify-cli==1.2.1
 specify init --here --force --non-interactive --integration claude

@@ -3,6 +3,39 @@
 All kit updates land here via the [daily-ship sync](sync/DAILY-SYNC.md) — one entry per sync,
 newest first.
 
+## 2026-10-23 — v1.5.0 (the orphan-endpoint gate stops counting comments and mid-URL matches)
+
+A gate fix, from a false green in the source factory on 2026-10-22: its orphan gate counted a
+code comment as a caller and let a route whose first segment is a parameter match any literal
+segment, so two routes nobody called passed. Reproduced in the kit's own gate with the shipped
+Express example config: `app.get('/:entity/members')` "called" by
+`` fetch(`/admin/teams/${t}/members`) `` and `app.get('/reports/export')` "called" by a
+`// TODO` comment, exit 0. Both now red.
+
+- **Comments are removed before matching**: `//` and `/* */` in JS/TS-family files (and Go,
+  Java, Kotlin, Swift, Dart, C#, Rust), `#` in Python and Ruby. String, template (with nested
+  `${...}`) and regex literals are kept, so `"https://host/x"` and `/\/\/+/` are not comments.
+- **The left side is anchored**: a caller is a string literal that starts with the route,
+  after at most one leading `${base}` / `{base}`, a `scheme://host`, and a declared mount
+  prefix. `` `/teams/${id}/members` `` and `"/admin/members"` no longer call `/members`.
+- **A leading parameter matches only a placeholder** (`${...}`, `{...}`, `%s`): `/:org/members`
+  is called by `` `/${org}/members` ``, not by `"/acme/members"`.
+- **New optional key `prefix: /api`** (repeatable) for routers mounted under a path. Before
+  this release any prefix was accepted silently.
+- 8 new test cases (checks 45 → 65) in `gates/check-orphan-endpoints.test.sh` (comment, block comment, Python
+  comment, leading param, mid-URL, undeclared and declared prefix, full URL, regex literal,
+  nested template). Each of seven deliberate breaks of the new code (no comment removal, no
+  anchor, leading param as any segment, no regex-literal or `${...}` handling, prefix or `#`
+  comments ignored) turns at least one case red. The BLIND TO header lists what is still blind.
+- Files: `gates/check-orphan-endpoints.sh`, `gates/check-orphan-endpoints.test.sh`,
+  `gates/orphan-endpoints.conf.example`, `gates/GATES.md`, `VERSION`, the version lines in
+  `README.md`, `README.vi.md`, `AI-ONBOARDING.md`, `constitution/constitution-template.md`.
+
+Adopters — action required: re-run the gate. Routes that passed only through a comment or a
+mid-URL match now show as orphans (wire the caller or allow-list it with a reason). If your
+client calls routes under a mount prefix (`/api/tasks` for a router that defines `/tasks`), add
+`prefix: /api` to `gates/orphan-endpoints.conf`, or those routes turn red too.
+
 ## 2026-10-20 — v1.4.3 (two eval rules and how to prove a race fix)
 
 A doctrine patch to `gates/GATES.md` §8, from three lessons in the source factory on
