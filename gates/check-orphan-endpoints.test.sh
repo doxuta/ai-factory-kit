@@ -189,26 +189,31 @@ said "hint names the key" "prefix: /api"
 
 project "$TMP/comment"
 mkdir -p "$TMP/comment/server" "$TMP/comment/web"
-printf "app.get('/:entity/members', h)\napp.get('/reports/export', h)\napp.get('/archive', h)\n" > "$TMP/comment/server/app.js"
+printf "app.get('/:entity/members', h)\napp.get('/reports/export', h)\napp.get('/archive', h)\napp.get('/after-regex', h)\napp.get('/after-template', h)\n" > "$TMP/comment/server/app.js"
 cat > "$TMP/comment/web/api.ts" <<'TSSRC'
 // TODO: someday call "/reports/export" from the toolbar
 export const teamMembers = (t: string) => fetch(`/admin/teams/${t}/members`)
 /* old: fetch("/archive") */
+const unquote = (s: string) => s.replace(/'/g, ""); // fetch("/after-regex")
+const tick = `${"`"}`; // fetch("/after-template")
 TSSRC
 conf "$TMP/comment" "server: server/**/*.js" "route: $EXPRESS_ROUTE" "client: web/**/*.ts"
 run 1 "comment-only callers and a longer literal path call nothing (2026-10-22 false green)" "$TMP/comment"
 said "line comment" "• /reports/export"
 said "leading param vs literal segments" "• /:entity/members"
 said "block comment" "• /archive"
+said "a quote inside a regex literal does not hide the comment after it" "• /after-regex"
+said "a backtick inside \${...} does not end the template" "• /after-template"
 
 project "$TMP/midurl"
 mkdir -p "$TMP/midurl/server" "$TMP/midurl/web"
-printf "app.get('/members', h)\napp.get('/:id/notes', h)\n" > "$TMP/midurl/server/app.js"
-printf 'fetch(`/teams/${id}/members`)\nfetch("/admin/members")\nfetch("/users/me/notes")\n' > "$TMP/midurl/web/api.ts"
+printf "app.get('/members', h)\napp.get('/:id/notes', h)\napp.get('/:org/projects', h)\n" > "$TMP/midurl/server/app.js"
+printf 'fetch(`/teams/${id}/members`)\nfetch("/admin/members")\nfetch("/users/me/notes")\nfetch("/acme/projects")\n' > "$TMP/midurl/web/api.ts"
 conf "$TMP/midurl" "server: server/**/*.js" "route: $EXPRESS_ROUTE" "client: web/**/*.ts"
 run 1 "a route that only appears mid-URL is not called" "$TMP/midurl"
 said "mid-url" "• /members"
 said "leading param needs a placeholder" "• /:id/notes"
+said "a literal first segment is not a leading param" "• /:org/projects"
 
 fixture "$TMP/pycomment" no
 printf '# requests.patch(f"/tasks/{task_id}/complete")\nURL = "/tasks/x#frag"  # "/tasks/{task_id}/complete"\n' > "$TMP/pycomment/web/src/cli.py"
