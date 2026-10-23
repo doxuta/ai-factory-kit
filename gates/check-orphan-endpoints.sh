@@ -19,15 +19,25 @@
 #   exclude: <glob>    files left out on both sides (tests, generated code)       (optional)
 #   param:   <regex>   how a path parameter is written inside a route; replaces the default
 #                      :name {name} <name> <type:name> [name] *           (optional)
+#   prefix:  </path>   a literal mount prefix the client puts before every route, e.g.
+#                      /api when the server mounts its router there        (optional)
 # or, instead of all of that, one line:
 #   NA: <reason>       the product has no routes (a CLI, a library, firmware...). Printed on
 #                      every run. Equivalent to "orphan-endpoints: NA: <reason>" in chain.conf.
 #
-# A route counts as CALLED when some client file contains its path, with each parameter
-# matching any run of characters except / ? # quotes and whitespace (so /tasks/:id matches
-# `/tasks/${id}`, f"/tasks/{task_id}", "/tasks/%s"), followed by a quote, ?, #, ), ], comma,
-# semicolon, backslash, whitespace or end of line. A file matched by a server glob never counts
-# as a caller, or every route would call itself from its own definition.
+# A route counts as CALLED when some client file has a string literal that STARTS with its
+# path: right after the opening quote, or after one leading ${base} / {base} placeholder, a
+# scheme://host, and a declared prefix: (so `${API}/tasks`, "https://x.io/tasks" and, with
+# "prefix: /api", "/api/tasks" call /tasks; "/admin/tasks" does not). Each parameter matches any
+# run of characters except / ? # quotes and whitespace (so /tasks/:id matches `/tasks/${id}`,
+# f"/tasks/{task_id}", "/tasks/%s"); a parameter that is the route's FIRST segment
+# (/:org/members) matches only a placeholder (${...}, {...}, %s), never a literal segment.
+# The path is followed by a quote, ?, #, ), ], comma, semicolon, backslash, whitespace or end of
+# line. Comments do not count: before matching, // and /* */ comments are removed from
+# JS/TS-family files (.js .jsx .mjs .cjs .ts .tsx .mts .cts .vue .svelte .go .java .kt .swift
+# .dart .cs .rs) and # comments from .py and .rb, keeping string, template and regex literals.
+# A file matched by a server glob never counts as a caller, or every route would call itself
+# from its own definition.
 #
 # gates/orphan-allowlist.txt (optional): one "<route> <reason>" per line, the route exactly as
 # extracted (see --list). For routes whose caller is outside this repo: webhooks, health
@@ -43,11 +53,12 @@
 #   * DYNAMIC CALLERS. A path built by concatenation ("/tasks/" + id + "/complete"), from
 #     constants in another file, or by a generated client is not seen: the route reads as an
 #     orphan (false red). Allow-list it with the reason, or make the call site literal.
-#   * PREFIXES AND SUFFIXES. The left side is unanchored, so a client path "/api/tasks" calls
-#     the route "/tasks" (a mount prefix — usually right) and "/admin/tasks" calls it too
-#     (wrong). Short routes like "/" match almost anything.
-#   * WHETHER THE CALL IS REACHABLE. A caller in dead code, a comment or a test fixture the
-#     globs include still counts. Exclude tests; review the rest.
+#   * WHAT THE BASE HOLDS. `${base}/tasks` calls /tasks whatever base is: if base is
+#     "/admin/teams/7", the call is really to another route. Parameters after the first
+#     segment still match any literal segment: "/tasks/export" calls /tasks/:id.
+#   * WHETHER THE CALL IS REACHABLE. A caller in dead code or a test fixture the globs include
+#     still counts. Exclude tests; review the rest. Comments in other languages (HTML
+#     <!-- -->, a .vue template, shell) are not removed.
 #   * ROUTES YOUR REGEX DOES NOT MATCH. Routes registered in a way the regex misses are
 #     invisible. Run --list after changing the server code's style and compare the count.
 #   * FILES IN HIDDEN DIRECTORIES: ** does not descend into .dirs.
@@ -72,10 +83,17 @@ for stream in (sys.stdout, sys.stderr):
 LIST = sys.argv[1] == "--list"
 CONF = "gates/orphan-endpoints.conf"
 ALLOW = "gates/orphan-allowlist.txt"
-KEYS = ("server", "route", "client", "exclude", "param")
+KEYS = ("server", "route", "client", "exclude", "param", "prefix")
 DEFAULT_PARAM = r":[A-Za-z_]\w*|\{[^}/]*\}|<[^>/]*>|\[[^\]/]*\]|\*\w*"
 ARG = r"[^/?#\s'\"`]+"
 AFTER = r"/?(?=[?#'\"`\s)\],;\\]|$)"
+# where a route may start: the opening quote, then at most one leading ${base} / {base}, a
+# scheme://host, and a declared prefix: (added below)
+OPEN = r"['\"`](?:\$\{[^{}`]*\}|\{[^{}'\"]*\})?(?:https?://[^/\s'\"`]+)?"
+PLACEHOLDER = r"(?:\$\{[^{}`]*\}|\{[^{}/'\"]*\}|%[sdv])"
+SLASH_COMMENTS = {".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".mts", ".cts", ".vue", ".svelte",
+                  ".go", ".java", ".kt", ".swift", ".dart", ".cs", ".rs"}
+HASH_COMMENTS = {".py", ".rb"}
 
 
 def config_error(msg):
@@ -141,6 +159,10 @@ try:
     param_rx = re.compile("|".join("(?:%s)" % p for p in cfg["param"]) or DEFAULT_PARAM)
 except re.error as exc:
     config_error("param regex does not compile: %s" % exc)
+for pfx in cfg["prefix"]:
+    if not pfx.startswith("/") or len(pfx) < 2:
+        config_error("prefix %r: a mount prefix is a literal path like /api" % pfx)
+PREFIX = "(?:%s)?" % "|".join(re.escape(p.rstrip("/")) for p in cfg["prefix"]) if cfg["prefix"] else ""
 
 
 def expand(globs):
@@ -196,18 +218,111 @@ if os.path.isfile(ALLOW):
 
 def caller_rx(route):
     r = route.rstrip("/") or "/"
-    parts, pos = [], 0
+    parts, pos = [OPEN + PREFIX], 0
     for m in param_rx.finditer(r):
         if m.end() == m.start():
             continue
         parts.append(re.escape(r[pos:m.start()]))
-        parts.append(ARG)
+        parts.append(PLACEHOLDER if m.start() == 1 and r[0] == "/" else ARG)
         pos = m.end()
     parts.append(re.escape(r[pos:]))
     return re.compile("".join(parts) + AFTER, re.MULTILINE)
 
 
-client_text = [(p, read(p)) for p in client_files]
+def strip_comments(path, text):
+    """Blank out comments (newlines kept, so line numbers hold); literals are left intact."""
+    ext = os.path.splitext(path)[1].lower()
+    if ext not in SLASH_COMMENTS and ext not in HASH_COMMENTS:
+        return text
+    out, i, n = list(text), 0, len(text)
+    modes = [0]   # code: open-brace depth; "`": inside a template literal
+
+    def blank(a, b):
+        for k in range(a, b):
+            if out[k] != "\n":
+                out[k] = " "
+
+    def skip_quoted(i, q):  # i at the opening quote; returns the index after the closing one
+        if ext in HASH_COMMENTS and text.startswith(q * 3, i):
+            j = text.find(q * 3, i + 3)
+            return n if j < 0 else j + 3
+        i += 1
+        while i < n and text[i] != q and text[i] != "\n":
+            i += 2 if text[i] == "\\" else 1
+        return i + 1
+
+    prev = ""   # last significant code character: tells a regex literal from a division
+    while i < n:
+        c = text[i]
+        if modes[-1] == "`":
+            if c == "\\":
+                i += 2
+            elif c == "`":
+                modes.pop()
+                prev, i = "`", i + 1
+            elif text.startswith("${", i):
+                modes.append(0)
+                prev, i = "{", i + 2
+            else:
+                i += 1
+            continue
+        if ext in HASH_COMMENTS:
+            if c == "#":
+                j = text.find("\n", i)
+                j = n if j < 0 else j
+                blank(i, j)
+                i = j
+            elif c in "'\"":
+                i = skip_quoted(i, c)
+            else:
+                i += 1
+            continue
+        if text.startswith("//", i):
+            j = text.find("\n", i)
+            j = n if j < 0 else j
+            blank(i, j)
+            i = j
+            continue
+        if text.startswith("/*", i):
+            j = text.find("*/", i + 2)
+            j = n if j < 0 else j + 2
+            blank(i, j)
+            i = j
+            continue
+        if c in "'\"":
+            i, prev = skip_quoted(i, c), c
+            continue
+        if c == "`":
+            modes.append("`")
+            i += 1
+            continue
+        if c == "/" and (prev == "" or prev in "(,=:[!&|?{};+-*%<>~^"):
+            i += 1
+            in_class = False
+            while i < n and text[i] != "\n" and (in_class or text[i] != "/"):
+                if text[i] == "\\":
+                    i += 1
+                elif text[i] == "[":
+                    in_class = True
+                elif text[i] == "]":
+                    in_class = False
+                i += 1
+            prev, i = "/", i + 1
+            continue
+        if c == "{":
+            modes[-1] += 1
+        elif c == "}":
+            if modes[-1] == 0 and len(modes) > 1:
+                modes.pop()   # closes a ${...}: back inside the template
+            else:
+                modes[-1] -= 1
+        if not c.isspace():
+            prev = c
+        i += 1
+    return "".join(out)
+
+
+client_text = [(p, strip_comments(p, read(p))) for p in client_files]
 called, allowed, orphans, warnings = {}, [], [], []
 for route in sorted(routes):
     rx = caller_rx(route)
@@ -249,6 +364,8 @@ if orphans:
         where = ", ".join("%s:%d" % loc for loc in routes[route][:3])
         print("   • %s   defined at %s" % (route, where))
     print("   Who will CALL this? Wire the caller, or add '<route> <reason>' to %s." % ALLOW)
+    if not cfg["prefix"]:
+        print("   Client calls them under a mount prefix? Declare it in %s, e.g. 'prefix: /api'." % CONF)
     sys.exit(1)
 print("✅ orphan endpoints - %d route(s): %d called, %d allow-listed (%s)"
       % (len(routes), len(called), len(allowed), scope))

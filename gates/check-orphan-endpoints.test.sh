@@ -57,9 +57,9 @@ def list_tasks(): ...
 def complete(task_id: str): ...
 PYSRC
   {
-    echo 'export const listTasks = () => fetch(`/api/tasks?page=1`);'
+    echo 'export const listTasks = () => fetch(`${API}/tasks?page=1`);'
     if [ "$2" = yes ]; then
-      echo 'export const complete = (id: string) => fetch(`/api/tasks/${id}/complete`, { method: "PATCH" });'
+      echo 'export const complete = (id: string) => fetch(`${API}/tasks/${id}/complete`, { method: "PATCH" });'
     fi
   } > "$d/web/src/api.ts"
   conf "$d" "# configured" "server: src/api/**/*.py" "route: $PY_ROUTE" "client: web/src/**/*.ts"
@@ -67,7 +67,7 @@ PYSRC
 
 echo "== GREEN: wired routes must pass =="
 fixture "$TMP/wired" yes
-run 0 "both routes have a caller (template literal, /api prefix, query string)" "$TMP/wired"
+run 0 "both routes have a caller (template literal after one ${base}, query string)" "$TMP/wired"
 said "summary" "2 route(s): 2 called, 0 allow-listed"
 
 run 0 "--list prints each route and its caller" "$TMP/wired" --list
@@ -115,6 +115,27 @@ conf "$TMP/go" "server: internal/http/**/*.go" "route: $GO_ROUTE" "client: web/*
 run 0 "the shipped Go net/http example regex, wired fixture" "$TMP/go"
 said "go routes found" "2 route(s): 2 called"
 
+fixture "$TMP/mount" no
+printf 'fetch("/api/v1/tasks/" + id);\naxios.patch(`/api/v1/tasks/${id}/complete`);\nfetch("/api/v1/tasks?page=2");\n' > "$TMP/mount/web/src/api.ts"
+conf "$TMP/mount" "server: src/api/**/*.py" "route: $PY_ROUTE" "client: web/src/**/*.ts" "prefix: /api/v1"
+run 0 "a declared mount prefix (prefix: /api/v1) lets /api/v1/tasks call /tasks" "$TMP/mount"
+
+fixture "$TMP/origin" no
+printf 'fetch("https://api.example.com/tasks");\nfetch(`https://api.example.com:8443/tasks/${id}/complete`); // done\n' > "$TMP/origin/web/src/api.ts"
+run 0 "a full URL (scheme://host) is a start too, and its // is not a comment" "$TMP/origin"
+
+project "$TMP/js-lexing"
+mkdir -p "$TMP/js-lexing/server" "$TMP/js-lexing/web"
+printf "app.get('/users', a)\napp.get('/users/:id/posts', b)\napp.get('/:org/members', c)\n" > "$TMP/js-lexing/server/app.js"
+cat > "$TMP/js-lexing/web/client.ts" <<'TSSRC'
+const clean = (u: string) => u.replace(/\/\/+/g, "/"); fetch(clean("/users"));
+/* block comment */ fetch(`${API}/users/${id}/posts`, { body: `${a ? "x" : "y"}` }) // trailing
+export const members = (org: string) => fetch(`/${org}/members`)
+TSSRC
+conf "$TMP/js-lexing" "server: server/**/*.js" "route: $EXPRESS_ROUTE" "client: web/**/*.ts"
+run 0 "regex literal with //, nested \${...}, leading param as a placeholder: all called" "$TMP/js-lexing"
+said "lexing" "3 route(s): 3 called"
+
 echo "== RED: it must actually bite =="
 fixture "$TMP/orphan" no
 run 1 "one route has no caller" "$TMP/orphan"
@@ -146,7 +167,7 @@ run 1 "a route's own definition is not its caller (overlapping globs)" "$TMP/sel
 said "reason" "/tasks/{task_id}/complete"
 
 fixture "$TMP/prefix" no
-printf 'fetch(`/api/tasks/${id}/complete`)\n' > "$TMP/prefix/web/src/api.ts"
+printf 'fetch(`${API}/tasks/${id}/complete`)\n' > "$TMP/prefix/web/src/api.ts"
 run 1 "calling /tasks/:id/complete does not call the /tasks route" "$TMP/prefix"
 said "reason" "• /tasks   defined"
 
@@ -159,6 +180,41 @@ fixture "$TMP/excluded" no
 printf 'fetch(`/tasks/${id}/complete`)\n' > "$TMP/excluded/web/src/api.test.ts"
 conf "$TMP/excluded" "server: src/api/**/*.py" "route: $PY_ROUTE" "client: web/src/**/*.ts" "exclude: **/*.test.ts"
 run 1 "a caller only in an excluded test file does not count" "$TMP/excluded"
+
+fixture "$TMP/nomount" no
+printf 'fetch(`/api/tasks?page=1`);\nfetch(`/api/tasks/${id}/complete`);\n' > "$TMP/nomount/web/src/api.ts"
+run 1 "a prefix nobody declared is not a mount: /api/tasks does not call /tasks" "$TMP/nomount"
+said "names the route" "• /tasks   defined"
+said "hint names the key" "prefix: /api"
+
+project "$TMP/comment"
+mkdir -p "$TMP/comment/server" "$TMP/comment/web"
+printf "app.get('/:entity/members', h)\napp.get('/reports/export', h)\napp.get('/archive', h)\n" > "$TMP/comment/server/app.js"
+cat > "$TMP/comment/web/api.ts" <<'TSSRC'
+// TODO: someday call "/reports/export" from the toolbar
+export const teamMembers = (t: string) => fetch(`/admin/teams/${t}/members`)
+/* old: fetch("/archive") */
+TSSRC
+conf "$TMP/comment" "server: server/**/*.js" "route: $EXPRESS_ROUTE" "client: web/**/*.ts"
+run 1 "comment-only callers and a longer literal path call nothing (2026-10-22 false green)" "$TMP/comment"
+said "line comment" "• /reports/export"
+said "leading param vs literal segments" "• /:entity/members"
+said "block comment" "• /archive"
+
+project "$TMP/midurl"
+mkdir -p "$TMP/midurl/server" "$TMP/midurl/web"
+printf "app.get('/members', h)\napp.get('/:id/notes', h)\n" > "$TMP/midurl/server/app.js"
+printf 'fetch(`/teams/${id}/members`)\nfetch("/admin/members")\nfetch("/users/me/notes")\n' > "$TMP/midurl/web/api.ts"
+conf "$TMP/midurl" "server: server/**/*.js" "route: $EXPRESS_ROUTE" "client: web/**/*.ts"
+run 1 "a route that only appears mid-URL is not called" "$TMP/midurl"
+said "mid-url" "• /members"
+said "leading param needs a placeholder" "• /:id/notes"
+
+fixture "$TMP/pycomment" no
+printf '# requests.patch(f"/tasks/{task_id}/complete")\nURL = "/tasks/x#frag"  # "/tasks/{task_id}/complete"\n' > "$TMP/pycomment/web/src/cli.py"
+conf "$TMP/pycomment" "server: src/api/**/*.py" "route: $PY_ROUTE" "client: web/src/**/*.ts" "client: web/src/**/*.py"
+run 1 "a Python # comment is not a caller" "$TMP/pycomment"
+said "py comment" "• /tasks/{task_id}/complete"
 
 echo "== config errors (exit 2) =="
 fixture "$TMP/noreason" no
@@ -189,6 +245,10 @@ run 2 "unknown key" "$TMP/badkey"
 fixture "$TMP/noclient" yes
 conf "$TMP/noclient" "server: src/api/**/*.py" "route: $PY_ROUTE"
 run 2 "client: missing" "$TMP/noclient"
+
+fixture "$TMP/badprefix" yes
+printf 'prefix: api\n' >> "$TMP/badprefix/gates/orphan-endpoints.conf"
+run 2 "prefix: must start with /" "$TMP/badprefix"
 
 run 0 "--help" "$TMP/wired" --help
 run 2 "unknown argument" "$TMP/wired" --bogus

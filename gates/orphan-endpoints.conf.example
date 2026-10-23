@@ -14,6 +14,8 @@
 # exclude: files left out on both sides
 # param:   how a parameter is written in a route (optional; the default understands
 #          :id {id} <id> <int:id> [id] and *)
+# prefix:  a mount prefix the client writes before every route, when the server mounts its
+#          router there (optional; without it "/api/tasks" does not call "/tasks")
 #
 # Example: Python server (FastAPI / Flask style decorators) + TypeScript client
 # server: src/api/**/*.py
@@ -21,6 +23,7 @@
 # client: web/src/**/*.ts
 # client: web/src/**/*.tsx
 # exclude: **/*.test.ts
+# prefix: /api
 #
 # Example: Express (JavaScript / TypeScript)
 # server: server/**/*.js

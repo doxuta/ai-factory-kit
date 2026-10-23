@@ -235,10 +235,13 @@ in its header and is proven in both directions by a `*.test.sh` installed beside
 
 **`gates/orphan-endpoints.conf`** holds either one line, `NA: <reason>`, or these keys, each
 repeatable: `server: <glob>` (files that define routes), `route: <regex>` (group 1 is the path),
-`client: <glob>` (files that call them), and optionally `exclude: <glob>` and `param: <regex>`.
+`client: <glob>` (files that call them), and optionally `exclude: <glob>`, `param: <regex>` and
+`prefix: </path>` (a mount prefix like `/api` that the client puts before every route).
 Unconfigured, the gate is red with "not wired". `gates/orphan-allowlist.txt` takes one
-`<route> <reason>` per line. The script header gives the matching rules and what it is blind
-to — methods, and paths built by concatenation, above all.
+`<route> <reason>` per line. A caller is a string literal that *starts* with the route (after
+one `${base}`, a `scheme://host` or a declared prefix); comments are removed first, and a
+leading `:param` matches only a placeholder. The script header gives the exact rules and what
+it is still blind to — methods, paths built by concatenation, and what a `${base}` holds.
 
 **What you wire, and where it lives:** the five stack slots in `gates/chain.conf`; an eval
 suite for judged behaviour (§8) as an extra slot; release gates (§9) in the release lane. A
