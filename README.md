@@ -8,7 +8,7 @@
 
 **English** · [Tiếng Việt](README.vi.md)
 
-**A complete, battle-tested operating system for AI-driven software development.**
+**A spec-first operating kit for AI-driven software development, distilled from building Nexus.**
 Spec-first · executable gates · adversarial verification · one atom of work.
 
 > Like [GitHub Spec Kit](https://github.com/github/spec-kit) — but it doesn't stop at specs.

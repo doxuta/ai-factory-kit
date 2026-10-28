@@ -8,7 +8,7 @@
 
 [English](README.md) · **Tiếng Việt**
 
-**Bộ khung vận hành hoàn chỉnh cho phát triển phần mềm bằng AI — đã kiểm chứng qua production.**
+**Bộ khung vận hành spec-first cho phát triển phần mềm bằng AI, đúc kết từ quá trình xây Nexus.**
 Spec trước code · cổng kiểm chạy được · review đối kháng · một đơn vị công việc duy nhất.
 
 > Giống [GitHub Spec Kit](https://github.com/github/spec-kit) — nhưng không dừng lại ở spec.
