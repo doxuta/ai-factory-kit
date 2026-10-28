@@ -315,6 +315,47 @@ rate over a recorded corpus, not a pass/fail row, was the number that mattered.
 - **Input the model reads is untrusted.** For these products prompt injection is the injection
   class, and an agent's tool permissions are an authorization boundary — review them as such.
 
+### Testing code that calls a model: record and replay
+
+The deterministic part (above) still calls a model. Its tests run against recorded responses
+(cassettes) so they are fast, free and repeatable. Recording is where a real defect came from:
+a replay key too narrow returned one user's recorded answer to another user's call, with HTTP
+200 and a green suite ([write-up](https://github.com/doxuta/nexus/blob/main/docs/writeup/turning-the-lights-back-on.md#4-lights-on),
+the "recorded-response replay that crossed users" in the [README](../README.md) Proof table).
+Four ways a replay layer lies, each with its guard:
+
+- **A silent live run.** The mode (`replay`, `record`, `live`) is one setting read at boot, and
+  an unset or unknown value means `replay`. In `replay`, a call with no cassette fails; it never
+  falls through to the provider. Keep provider keys out of CI, so a fall-through there shows up
+  as an auth error, not as a passing test that spent money. Example: `LLM_MODE=` (empty) → replay;
+  `LLM_MODE=lve` → refuse to start.
+- **A stale cassette.** When the request no longer matches what was recorded, the test fails
+  and prints the command that re-records that one cassette. It never serves the nearest match.
+- **A fingerprint too narrow.** The replay key hashes everything that can change the answer:
+  model id, system prompt, every message (user messages included, not only the last), the
+  offered tools and their schemas, and sampling settings. It leaves out what changes on every
+  run: request and trace ids, timestamps, idempotency keys. Test it both ways: two requests that
+  differ only in the user message, or only in one offered tool, get different keys; two that
+  differ only in a request id get the same key.
+- **A usage canary that cries wolf.** Token and cost alerts read zero or recorded usage under
+  replay. Either they skip in `replay` mode or they read the recorded usage; they never page on
+  numbers from a run that called nothing.
+
+Two outcomes the recorder must keep, or replay reads differently from live:
+
+- **A refusal is an outcome, not an empty success.** It arrives in more than one shape (a
+  finish reason such as `content_filter`, a `refusal` field on the message, a top-level stop
+  reason); read all of them. Store each turn's outcome — `ok`, `max_steps`, `refused` — so a
+  reopened session shows what the live one showed. Leave a refused turn out of the history the
+  next turn sends, or the next request carries two user messages in a row. Example: a declined
+  turn renders as "the model declined", never as a blank reply.
+- **A stream folds back into the same response object** the recorder and the replay read:
+  text joined, tool-call arguments joined by index, the last usage kept. A streamed tool call
+  with no arguments reads as `{}`, not `""`, or the provider rejects the next request that
+  echoes it. A cut stream, an error event or a chunk that is not JSON is an error (502 at an
+  HTTP edge); a stall is a timeout (504). Neither is a partial success. Usage is only complete
+  when the request asked for usage in the stream.
+
 ## 9. Release gates
 
 The chain says a commit may land. Nothing in it says a release may ship. In the spec lifecycle,

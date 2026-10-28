@@ -18,10 +18,10 @@ blocked nothing (readiness audit F2).
 
 ## Part A — How the maintainer keeps the kit current
 
-This kit is distilled from a **living production factory** (the Nexus platform, a private
-repository). When the factory's harness improves, the improvement flows here on the
-maintainer's daily-ship routine, not "when someone remembers". Steps 1–2 read that private
-repository; they are described so you can judge the process, not for you to run.
+This kit is distilled from a **living production factory**, the Nexus platform
+([`doxuta/nexus`](https://github.com/doxuta/nexus), public). When the factory's harness
+improves, the improvement flows here on the maintainer's daily-ship routine, not "when someone
+remembers". Steps 1–2 read that repository; they are described so you can judge the process.
 
 ### The factory leg
 

@@ -3,6 +3,32 @@
 All kit updates land here via the [daily-ship sync](sync/DAILY-SYNC.md) — one entry per sync,
 newest first.
 
+## 2026-10-28 — v1.5.1 (testing code that calls a model: record and replay)
+
+A doctrine patch to `gates/GATES.md` §8, from the source factory ([`doxuta/nexus`](https://github.com/doxuta/nexus)):
+the defect in the README Proof table where a recorded-response replay crossed users (fixed there
+2026-10-16), and two rules from 2026-10-27 on refusals and streamed responses. The kit cited the
+defect but taught nothing that prevents it. No template, script or hook changes.
+
+- **New §8 subsection "Testing code that calls a model: record and replay"**, four failure
+  modes with a guard each: a silent live run (one mode setting read at boot, unset means
+  `replay`, a miss fails instead of calling the provider), a stale cassette (fail and print the
+  re-record command, never serve the nearest match), a fingerprint too narrow (hash model,
+  system prompt, every message, offered tools and sampling settings; leave out request ids and
+  timestamps; test both directions), a usage canary that alarms under replay.
+- **Refusals are an outcome**: read every shape a provider uses, store `ok` / `max_steps` /
+  `refused` per turn, keep a refused turn out of the next request's history.
+- **Streams fold into the same response object** the recorder reads; a tool call with no
+  arguments is `{}`; a cut stream is an error and a stall a timeout, never a partial success.
+- `sync/DAILY-SYNC.md` no longer calls the source factory private; it is public.
+- Factory commits absorbed: e247f35, b85bac4 (2026-10-16, the replay key), 59b2f94
+  (2026-10-21), be98092, b7e6a36 (2026-10-27, refusals and streams).
+- Files: `gates/GATES.md`, `sync/DAILY-SYNC.md`, `VERSION`, the version lines in `README.md`,
+  `README.vi.md`, `AI-ONBOARDING.md`, `constitution/constitution-template.md`.
+
+Adopters — action required: none. If your product calls a model, check your replay key against
+the fingerprint rule; that check is the one that would have caught the crossed-user replay.
+
 ## 2026-10-23 — v1.5.0 (the orphan-endpoint gate stops counting comments and mid-URL matches)
 
 A gate fix, from a false green in the source factory on 2026-10-22: its orphan gate counted a
