@@ -14,7 +14,7 @@ text is given once, after the table.
 
 | Upstream | Copyright line, as its LICENSE states it | Checked at | Adapted into this kit |
 |---|---|---|---|
-| [github/spec-kit](https://github.com/github/spec-kit) | Copyright GitHub, Inc. | tag `v1.2.1` (`0d1be13`) — the two templates and the LICENSE are byte-identical at tags `v1.0.12` (`e77daa9`) and `v1.1.0` (`f1d3a4f`) and at `8d3f64c` | [`speckit/overrides/spec-template.md`](speckit/overrides/spec-template.md) and [`speckit/overrides/tasks-template.md`](speckit/overrides/tasks-template.md), adapted from the specify-cli 1.0.12 templates of the same names (byte-identical in 1.1.0 and 1.2.1); the structure of [`constitution/constitution-template.md`](constitution/constitution-template.md) (the `[PROJECT_NAME]` placeholder convention, Core Principles, Governance and the Version / Ratified / Last Amended line) |
+| [github/spec-kit](https://github.com/github/spec-kit) | Copyright GitHub, Inc. | tag `v1.2.5` (`79b6a2a`) — the two templates and the LICENSE are byte-identical at tags `v1.0.12` (`e77daa9`), `v1.1.0` (`f1d3a4f`) and `v1.2.1` (`0d1be13`) and at `8d3f64c` | [`speckit/overrides/spec-template.md`](speckit/overrides/spec-template.md) and [`speckit/overrides/tasks-template.md`](speckit/overrides/tasks-template.md), adapted from the specify-cli 1.0.12 templates of the same names (byte-identical in 1.1.0, 1.2.1 and 1.2.5); the structure of [`constitution/constitution-template.md`](constitution/constitution-template.md) (the `[PROJECT_NAME]` placeholder convention, Core Principles, Governance and the Version / Ratified / Last Amended line) |
 | [obra/superpowers](https://github.com/obra/superpowers) | Copyright (c) 2025 Jesse Vincent | `8ca22db` | [`harness/skills/spec-first/SKILL.md`](harness/skills/spec-first/SKILL.md) (from its brainstorming skill); [`harness/skills/plan-and-tdd/SKILL.md`](harness/skills/plan-and-tdd/SKILL.md) (from writing-plans and test-driven-development) |
 | [juliusbrussee/caveman](https://github.com/juliusbrussee/caveman) | Copyright (c) 2026 Julius Brussee | `2fd153c` | [`harness/skills/caveman/SKILL.md`](harness/skills/caveman/SKILL.md), from its `skills/` directory |
 | [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail) | Copyright (c) 2026 DietrichGebert | `e3ba2aa` | [`harness/skills/ponytail/SKILL.md`](harness/skills/ponytail/SKILL.md) |
@@ -29,7 +29,7 @@ here comes from a BSL directory.
 **Not code, not listed above.** The kit writes its skills in the
 [agentskills.io](https://agentskills.io) format and documents Spec Kit's commands in
 [`model/SPEC-FLOW.md`](model/SPEC-FLOW.md). Neither copies text from those projects. The Spec
-Kit CLI itself is installed by the adopter (`uv tool install specify-cli==1.2.1`) and is not
+Kit CLI itself is installed by the adopter (`uv tool install specify-cli==1.2.5`) and is not
 redistributed here.
 
 When you adapt something new: add its row here in the same commit, with the copyright line

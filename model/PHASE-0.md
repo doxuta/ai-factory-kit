@@ -36,7 +36,7 @@ installed, and `./gates/run-chain.sh` green. From then on every feature follows
 | python3 ≥ 3.8 | `adopt.py`, the spec gates, `metrics.py`; standard library only | `python3 --version` |
 | bash (3.2 is enough) | the gate scripts and the guard's shim; on Windows, Git Bash | `bash --version` |
 | uv | installs Spec Kit | `uv --version` |
-| Python ≥ 3.11, for Spec Kit only | specify-cli 1.2.1 declares `Requires-Python >=3.11` | if uv picks an older one: `uv python install 3.11`, then add `--python 3.11` to the install below |
+| Python ≥ 3.11, for Spec Kit only | specify-cli 1.2.5 declares `Requires-Python >=3.11` | if uv picks an older one: `uv python install 3.11`, then add `--python 3.11` to the install below |
 | Claude Code | the harness (`.claude/`) and the careful guard target it | `claude --version` |
 | a git host with CI (optional until feature 001) | the remote (§9) and the CI half of the chain; the kit ships a GitHub Actions job | — |
 
@@ -65,14 +65,14 @@ git add .gitmodules factory
 python3 factory/bin/adopt.py --profile <profile>     # profiles: ARCHETYPES.md; default: full
 
 # 4. AI: Spec Kit, pinned to the version this kit release was tested with
-uv tool install specify-cli==1.2.1
+uv tool install specify-cli==1.2.5
 specify init --here --force --non-interactive --integration claude
 #   add --ignore-agent-tools if the claude CLI is not on PATH
 ```
 
 5. **AI**: confirm what step 4 left alone — `python3 factory/bin/adopt.py --check` exits 0.
    Checked with specify-cli 1.1.0 after `adopt.py` (the constitution and the overrides again with
-   1.2.1, 2026-10-17): `specify init --here --force` kept
+   1.2.1, 2026-10-17, and 1.2.5, 2026-10-29): `specify init --here --force` kept
    `.specify/memory/constitution.md`, `.specify/memory/vision.md` and
    `.specify/templates/overrides/`, and `resolve-template.sh constitution-template` then
    returned the kit's template. Without `--force` it stops in a non-empty directory, and an

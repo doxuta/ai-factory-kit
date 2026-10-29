@@ -8,16 +8,16 @@
 
 # Spec Kit template overrides
 
-**Tested with specify-cli 1.2.1** (github/spec-kit tag `v1.2.1`, on PyPI). Every claim below was
-checked against 1.0.12 on 2026-09-29, and the scripted ones again against 1.1.0 on 2026-10-07
-and 1.2.1 on 2026-10-17
-([Verified on 2026-10-17](#verified-on-2026-10-17-specify-cli-121)); the two live
+**Tested with specify-cli 1.2.5** (github/spec-kit tag `v1.2.5`, on PyPI). Every claim below was
+checked against 1.0.12 on 2026-09-29, and the scripted ones again against 1.1.0 on 2026-10-07,
+1.2.1 on 2026-10-17 ([Verified on 2026-10-17](#verified-on-2026-10-17-specify-cli-121)) and 1.2.5
+on 2026-10-29 ([Verified on 2026-10-29](#verified-on-2026-10-29-specify-cli-125)); the two live
 `claude -p` runs were not repeated. For another version, check them again
 ([Keeping them current](#keeping-them-current)).
 
 ## Why the kit overrides Spec Kit's templates
 
-Spec Kit 1.0.12 through 1.2.1 find each template through a stack, highest first
+Spec Kit 1.0.12 through 1.2.5 find each template through a stack, highest first
 (`.specify/scripts/bash/common.sh`, `resolve_template`):
 
 1. `.specify/templates/overrides/<name>.md` — the project's overrides
@@ -46,7 +46,7 @@ not tried.
 
 ## What each override changes
 
-| Installed as | Kit source | Changes from Spec Kit 1.0.12 (the same text in 1.1.0 and 1.2.1) | Why |
+| Installed as | Kit source | Changes from Spec Kit 1.0.12 (the same text in 1.1.0, 1.2.1 and 1.2.5) | Why |
 |---|---|---|---|
 | `.specify/templates/overrides/spec-template.md` | [`overrides/spec-template.md`](overrides/spec-template.md) | Frontmatter at line 1: `feature`, `status: draft`, `epic`, `owner`, `approved_by`, `approved_on`, as placeholders. The body line `**Status**: Draft` is removed. One `**Tests**: required …` line under "User Scenarios & Testing". Everything else is upstream text. | The gates read the frontmatter ([SPEC-FLOW](../model/SPEC-FLOW.md)); one status field, not two; `/speckit-tasks` writes test tasks when "explicitly requested in the feature specification", and that line is the request. |
 | `.specify/templates/overrides/tasks-template.md` | [`overrides/tasks-template.md`](overrides/tasks-template.md) | Tests REQUIRED instead of optional: the "Tests" line, the three "Tests for User Story N" headings, the unit-test task in the last phase, the ordering rule and the parallel example. `(test-exempt: <reason>)` for a task with no testable behaviour. The last phase's "Run quickstart.md validation" becomes the acceptance run by someone other than the builder, recorded in `acceptance.md`. Notes add tick-in-the-landing-commit and `(deferred → <where>)`. | Constitution Article VI (tests first, independent acceptance); the gates' task format ([`check-plan-sync.sh`](../gates/check-plan-sync.sh)). |
@@ -191,6 +191,29 @@ Two behaviour changes, neither breaking for the kit:
 - **`/speckit-taskstoissues` is deprecated** in favour of the bundled `github` extension
   (`specify extension add github`, then `/speckit-github-taskstoissues`); the old command still
   works and prints the notice first.
+
+## Verified on 2026-10-29 (specify-cli 1.2.5)
+
+Upstream diff `v1.2.1...v1.2.5` (266 files, four releases) touches no file under `templates/`
+or `scripts/bash/`, nor the LICENSE: the blobs of `templates/spec-template.md`,
+`templates/tasks-template.md` and `LICENSE` are the same at both tags. The changes are in the
+PowerShell and Python script variants, the CLI and the docs. Scratch git repositories, 1.2.1
+and 1.2.5 side by side, each installed in isolation under its own `UV_TOOL_DIR`, kit 1.5.2
+adopted with `--profile cli`:
+
+| Check | Result |
+|---|---|
+| `specify init --here --force --non-interactive --integration claude`, 1.2.1 vs 1.2.5 | `.claude/` byte-identical; in `.specify/` only five JSON files differ (`init-options.json`, `integration.json`, the two integration manifests, `workflow-registry.json`), each in a version stamp or an `installed_at` time |
+| `adopt.py --profile cli`, then init, then `adopt.py --check` | exit 0, 0, 0; init changed no file `adopt.py` had written; "37 file(s) match the manifest" |
+| `resolve-template.sh spec-template`, `tasks-template`, `constitution-template`; `specify preset resolve` | byte-identical to the overrides; `(top layer from: project override)`; `plan-template` from core |
+| `create-new-feature.sh --json --short-name monthly-report "…"`, `setup-plan.sh --json`, `check-prerequisites.sh --json` (and `--paths-only`), `setup-tasks.sh --json` | exit 0 each; the spec starts with the override's frontmatter; `TASKS_TEMPLATE` is the override |
+| `create-new-feature.sh --json "Quản lý khách hàng tiềm năng"` under `LC_ALL=en_US.UTF-8` | `specs/002-quản-lý-khách`, as in 1.2.1 |
+| The frontmatter as copied, through PyYAML `safe_load` | parses; `approved_by` and `approved_on` are null |
+| `check-plan-sync.sh` on the unfilled copies | exit 1: `feature:` and `epic:` are placeholders |
+| … after filling `feature`, `epic`, `owner` in both specs | `check-plan-sync.sh`, `check-spec-approval.sh`, `check-spec-numbers.sh` exit 0, 2 specs |
+| `specify init --here --force` again over those specs, then a third feature | the next spec is `003-third`; `check-spec-numbers.sh` "3 sequential"; `adopt.py --check` still 37 files; both overrides still resolve |
+
+No behaviour change the kit depends on. The live `claude -p` runs were not repeated.
 
 ## Keeping them current
 

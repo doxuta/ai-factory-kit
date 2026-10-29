@@ -7,8 +7,8 @@
 # The Level-1 Spec Flow
 
 Built on [GitHub Spec Kit](https://github.com/github/spec-kit). Everything this file says about
-Spec Kit was checked against **specify-cli 1.2.1**, the version kit 1.4.2 was tested with;
-install that version (`uv tool install specify-cli==1.2.1`, then
+Spec Kit was checked against **specify-cli 1.2.1** and its scripted parts again against 1.2.5, the version
+kit 1.5.2 was tested with; install that version (`uv tool install specify-cli==1.2.5`, then
 `specify init --here --force --non-interactive --integration claude` — the full order is in
 [PHASE-0](PHASE-0.md) §2). Commands are written in Claude Code's form, `/speckit-<name>`; other
 hosts spell them differently ([HARNESS §7](../harness/HARNESS.md)).

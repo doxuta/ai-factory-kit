@@ -188,7 +188,7 @@ gates pass: [GATES §7](../gates/GATES.md), "Upgrading from 1.3.x".
 
 ### Upgrade Spec Kit
 
-Stay on the version your kit release was tested with — specify-cli 1.2.1 for kit 1.4.2; the
+Stay on the version your kit release was tested with — specify-cli 1.2.5 for kit 1.5.2; the
 `Next:` list `adopt.py` prints names it — and move when a kit release moves it. Moving ahead of
 the kit is your call; the steps are the same.
 

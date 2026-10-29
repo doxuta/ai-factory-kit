@@ -3,6 +3,31 @@
 All kit updates land here via the [daily-ship sync](sync/DAILY-SYNC.md) — one entry per sync,
 newest first.
 
+## 2026-10-29 — v1.5.2 (Spec Kit 1.2.5)
+
+A patch release: the tested Spec Kit moves from 1.2.1 to **1.2.5** (released 2026-10-28, on
+PyPI), and the install line becomes `uv tool install specify-cli==1.2.5`. Upstream
+`v1.2.1...v1.2.5` (266 files) changes nothing under `templates/` or `scripts/bash/`, nor the
+LICENSE, so the overrides carry over unchanged.
+
+- Every scripted check in `speckit/README.md` re-run on 1.2.5 beside 1.2.1, kit 1.5.2 adopted
+  first: all green, the overrides resolve byte-identical, `adopt.py --check` "37 file(s) match
+  the manifest", and init output differs from 1.2.1 only in version stamps and install times.
+  New check: `specify init --here --force` over existing specs keeps the numbering (the next
+  feature is `003`). Results in
+  [Verified on 2026-10-29](speckit/README.md#verified-on-2026-10-29-specify-cli-125).
+- `bin/adopt.py` `TESTED_SPECKIT` is `1.2.5`, so its `Next:` list prints the new install line.
+- Files: `speckit/README.md`, `bin/adopt.py`, `THIRD_PARTY_NOTICES.md` (checked at tag `v1.2.5`),
+  `model/SPEC-FLOW.md`, `model/PHASE-0.md`, `sync/DAILY-SYNC.md`, `VERSION`, and the version
+  lines in `README.md`, `README.vi.md`, `AI-ONBOARDING.md`, `constitution/constitution-template.md`.
+- Not repeated: the two live `claude -p` runs (`/speckit-specify`, `/speckit-plan`,
+  `/speckit-tasks`) from 2026-09-29.
+
+Adopters — action required: none. Moving your project to Spec Kit 1.2.5 is optional (1.2.1
+still works with this kit); if you move, follow "Upgrade Spec Kit" in
+[DAILY-SYNC](sync/DAILY-SYNC.md). `adopt.py --upgrade` replaces the constitution template, whose
+only change is its version line.
+
 ## 2026-10-28 — v1.5.1 (testing code that calls a model: record and replay)
 
 A doctrine patch to `gates/GATES.md` §8, from the source factory ([`doxuta/nexus`](https://github.com/doxuta/nexus)):
