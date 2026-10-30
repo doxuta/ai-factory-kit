@@ -3,6 +3,32 @@
 All kit updates land here via the [daily-ship sync](sync/DAILY-SYNC.md) — one entry per sync,
 newest first.
 
+## 2026-10-30 — v1.5.3 (evals are gates)
+
+A patch release: the kit now teaches how to trust an eval of agent work, and says plainly that
+its own harness is not yet measured that way.
+
+- [GATES §8](gates/GATES.md#evals-are-gates-grade-the-grader-before-the-score) gains "Evals are
+  gates: grade the grader before the score": every case's grader is run with no model on four
+  trees (do-nothing, gaming, wrong but plausible: all fail; a reference: passes) and kept as a
+  selftest; graders load from the base commit, never the agent's workspace; each hidden test
+  prints its own pass and the grader counts them; a harness A/B also counts agent dispatches,
+  skill invocations and gate runs, because a delta near zero with zero invocations means the
+  harness was never reached. Source: the public
+  [doxuta/nexus#51](https://github.com/doxuta/nexus/pull/51) (6cc98e3): WITH 8/8, WITHOUT 7/8,
+  no with-arm run used the harness, and four verifier rounds grew the selftest from 16 to 31
+  cases.
+- [HARNESS](harness/HARNESS.md) gains "Measuring the harness itself": `claude plugin eval` with
+  and without the harness, graded by real commands, and what to count.
+- README and README.vi: "What still fails or is unmeasured" now says the kit's own harness has
+  no A/B yet; the Links row reads 470.
+- Files: `gates/GATES.md`, `harness/HARNESS.md`, `README.md`, `README.vi.md`, `VERSION`, and the
+  version lines in `AI-ONBOARDING.md`, `constitution/constitution-template.md`,
+  `sync/DAILY-SYNC.md`, `model/SPEC-FLOW.md`.
+
+Adopters — action required: none. `adopt.py --upgrade` replaces the constitution template, whose
+only change is its version line.
+
 ## 2026-10-29 — v1.5.2 (Spec Kit 1.2.5)
 
 A patch release: the tested Spec Kit moves from 1.2.1 to **1.2.5** (released 2026-10-28, on

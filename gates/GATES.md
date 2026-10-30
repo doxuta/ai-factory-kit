@@ -356,6 +356,44 @@ Two outcomes the recorder must keep, or replay reads differently from live:
   HTTP edge); a stall is a timeout (504). Neither is a partial success. Usage is only complete
   when the request asked for usage in the stream.
 
+### Evals are gates: grade the grader before the score
+
+A grader that scores an agent's work is a gate, and §3's rule holds for it: watch it fail before
+you believe it passes. Before a score means anything, run every case's grader, with no model,
+on four trees:
+
+- **do-nothing** — the untouched starting tree. Must fail.
+- **gaming** — text that looks like the fix and is not: a comment naming the function, a
+  hand-written gate log. Must fail.
+- **wrong but plausible** — builds, reads right, misses the point: a query without the tenant
+  filter, the oldest row instead of the newest. Must fail.
+- **reference** — a correct change written by hand. Must pass.
+
+Keep the four as a selftest that runs without a model, in CI. Every hole a reviewer finds in the
+grader becomes one more variant, so it stays closed. Two wiring rules keep the agent from
+grading itself:
+
+- **The grader loads from the base commit.** Hidden tests, gate scripts and anything else the
+  grader runs come from the commit the task started at, never from the workspace the agent
+  could edit.
+- **Each hidden test prints its own pass, and the grader counts them.** Run them by name with
+  verbose output (for Go, `-run '^TestHidden_' -v`) and expect one `--- PASS` per test name.
+  A `TestMain` that skips every test exits 0; a count of zero passes does not.
+
+**A/B a harness, and count whether it ran.** Running the same cases with and without a harness
+(agents, skills, hooks loaded as a plugin) measures the harness only if the with-arm used it.
+Per run, also count agent dispatches, skill invocations and gate runs. A delta near zero with
+zero invocations says the harness is not wired into the work, not that it is useless.
+
+Measured in the public codebase this kit learned from
+([doxuta/nexus#51](https://github.com/doxuta/nexus/pull/51)): four small change tasks, two runs
+per arm, `claude plugin eval`, $12.80. The real-command regrade gave WITH 8/8, WITHOUT 7/8, and no
+with-arm run dispatched the harness's agents or used its skills. Four fresh-context verifier
+rounds each found the regrade passing wrong work (two comment lines and a fake gate log; a query
+without the tenant; a `TestMain` that skipped the hidden tests; the oldest note instead of the
+newest), and the no-model selftest grew from 16 to 31 cases to close them. The score did not
+move; what changed is that it can now be believed.
+
 ## 9. Release gates
 
 The chain says a commit may land. Nothing in it says a release may ship. In the spec lifecycle,

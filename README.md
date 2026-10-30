@@ -29,7 +29,7 @@ porting by hand. What differs per host and platform: [HARNESS §7](harness/HARNE
 (the system bash 3.2 and BSD tools), as checked out and detached — the first macOS run failed
 on a test fixture, fixed before release; headless Claude Code sessions on Linux, including the
 careful guard's live probes. Nothing has run on WSL or on a Windows host.
-Version 1.5.2 ([VERSION](VERSION)), tested with Spec Kit (specify-cli) 1.2.5.
+Version 1.5.3 ([VERSION](VERSION)), tested with Spec Kit (specify-cli) 1.2.5.
 
 ## Why this exists
 
@@ -57,9 +57,9 @@ holds its method.
 | A test that graded its environment, not the code ([DAILY-SYNC](sync/DAILY-SYNC.md)) | v1.3.2's guard test on a feature branch | failed 141 of 142 on every feature branch; the table is now hermetic and CI runs it on a detached `HEAD` |
 | Defects a fresh-context verifier caught on a real codebase ([write-up](https://github.com/doxuta/nexus/blob/main/docs/writeup/turning-the-lights-back-on.md#4-lights-on)) | the first four feature PRs of a public codebase ([#15](https://github.com/doxuta/nexus/pull/15), [#16](https://github.com/doxuta/nexus/pull/16), [#20](https://github.com/doxuta/nexus/pull/20), [#21](https://github.com/doxuta/nexus/pull/21)), each refuted by a verifier with no edit tools, the pattern of [`tech-lead-review`](harness/agents/tech-lead-review.md) | 0 of 4 passed the first round; caught a privilege escalation through a draft/live name collision, a fix that lost grants on rollback, an agent endpoint mounted outside the middleware that read a stale model, a demo script that contradicted its own prompt while green in CI, and a recorded-response replay that crossed users |
 | Spec Kit compatibility ([Verified](speckit/README.md#verified-on-2026-10-29-specify-cli-125)) | specify-cli 1.2.5 vs 1.2.1 in scratch repositories | every scripted check green; the overrides resolve byte-identical |
-| Links | every relative link in the kit (`python3 bin/check-links.py .`) | 462 links, 0 dead |
+| Links | every relative link in the kit (`python3 bin/check-links.py .`) | 470 links, 0 dead |
 
-**What still fails or is unmeasured.** The two live `claude -p` runs of the Spec Kit commands
+**What still fails or is unmeasured.** The harness itself is unmeasured: no `claude plugin eval` run yet compares the same tasks with and without the kit's agents and skills ([method](gates/GATES.md#evals-are-gates-grade-the-grader-before-the-score)). The two live `claude -p` runs of the Spec Kit commands
 were done once, on 1.0.12, and not repeated; a model can still drift from a template, which is
 why the gates re-check on every commit. The guard's matcher is a string inspector: it asks or
 denies on what a command says, not on what a script it runs will do. The guard's 7 s
@@ -112,7 +112,7 @@ Spec Kit, which uv installs, needs Python 3.11 or later.
 ```bash
 mkdir my-product && cd my-product && git init -b main     # or cd into your existing repository
 git submodule add https://github.com/doxuta/ai-factory-kit factory
-git -C factory checkout v1.5.2 && git add .gitmodules factory
+git -C factory checkout v1.5.3 && git add .gitmodules factory
 python3 factory/bin/adopt.py --profile full               # or backend, frontend, cli, library, …
 uv tool install specify-cli==1.2.5
 specify init --here --force --non-interactive --integration claude

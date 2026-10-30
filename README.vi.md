@@ -30,7 +30,7 @@ macOS (bash 3.2 có sẵn của hệ thống và bộ công cụ BSD), cả khi 
 lần chạy macOS đầu tiên hỏng ở một fixture test, đã sửa trước khi phát hành; các phiên Claude Code
 headless trên Linux, gồm cả hai phép thử trực tiếp của guard `careful`. Chưa có gì chạy trên WSL
 hay trên máy Windows.
-Phiên bản 1.5.2 ([VERSION](VERSION)), kiểm thử với Spec Kit (specify-cli) 1.2.5.
+Phiên bản 1.5.3 ([VERSION](VERSION)), kiểm thử với Spec Kit (specify-cli) 1.2.5.
 
 ---
 
@@ -60,9 +60,9 @@ ghi cách đo (tiếng Anh).
 | Một test chấm môi trường chứ không chấm code ([DAILY-SYNC](sync/DAILY-SYNC.md)) | test guard của v1.3.2 trên nhánh feature | đỏ 141/142 trên mọi nhánh feature; bảng giờ tự dựng repo riêng và CI chạy cả trên `HEAD` tách rời |
 | Lỗi mà verifier context mới bắt được trên một codebase thật ([bài viết](https://github.com/doxuta/nexus/blob/main/docs/writeup/turning-the-lights-back-on.md#4-lights-on)) | bốn PR tính năng đầu tiên của một codebase công khai ([#15](https://github.com/doxuta/nexus/pull/15), [#16](https://github.com/doxuta/nexus/pull/16), [#20](https://github.com/doxuta/nexus/pull/20), [#21](https://github.com/doxuta/nexus/pull/21)), mỗi PR bị một verifier không có công cụ sửa file cố bác bỏ, đúng mẫu [`tech-lead-review`](harness/agents/tech-lead-review.md) | 0/4 qua vòng đầu; bắt được một leo thang quyền qua trùng tên bảng nháp với bảng đang chạy, một bản sửa làm mất quyền khi rollback, một endpoint cho agent gắn ngoài middleware nên đọc model cũ, một script demo trái với chính prompt của nó mà CI vẫn xanh, và một replay phản hồi đã ghi trả nhầm sang người dùng khác |
 | Tương thích Spec Kit ([Verified](speckit/README.md#verified-on-2026-10-29-specify-cli-125)) | specify-cli 1.2.5 so với 1.2.1 trong repo nháp | mọi kiểm tra có script đều xanh; override resolve giống từng byte |
-| Link | mọi link tương đối trong kit (`python3 bin/check-links.py .`) | 462 link, 0 chết |
+| Link | mọi link tương đối trong kit (`python3 bin/check-links.py .`) | 470 link, 0 chết |
 
-**Cái gì vẫn chưa ổn hoặc chưa đo.** Hai lần chạy thật `claude -p` các lệnh Spec Kit chỉ làm một
+**Cái gì vẫn chưa ổn hoặc chưa đo.** Bản thân harness chưa được đo: chưa có lần chạy `claude plugin eval` nào so cùng một nhóm việc khi có và khi không có agent và skill của kit ([cách đo](gates/GATES.md#evals-are-gates-grade-the-grader-before-the-score)). Hai lần chạy thật `claude -p` các lệnh Spec Kit chỉ làm một
 lần, trên 1.0.12, chưa chạy lại; model vẫn có thể lệch khỏi template, nên gate kiểm lại ở mỗi
 commit. Guard là bộ đọc chuỗi: nó hỏi hoặc chặn theo nội dung lệnh, không theo việc một script
 được gọi sẽ làm. Timeout 7 giây của guard cần SIGALRM, Python trên Windows không có. Số chặn nhầm
@@ -115,7 +115,7 @@ Riêng Spec Kit (cài bằng uv) cần Python từ 3.11 trở lên.
 ```bash
 mkdir san-pham && cd san-pham && git init -b main         # hoặc cd vào repo sẵn có của bạn
 git submodule add https://github.com/doxuta/ai-factory-kit factory
-git -C factory checkout v1.5.2 && git add .gitmodules factory
+git -C factory checkout v1.5.3 && git add .gitmodules factory
 python3 factory/bin/adopt.py --profile full               # hoặc backend, frontend, cli, library, …
 uv tool install specify-cli==1.2.5
 specify init --here --force --non-interactive --integration claude

@@ -149,6 +149,15 @@ audited**):
 | Edit config mid-session and assume agents see it | Fresh session; decoy-string check |
 | Assume a file loaded because it exists | Frontmatter at line 1; in a fresh session check the host lists it — `/context` (memory files), `/skills`, and ask which subagents are available |
 
+**Measuring the harness itself.** Whether these agents and skills make the work better is a
+claim like any other. To test it, load the harness as a plugin and run the same small tasks with
+`claude plugin eval`, once with the plugin and once without, graded by real commands (build,
+tests, the gates) rather than by the model. Count three things per run besides the score: agent
+dispatches, skill invocations and gate runs. "No difference" with zero invocations means the
+harness was never reached. Grade the grader first: the four-tree rule and the invocation count
+are in [GATES §8](../gates/GATES.md#evals-are-gates-grade-the-grader-before-the-score). This kit
+has not run that A/B on its own harness yet; the README's Proof block says so.
+
 ## 7) Hosts and platforms
 
 **The supported envelope.**

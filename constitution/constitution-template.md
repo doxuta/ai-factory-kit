@@ -152,7 +152,7 @@ from 2–3 options the owner approves (model/PHASE-0.md); lines that feature 001
 skeleton, settles may read "TBD — settled by specs/001-<name>" until then. -->
 - **Stack**: [LANGUAGE+VERSION · FRAMEWORK · STORAGE · RUNTIME/HOSTING]. Decided [YYYY-MM-DD]
   by [OWNER]; rationale: [WHY]; alternatives considered: [THE OTHER OPTIONS].
-- **Spec Kit**: specify-cli [VERSION — kit 1.5.2 was tested with 1.2.5], integration
+- **Spec Kit**: specify-cli [VERSION — kit 1.5.3 was tested with 1.2.5], integration
   [claude | …]; spec numbering [sequential NNN | timestamp YYYYMMDD-HHMMSS — timestamp when more
   than one branch creates specs at once]; extensions adopted: [NONE | names].
 - **Models** (LLM/ML products; otherwise N/A): [EXACT MODEL IDS — a pinned version, never an
