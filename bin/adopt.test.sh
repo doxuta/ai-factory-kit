@@ -630,6 +630,39 @@ rc 0 "ascii console, non-ASCII kit and project paths"
 has "non-ASCII path printed" "khung-d"; hasnt "no encoding crash" "UnicodeEncodeError"
 has "AGENTS.md" "@../AGENTS.md"
 
+echo "== a timed-out probe leaves no orphan (2026-09-10: 18 days at 98% CPU) =="
+# subprocess.run's timeout kills the shell, not the sleeper inside its $(...). --check only runs
+# a trusted run-chain.sh, so this calls chain_conf_problem directly with a 1 s timeout.
+p="$TMP/orphan"; mkdir -p "$p/gates"
+cat > "$p/gates/run-chain.sh" <<EOF
+x=\$(sh -c 'echo \$\$ > "\$1"; exec sleep 20' sh "$p/pid")
+exit 2
+EOF
+printf 'format: TODO\n' > "$p/gates/chain.conf"
+"$PY" - "$KIT/bin/adopt.py" "$p" >"$OUT" 2>&1 <<'EOF'
+import importlib.util, sys, time
+spec = importlib.util.spec_from_file_location("adopt", sys.argv[1])
+adopt = importlib.util.module_from_spec(spec); spec.loader.exec_module(adopt)
+adopt.CHAIN_LIST_TIMEOUT = 1
+t0 = time.time()
+print("result=%r took=%.1fs" % (adopt.chain_conf_problem(sys.argv[2]), time.time() - t0))
+EOF
+has "a timeout is not a --check problem" "result=None took=[1-4]\."
+pid="$(cat "$p/pid" 2>/dev/null)"
+if [ -n "$pid" ]; then
+  pass
+  # A SIGKILLed orphan is a zombie until init reaps it, and kill -0 still succeeds on a zombie.
+  for _ in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
+    st="$(ps -o stat= -p "$pid" 2>/dev/null)"; case "$st" in ""|Z*) break ;; esac; sleep 0.1
+  done
+  case "$st" in
+    ""|Z*) pass ;;
+    *) fail "the probe's grandchild $pid survived the timeout"; kill -9 "$pid" 2>/dev/null ;;
+  esac
+else
+  fail "the fixture's grandchild never wrote its pid" "$OUT"
+fi
+
 echo "== check-links.py =="
 p="$TMP/cl"; mkdir -p "$p/d"; echo "# a" > "$p/d/a.md"
 printf '[ok](d/a.md) [dead](d/b.md)\n`[code](x.md)`\n```\n[fence](y.md)\n```\n' > "$p/x.md"

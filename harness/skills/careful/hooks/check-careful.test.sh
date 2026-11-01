@@ -838,8 +838,23 @@ rec deny  Bash raw '{"tool_name":"NotebookEdit","tool_input":{"notebook_path":"/
 # ---- run -------------------------------------------------------------------------------------
 CAREFUL_CASES="$CASES" CAREFUL_WORK="$WORK" CAREFUL_HOOKDIR="$HOOKDIR" \
 CAREFUL_FAKE_HOME="$FAKE_HOME" CAREFUL_FAKE_PROJECT="$FAKE_PROJECT" python3 - <<'PY'
-import json, os, subprocess, sys, time
+import json, os, signal, subprocess, sys, time
 from concurrent.futures import ThreadPoolExecutor
+
+def run_group(argv, timeout, input=None, **kw):
+    """subprocess.run, but a timeout kills the shim's whole process group: subprocess.run kills
+    only bash, and the python inside its $(...) ran on (2026-09-10: 18 days at 98% CPU)."""
+    proc = subprocess.Popen(argv, stdin=subprocess.PIPE, start_new_session=(os.name != "nt"), **kw)
+    try:
+        out, err = proc.communicate(input, timeout=timeout)
+    except BaseException:
+        try:
+            os.killpg(proc.pid, signal.SIGKILL)
+        except (AttributeError, OSError):
+            proc.kill()
+        proc.wait()
+        raise
+    return subprocess.CompletedProcess(argv, proc.returncode, out, err)
 
 work, hookdir = os.environ["CAREFUL_WORK"], os.environ["CAREFUL_HOOKDIR"]
 raw = open(os.environ["CAREFUL_CASES"], "rb").read().decode("utf-8")
@@ -880,8 +895,8 @@ def run(case):
     env = base_env(xenv)
     env["CLAUDE_PROJECT_DIR"] = proj
     shim = os.path.join(work, hs, ".claude", "hooks", "check-careful.sh")
-    p = subprocess.run(["bash", shim], input=payload.encode("utf-8"), cwd=cwd, env=env,
-                       stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=60)
+    p = run_group(["bash", shim], input=payload.encode("utf-8"), cwd=cwd, env=env,
+                  stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=60)
     got = envelope(p.stdout.decode("utf-8", "replace")) if p.returncode == 0 else "rc=%d" % p.returncode
     return got
 
@@ -918,8 +933,8 @@ slowest = 0.0
 for want, cmd in big:
     payload = json.dumps({"tool_name": "Bash", "tool_input": {"command": cmd}, "cwd": work})
     t0 = time.time()
-    p = subprocess.run(["bash", shim], input=payload.encode(), env=env, cwd=work,
-                       stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=60)
+    p = run_group(["bash", shim], input=payload.encode(), env=env, cwd=work,
+                  stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=60)
     dt = time.time() - t0
     slowest = max(slowest, dt)
     got = envelope(p.stdout.decode())
@@ -973,8 +988,8 @@ else:
         elif mutate:
             open(shim_path, "w").write(mutate)
         for c in cmds:
-            p = subprocess.run(["sh", "-c", c], input=payload, env=e, cwd=proj,
-                               stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=30)
+            p = run_group(["sh", "-c", c], input=payload, env=e, cwd=proj,
+                          stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=30)
             ok = p.returncode == want_rc and (want_rc == 0 and envelope(p.stdout.decode()) == "deny"
                                               or want_rc == 2 and b".claude/hooks/" in p.stderr)
             passed, failed = passed + ok, failed + (not ok)
@@ -985,8 +1000,8 @@ else:
 print("== shim without Python 3 on PATH: ask ==")
 e = base_env(); e["PATH"] = "/nonexistent"
 bash = next((b for b in ("/bin/bash", "/usr/bin/bash", "/usr/local/bin/bash") if os.path.exists(b)), "bash")
-p = subprocess.run([bash, shim], input=b'{"tool_name":"Bash","tool_input":{"command":"ls"}}',
-                   env=e, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=30)
+p = run_group([bash, shim], input=b'{"tool_name":"Bash","tool_input":{"command":"ls"}}',
+              env=e, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=30)
 ok = envelope(p.stdout.decode()) == "ask"
 passed, failed = passed + ok, failed + (not ok)
 if not ok:

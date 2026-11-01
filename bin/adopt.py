@@ -47,6 +47,7 @@ import importlib.util
 import json
 import os
 import re
+import signal
 import subprocess
 import sys
 
@@ -147,6 +148,9 @@ GITATTRIBUTES_SUPERSEDED = (
 IGNORED_NAMES = {"__pycache__", ".DS_Store", ".git"}
 IGNORED_SUFFIXES = (".pyc", NEW, ".orig", ".rej", ".swp")
 GUARD_MARK = "check-careful"  # identifies the careful hook's entries inside settings.json
+# Seconds before a probe of the adopter's scripts is killed (run_killing_group).
+CHAIN_LIST_TIMEOUT = 60
+GUARD_PROBE_TIMEOUT = 30
 # The host's settings (only --register-guard merges into settings.json) and Spec Kit's skills.
 NEVER_TOUCH = re.compile(r"^\.claude/(?:settings[^/]*\.json|skills/speckit-[^/]*(?:/.*)?)$")
 
@@ -1187,6 +1191,29 @@ def run_check(proj, kit, manifest, args):
     return 0
 
 
+def run_killing_group(argv, timeout, input=None, **kw):
+    """subprocess.run, except that a timeout kills the child's whole process group.
+
+    subprocess.run kills only the child. A shell that runs python3 inside $(...) leaves that
+    python running: on 2026-09-10 a guard-hook probe timed out that way and its python child ran
+    18 days at 98% CPU. Raises TimeoutExpired like subprocess.run. On Windows (no killpg) only
+    the child is killed."""
+    if input is not None:
+        kw["stdin"] = subprocess.PIPE
+    proc = subprocess.Popen(argv, start_new_session=(os.name != "nt"), **kw)
+    try:
+        out, err = proc.communicate(input, timeout=timeout)
+    except BaseException:
+        try:
+            os.killpg(proc.pid, signal.SIGKILL)
+        except (AttributeError, OSError):
+            proc.kill()
+        # wait, not communicate: a grandchild that left the group may still hold the pipes
+        proc.wait()
+        raise
+    return subprocess.CompletedProcess(argv, proc.returncode, out, err)
+
+
 def chain_conf_problem(proj):
     """None, or why gates/chain.conf is malformed, as run-chain.sh --list reads it (exit 2).
 
@@ -1198,8 +1225,9 @@ def chain_conf_problem(proj):
     if not (os.path.isfile(runner) and os.path.isfile(conf)):
         return None
     try:
-        r = subprocess.run(["bash", runner, "--list"], cwd=proj, stdin=subprocess.DEVNULL,
-                           stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=60)
+        r = run_killing_group(["bash", runner, "--list"], cwd=proj, stdin=subprocess.DEVNULL,
+                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                              timeout=CHAIN_LIST_TIMEOUT)
     except (OSError, subprocess.TimeoutExpired):
         return None  # no bash here (native Windows without Git Bash): nothing to ask
     if r.returncode != 2:
@@ -1280,9 +1308,10 @@ def register_guard(proj, kit, rep):
             if not re.search(r"(?:^|\|)%s(?:\||$)" % tool, matcher or ""):
                 continue
             try:
-                r = subprocess.run([shell, "-c", command], cwd=proj, env=env,
-                                   input=payload, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                   universal_newlines=True, timeout=30)
+                r = run_killing_group([shell, "-c", command], cwd=proj, env=env,
+                                      input=payload, stdout=subprocess.PIPE,
+                                      stderr=subprocess.PIPE, universal_newlines=True,
+                                      timeout=GUARD_PROBE_TIMEOUT)
             except OSError:
                 raise Fail("%s is not on PATH; the hook command needs it. Not registered." % shell)
             except subprocess.TimeoutExpired:

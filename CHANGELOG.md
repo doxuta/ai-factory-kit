@@ -3,6 +3,33 @@
 All kit updates land here via the [daily-ship sync](sync/DAILY-SYNC.md) — one entry per sync,
 newest first.
 
+## 2026-11-01 — v1.5.4 (a timeout kills the process group)
+
+A patch release: every place the kit runs a shell under a timeout now kills the shell's whole
+process group when the timeout fires, not just the shell. `subprocess.run(..., timeout=)` kills
+only its direct child, so a hook shim whose `$(... | python3 ...)` was still running left that
+python behind; on 2026-09-10 one such orphan ran 18 days at 98% CPU before anyone saw it.
+
+- `bin/adopt.py`: new `run_killing_group` (`Popen(start_new_session=True)`, `communicate`, on
+  timeout `os.killpg(pid, SIGKILL)` then `wait`; `kill()` where there is no `killpg`). Used by the
+  `--register-guard` smoke probe (30 s) and by `--check`'s `run-chain.sh --list` (60 s); both
+  timeouts are now the constants `GUARD_PROBE_TIMEOUT` and `CHAIN_LIST_TIMEOUT`.
+- `bin/adopt.test.sh`: "a timed-out probe leaves no orphan" runs `chain_conf_problem` with a 1 s
+  timeout on a `run-chain.sh` whose `$(...)` grandchild writes its PID and sleeps 20 s, then
+  asserts the PID is gone (a zombie counts as gone). With the call reverted to `subprocess.run`
+  the grandchild survives and the scenario fails; 416 checks green with the fix.
+- `harness/skills/careful/hooks/check-careful.test.sh`: the four shim runs use the same pattern
+  (`run_group`), so a hung hook in the test cannot outlive it either.
+- Files: `bin/adopt.py`, `bin/adopt.test.sh`,
+  `harness/skills/careful/hooks/check-careful.test.sh`, `VERSION`, and the version lines in
+  `README.md`, `README.vi.md`, `AI-ONBOARDING.md`, `constitution/constitution-template.md`,
+  `sync/DAILY-SYNC.md`, `model/SPEC-FLOW.md`.
+
+Adopters — action required: move the kit to v1.5.4 and run `adopt.py --upgrade`. That replaces
+your installed `.claude/hooks/check-careful.test.sh` if you have not edited it (an edited copy
+gets a `.factory-new` to merge), and the constitution template, whose only change is its
+version line.
+
 ## 2026-10-30 — v1.5.3 (evals are gates)
 
 A patch release: the kit now teaches how to trust an eval of agent work, and says plainly that
