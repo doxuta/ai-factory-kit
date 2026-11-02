@@ -3,6 +3,27 @@
 All kit updates land here via the [daily-ship sync](sync/DAILY-SYNC.md) — one entry per sync,
 newest first.
 
+## 2026-11-02 — v1.5.5 (empty is a failure for the least-privileged user)
+
+A doctrine release: GATES §3 now says that acceptance on a freshly built stack, signed in as the
+least-privileged persona, must see data. Sample data a setup step installs belongs to the
+installer; where visibility is scoped by ownership, the least-privileged user sees none of it,
+and every check run as the installer stays green. Measured in the factory this kit comes from: on
+a fresh demo that role opened seven empty tables. Second rule from the same fix: a seed guard
+checks the expected set by name, because "at least one row" stayed green when a renamed sample
+record left the set one short.
+
+- `gates/GATES.md` §3: new paragraph "Empty is a failure, on a fresh install, as the
+  least-privileged user", after "Watch it fail first".
+- `harness/agents/tester-e2e.md`: one rule, "Empty is a finding".
+- Files: `gates/GATES.md`, `harness/agents/tester-e2e.md`, `VERSION`, and the version lines in
+  `README.md`, `README.vi.md`, `AI-ONBOARDING.md`, `constitution/constitution-template.md`,
+  `sync/DAILY-SYNC.md`, `model/SPEC-FLOW.md`.
+
+Adopters — action required: none for the gates (no script changed). `.claude/agents/tester-e2e.md`
+is adopter-filled, so `adopt.py --upgrade` offers the new rule as a `.factory-new` next to it;
+merge the one bullet if you want your acceptance agent to apply it.
+
 ## 2026-11-01 — v1.5.4 (a timeout kills the process group)
 
 A patch release: every place the kit runs a shell under a timeout now kills the shell's whole

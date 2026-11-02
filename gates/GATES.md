@@ -128,6 +128,20 @@ change is about, not an unrelated break. No gate can prove this was done (the
 `spec-approval` BLIND TO block says as much), so it is a review question: "show me the red
 run." A script that cannot be made to fail proves nothing about the feature.
 
+**Empty is a failure, on a fresh install, as the least-privileged user.** Sample or default
+data that a setup step installs belongs to whoever ran the install. Where visibility is scoped
+by ownership (row-level access, "owner or team" views, per-tenant records), the least-privileged
+user sees none of that installer-owned data, so the product they are shown is empty while every
+check run as the installer stays green. So the acceptance run starts from a freshly built stack,
+signs in as the least-privileged persona, and asserts that every list or table the onboarding
+promises is non-empty; an empty list there is a failed step, not an empty state. Measured in the
+production factory this kit comes from: on a fresh demo the least-privileged role opened seven
+empty tables, and only a run as that role on a fresh stack showed it. The guard that seeds such
+data checks the expected set **by name**, not "at least one row": the first version of that
+seed guard caught only a table with no row at all, so a renamed sample record left the set one
+record short with the guard green; it now names every missing table and every missing named
+record and fails on any.
+
 ## 4. The deadliest bug class: the joint nobody wired
 
 > Backend correct + frontend correct + **the connection never written** — and every gate green,

@@ -52,6 +52,9 @@ build the feature qualifies only where it says so.
   nothing at all; only a third-person run caught it. If only privileged credentials exist,
   STOP and report that as finding #1. Where the product has no such boundary (a single-user
   CLI, a library), say so in `run_as` — the rest of this role still applies.
+- **Empty is a finding.** On a fresh install, as the non-privileged role, every list or table
+  the onboarding promises must be non-empty: installer-owned sample data is invisible to a
+  role that sees only its own rows ([GATES §3](../../gates/GATES.md)).
 - **Evidence is pasted, not narrated.** Screenshots for UI steps (the non-privileged username
   visible in frame, where there are accounts), verbatim command output for CLI/API steps,
   response bodies for contract checks. "It worked" is testimony; the paste is the evidence.
