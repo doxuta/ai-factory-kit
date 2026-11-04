@@ -209,6 +209,11 @@ GUARDED_RX = re.compile(
     # allowed (it can only restore the kit's wiring), so the template it copies must not be
     # editable: a neutered template plus one allowed command would rewrite the guarded settings.
     r"|(?:^|/)harness/settings\.json\.template$"
+    # The plugin install: its hook wiring, in the kit and in the host's copy, and the records
+    # the host reads to decide the plugin is on. Same reason as the template above.
+    r"|(?:^|/)harness/hooks/hooks\.json$"
+    r"|(?:^|/)\.claude/plugins/(?:cache|marketplaces)/ai-factory-kit(?:/|$)"
+    r"|(?:^|/)\.claude/plugins/(?:installed_plugins|known_marketplaces)\.json$"
     r"|(?:^|/)\.specify/scripts(?:/|$)"                    # Spec Kit scripts the flow shells to
     r"|^/etc/claude-code(?:/|$)"                           # managed settings: Linux and WSL
     r"|^/library/application support/claudecode(?:/|$)"    # managed settings: macOS
@@ -268,9 +273,12 @@ def new_gate_file(p, ab):
 # (`mv .claude .claude.off` passed silently before v1.4.0 — F9.) A `gates` directory counts
 # when it is a gate chain (chain_gates_dir).
 GUARDED_ANCESTOR_RX = re.compile(
-    r"(?:^|/)(?:\.claude|harness/skills/careful)$"
+    r"(?:^|/)(?:\.claude|\.claude/plugins|\.claude/plugins/cache|\.claude/plugins/marketplaces"
+    r"|harness/skills/careful|harness/hooks)$"
     r"|^/etc$|^/library$|^/library/application support$|(?:^|/)program files$"
 )
+# `claude plugin disable|uninstall ...` and `claude plugin marketplace remove ...`.
+PLUGIN_OFF_RX = re.compile(r"plugins?\s+(?:marketplace\s+)?(?:disable|uninstall|remove|rm)\b")
 # Gate configuration: the adopter wires it, so an edit is legitimate — but quietly changing it
 # turns a red gate green, so it is always shown (ask), never silent. Same anchoring as the chain.
 GATE_CONFIG_RX = re.compile(r"(?:^|/)(gates)/(?:[^/]+\.conf|orphan-allowlist\.txt)$", re.I)
@@ -2375,6 +2383,17 @@ def rule_adopt(argv, seg, ctx):
     return None
 
 
+def rule_plugin_off(argv, seg, ctx):
+    # Installed as a plugin, one host command switches the guard off with no file edit.
+    words = [str(w) for w in argv]
+    rest = " ".join(words[1:])
+    if base_name(words[0]) == "claude" and PLUGIN_OFF_RX.match(rest) and \
+            re.search(r"ai-factory-kit|(?:^|\s)(?:-a|--all)(?:\s|$)", rest):
+        return (DENY, "this switches off the plugin that carries the careful guard; a human "
+                      "runs it, in their own terminal.")
+    return None
+
+
 def shell_script_operand(argv):
     """For sh/bash/zsh: ("c", string) | ("stdin", None) | ("file", path)."""
     args = [str(a) for a in argv[1:]]
@@ -2832,6 +2851,7 @@ def inspect_segment(seg, prev, shell, ctx, depth):
     if not readonly:
         rules.append(lambda: rule_db(argv, seg, ctx, a0))
         rules.append(lambda: rule_adopt(argv, seg, ctx))
+        rules.append(lambda: rule_plugin_off(argv, seg, ctx))
     for r in rules:
         if add(r()):
             return worst

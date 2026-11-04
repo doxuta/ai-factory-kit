@@ -317,6 +317,34 @@ filecheck deny  Edit  /proj/.claude/Settings.json
 filecheck deny  Edit  /proj/.claude/settings.json.
 filecheck deny  Write 'C:\proj\.claude\hooks\check-careful.py'     # F8: Windows backslashes
 filecheck deny  Edit  'C:\proj\.claude\settings.json'
+section "the plugin install: nothing may switch it off"
+filecheck deny  Edit  harness/hooks/hooks.json
+filecheck deny  Write ~/.claude/plugins/cache/ai-factory-kit/ai-factory-kit/1.6.0/hooks/hooks.json
+filecheck deny  Write ~/.claude/plugins/marketplaces/ai-factory-kit/harness/hooks/hooks.json
+filecheck deny  Edit  ~/.claude/plugins/installed_plugins.json
+filecheck deny  Edit  ~/.claude/plugins/known_marketplaces.json
+filecheck allow Write ~/.claude/plugins/cache/other-plugin/other/1.0.0/hooks/hooks.json
+filecheck allow Write src/hooks/hooks.json
+check deny 'claude plugin disable ai-factory-kit'
+check deny 'claude plugin uninstall ai-factory-kit@ai-factory-kit'
+check deny 'claude plugins remove ai-factory-kit'
+check deny 'claude plugin rm ai-factory-kit'
+check deny 'claude plugin marketplace remove ai-factory-kit'
+check deny 'true && claude plugin disable ai-factory-kit'
+check deny 'claude plugin disable --all'
+check deny 'claude plugin disable -a'
+check deny 'env claude plugin disable -s user ai-factory-kit'
+check deny 'bash -c "claude plugin uninstall ai-factory-kit"'
+check deny 'rm -rf ~/.claude/plugins'
+check deny 'rm -rf ~/.claude/plugins/cache/ai-factory-kit'
+check deny 'mv ~/.claude/plugins/cache ~/x'
+check deny 'mv harness/hooks harness/hooks.off'
+check allow 'claude plugin disable other-plugin'
+check allow 'claude plugin list'
+check allow 'claude plugin install ai-factory-kit@ai-factory-kit'
+check allow 'claude plugin details ai-factory-kit'
+
+section "guardrail files, Write/Edit side, continued"
 filecheck deny  Write /etc/claude-code/managed-settings.json       # managed: disableAllHooks
 filecheck deny  Write /etc/claude-code/managed-settings.d/99-x.json
 filecheck deny  Write '/Library/Application Support/ClaudeCode/managed-settings.json'

@@ -139,6 +139,7 @@ flashes boards with `write_flash`, which stays silent.
 | `gates/run-chain.sh`, `gates/check-*.sh`, `gates/check-*.py`, `gates/hooks/**` — in the project's `gates/`, in any `gates/` holding `run-chain.sh` (the kit copy under `factory/`), and wherever the directory cannot be looked at (a relative `gates/…`, a path built at runtime) | the gate chain the guard protects. A feature-flag `src/gates/hooks/` is not the chain: until review 2 of v1.4.0 any directory named `gates` was, and editing or moving one was denied with no way to exempt it |
 | `harness/skills/careful/hooks/**`, including under `factory/` | the copy an upgrade installs |
 | `harness/settings.json.template`, including under `factory/` | the wiring `adopt.py --register-guard` copies into `.claude/settings.json`; that command stays allowed because it can only restore the kit's wiring, so its source must not be editable |
+| `harness/hooks/hooks.json`; `~/.claude/plugins/{cache,marketplaces}/ai-factory-kit/**`; `~/.claude/plugins/{installed_plugins,known_marketplaces}.json` | the plugin install: its wiring and the records the host reads. `claude plugin disable\|uninstall\|remove` and `marketplace remove` naming this plugin, or `--all`, are denied for the same reason |
 | `.specify/scripts/**` | scripts the Spec Kit flow shells out to |
 
 **Deny** covers the file-edit tools (`Write`, `Edit`, `MultiEdit`, `NotebookEdit`) and, on the
@@ -318,7 +319,7 @@ Per [GATES](../../../gates/GATES.md) §4, a gate says what it cannot see, in its
 ## Verification — two steps, and step 2 is the one that was skipped
 
 ```bash
-bash .claude/hooks/check-careful.test.sh   # step 1: passed 722, failed 0
+bash .claude/hooks/check-careful.test.sh   # step 1: passed 747, failed 0
 ```
 
 (Before `--register-guard` it reads 711 and prints `SKIP` for the wiring checks, which test the

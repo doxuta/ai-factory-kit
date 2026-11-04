@@ -29,7 +29,7 @@ porting by hand. What differs per host and platform: [HARNESS §7](harness/HARNE
 (the system bash 3.2 and BSD tools), as checked out and detached — the first macOS run failed
 on a test fixture, fixed before release; headless Claude Code sessions on Linux, including the
 careful guard's live probes. Nothing has run on WSL or on a Windows host.
-Version 1.5.5 ([VERSION](VERSION)), tested with Spec Kit (specify-cli) 1.2.5.
+Version 1.6.0 ([VERSION](VERSION)), tested with Spec Kit (specify-cli) 1.2.5.
 
 ## Why this exists
 
@@ -52,12 +52,13 @@ holds its method.
 |---|---|---|
 | Guard false positives, before the fix ([method](harness/skills/careful/SKILL.md#-the-third-lesson-measure-the-false-positives-or-the-guard-gets-switched-off)) | 6,638 real shell commands from 48 h of agent work, through the v1.2 guard | 800 asks (one in eight commands); 77 after three rules were narrowed |
 | Guard false positives, real traffic | the 2,002 unique shell commands from the sessions that built and audited v1.4.0 | v1.3.2 interrupted 165 (8.2%), v1.4.0 interrupts 89 (4.4%), each by a designed rule |
-| Guard false positives, constructed corpus ([`careful-corpus.txt`](harness/skills/careful/hooks/careful-corpus.txt)) | 408 ordinary commands across 14 stacks (395 at v1.4.0) | 0 interrupted; the test fails if one ever is |
-| The kit's own tests ([CI](.github/workflows/ci.yml)) | 8 `*.test.sh` suites, Linux and macOS `/bin/bash` 3.2, branch and detached `HEAD` | 1,452 checks, 0 failed on 2026-10-23 (macOS run; CI covers Linux); the guard table alone is 722 rows |
+| Guard false positives, constructed corpus ([`careful-corpus.txt`](harness/skills/careful/hooks/careful-corpus.txt)) | 395 ordinary commands across 14 stacks | 0 interrupted; the test fails if one ever is |
+| The kit's own tests ([CI](.github/workflows/ci.yml)) | 9 `*.test.sh` suites, Linux and macOS `/bin/bash` 3.2, branch and detached `HEAD` | 1,492 checks, 0 failed on 2026-11-04 (macOS run; CI covers Linux, without the 2 that need `claude`); the guard table alone is 747 rows |
 | A test that graded its environment, not the code ([DAILY-SYNC](sync/DAILY-SYNC.md)) | v1.3.2's guard test on a feature branch | failed 141 of 142 on every feature branch; the table is now hermetic and CI runs it on a detached `HEAD` |
 | Defects a fresh-context verifier caught on a real codebase ([write-up](https://github.com/doxuta/nexus/blob/main/docs/writeup/turning-the-lights-back-on.md#4-lights-on)) | the first four feature PRs of a public codebase ([#15](https://github.com/doxuta/nexus/pull/15), [#16](https://github.com/doxuta/nexus/pull/16), [#20](https://github.com/doxuta/nexus/pull/20), [#21](https://github.com/doxuta/nexus/pull/21)), each refuted by a verifier with no edit tools, the pattern of [`tech-lead-review`](harness/agents/tech-lead-review.md) | 0 of 4 passed the first round; caught a privilege escalation through a draft/live name collision, a fix that lost grants on rollback, an agent endpoint mounted outside the middleware that read a stale model, a demo script that contradicted its own prompt while green in CI, and a recorded-response replay that crossed users |
 | Spec Kit compatibility ([Verified](speckit/README.md#verified-on-2026-10-29-specify-cli-125)) | specify-cli 1.2.5 vs 1.2.1 in scratch repositories | every scripted check green; the overrides resolve byte-identical |
-| Links | every relative link in the kit (`python3 bin/check-links.py .`) | 471 links, 0 dead |
+| Plugin install ([test](bin/plugin.test.sh)) | `claude plugin marketplace add` + `install` from a clean `HOME` (Claude Code 2.1.312); a headless session with the plugin loaded, asked to force-push `main` in a scratch repo | 4 agents, 5 skills, 1 hook, ~1,040 tokens always-on (`claude plugin details`); the host refused the push and the remote's `main` did not move |
+| Links | every relative link in the kit (`python3 bin/check-links.py .`) | 480 links, 0 dead |
 
 **What still fails or is unmeasured.** The harness itself is unmeasured: no `claude plugin eval` run yet compares the same tasks with and without the kit's agents and skills ([method](gates/GATES.md#evals-are-gates-grade-the-grader-before-the-score)). The two live `claude -p` runs of the Spec Kit commands
 were done once, on 1.0.12, and not repeated; a model can still drift from a template, which is
@@ -112,7 +113,7 @@ Spec Kit, which uv installs, needs Python 3.11 or later.
 ```bash
 mkdir my-product && cd my-product && git init -b main     # or cd into your existing repository
 git submodule add https://github.com/doxuta/ai-factory-kit factory
-git -C factory checkout v1.5.5 && git add .gitmodules factory
+git -C factory checkout v1.6.0 && git add .gitmodules factory
 python3 factory/bin/adopt.py --profile full               # or backend, frontend, cli, library, …
 uv tool install specify-cli==1.2.5
 specify init --here --force --non-interactive --integration claude
@@ -140,6 +141,33 @@ listed in [PHASE-0 §8](model/PHASE-0.md). The exact order, with what each step 
   clone without it refuses no red commit (CI still does).
 - **Staying current**: pin a tag, upgrade with `adopt.py --upgrade` —
   [`sync/DAILY-SYNC.md`](sync/DAILY-SYNC.md).
+
+## Just the agents, skills and guard, as a plugin
+
+```bash
+claude plugin marketplace add doxuta/ai-factory-kit
+claude plugin install ai-factory-kit@ai-factory-kit
+```
+
+In every project, from the next session: the [4 agents](harness/agents/) and
+[5 skills](harness/skills/) under the `ai-factory-kit:` prefix, and the
+[careful guard](harness/skills/careful/SKILL.md) on every shell command and file edit. Cost: about
+1,040 tokens in every session, before anything is invoked (`claude plugin details ai-factory-kit`).
+
+This is the harness without the factory. What only the full install above gives you:
+
+- **The gates and the Spec Kit flow.** The agents and two skills name `gates/run-chain.sh`,
+  `specs/` and `/speckit-*`; on a project that has none of them, those lines have nothing to run.
+- **Your own guard rules.** The plugin's `careful.json` is the empty one and an update replaces
+  it; `protected_branches` beyond `main` and `master`, `extra_deny` and the rest need
+  `adopt.py --register-guard`, where the file is yours.
+- **Links out of `harness/`.** 56 relative links in 14 files point at `gates/`, `model/` and the
+  like, which an install does not copy. Read those on GitHub.
+
+Both at once is fine: the guard runs twice and the stricter answer wins. The guard denies an
+agent's `claude plugin disable`, `uninstall` or `marketplace remove` of this plugin, and an edit to
+its copy, within the limits it states (a string inspector, not a sandbox); you do those in your own
+terminal.
 
 ## Quickstart — for an AI
 

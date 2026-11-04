@@ -150,7 +150,7 @@ audited**):
 | Assume a file loaded because it exists | Frontmatter at line 1; in a fresh session check the host lists it — `/context` (memory files), `/skills`, and ask which subagents are available |
 
 **Measuring the harness itself.** Whether these agents and skills make the work better is a
-claim like any other. To test it, load the harness as a plugin and run the same small tasks with
+claim like any other. To test it, load the harness as a plugin ([`.claude-plugin/`](.claude-plugin/plugin.json)) and run the same small tasks with
 `claude plugin eval`, once with the plugin and once without, graded by real commands (build,
 tests, the gates) rather than by the model. Count three things per run besides the score: agent
 dispatches, skill invocations and gate runs. "No difference" with zero invocations means the

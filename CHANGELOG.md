@@ -3,6 +3,35 @@
 All kit updates land here via the [daily-ship sync](sync/DAILY-SYNC.md) — one entry per sync,
 newest first.
 
+## 2026-11-04 — v1.6.0 (the harness installs as a Claude Code plugin)
+
+`claude plugin marketplace add doxuta/ai-factory-kit`, then
+`claude plugin install ai-factory-kit@ai-factory-kit`: the 4 agents, the 5 skills and the careful
+guard, in every project, without adopting the kit. The README says what that leaves out (gates,
+Spec Kit, your own guard rules, links out of `harness/`) and what it costs (~1,040 tokens in every
+session). It also makes the method in HARNESS "Measuring the harness itself" followable; that A/B
+has still not been run.
+
+Packaging the guard opened a way round it, closed in the same release: one
+`claude plugin disable ai-factory-kit` would have switched it off with no file edit, and the hook
+wiring sat outside the directory the guard protects. Both are denied now, with 25 new table rows.
+
+- New: `harness/.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json`,
+  `harness/hooks/hooks.json` (the template's fail-closed wrapper, pointed at
+  `${CLAUDE_PLUGIN_ROOT}`), `bin/plugin.test.sh` (version equals `VERSION`, wiring equals the
+  template's, the registered command run under `sh`: deny, pass, and exit 2 on a missing or empty
+  shim).
+- `check-careful.py`: `rule_plugin_off`; `GUARDED_RX` and `GUARDED_ANCESTOR_RX` cover the plugin
+  install. `careful/SKILL.md` lists them.
+- README Proof: plugin row; test count now 9 suites, 1,492 checks; **corrected**: the corpus is 395
+  commands, not 408. The earlier figure counted lines, and 4 entries span several lines; the test
+  prints 395.
+- Files: `VERSION` and the version lines in `README.md`, `README.vi.md`, `AI-ONBOARDING.md`,
+  `constitution/constitution-template.md`, `sync/DAILY-SYNC.md`, `model/SPEC-FLOW.md`.
+
+Adopters — action required: none. `adopt.py --upgrade` brings the new guard rules; the plugin is
+optional and separate.
+
 ## 2026-11-02 — v1.5.5 (empty is a failure for the least-privileged user)
 
 A doctrine release: GATES §3 now says that acceptance on a freshly built stack, signed in as the

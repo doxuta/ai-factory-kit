@@ -1,0 +1,15 @@
+{
+  "name": "ai-factory-kit",
+  "description": "The AI Factory Kit harness as one Claude Code plugin.",
+  "owner": {
+    "name": "Xuan Tai Doan",
+    "url": "https://github.com/doxuta"
+  },
+  "plugins": [
+    {
+      "name": "ai-factory-kit",
+      "source": "./harness",
+      "description": "Agents, skills and a destructive-command guard for spec-driven work with Claude Code."
+    }
+  ]
+}

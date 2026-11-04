@@ -30,7 +30,7 @@ macOS (bash 3.2 có sẵn của hệ thống và bộ công cụ BSD), cả khi 
 lần chạy macOS đầu tiên hỏng ở một fixture test, đã sửa trước khi phát hành; các phiên Claude Code
 headless trên Linux, gồm cả hai phép thử trực tiếp của guard `careful`. Chưa có gì chạy trên WSL
 hay trên máy Windows.
-Phiên bản 1.5.5 ([VERSION](VERSION)), kiểm thử với Spec Kit (specify-cli) 1.2.5.
+Phiên bản 1.6.0 ([VERSION](VERSION)), kiểm thử với Spec Kit (specify-cli) 1.2.5.
 
 ---
 
@@ -55,12 +55,13 @@ ghi cách đo (tiếng Anh).
 |---|---|---|
 | Guard chặn nhầm, trước khi sửa ([cách đo](harness/skills/careful/SKILL.md#-the-third-lesson-measure-the-false-positives-or-the-guard-gets-switched-off)) | 6.638 lệnh shell thật trong 48 giờ agent làm việc, qua guard v1.2 | 800 lần hỏi (cứ 8 lệnh hỏi 1); còn 77 sau khi thu hẹp 3 luật |
 | Guard chặn nhầm, lưu lượng thật | 2.002 lệnh shell khác nhau từ các phiên dựng và kiểm định v1.4.0 | v1.3.2 ngắt 165 (8,2%), v1.4.0 ngắt 89 (4,4%), mỗi lần đều do một luật có chủ đích |
-| Guard chặn nhầm, corpus dựng sẵn ([`careful-corpus.txt`](harness/skills/careful/hooks/careful-corpus.txt)) | 408 lệnh bình thường trên 14 stack (395 ở v1.4.0) | 0 lần ngắt; test đỏ nếu có một lần |
-| Test của chính kit ([CI](.github/workflows/ci.yml)) | 8 bộ `*.test.sh`, Linux và macOS `/bin/bash` 3.2, trên nhánh và `HEAD` tách rời | 1.452 kiểm tra, 0 lỗi ngày 2026-10-23 (chạy trên macOS; CI chạy Linux); riêng bảng guard có 722 dòng |
+| Guard chặn nhầm, corpus dựng sẵn ([`careful-corpus.txt`](harness/skills/careful/hooks/careful-corpus.txt)) | 395 lệnh bình thường trên 14 stack | 0 lần ngắt; test đỏ nếu có một lần |
+| Test của chính kit ([CI](.github/workflows/ci.yml)) | 9 bộ `*.test.sh`, Linux và macOS `/bin/bash` 3.2, trên nhánh và `HEAD` tách rời | 1.492 kiểm tra, 0 lỗi ngày 2026-11-04 (chạy trên macOS; CI chạy Linux, thiếu 2 kiểm tra cần `claude`); riêng bảng guard có 747 dòng |
 | Một test chấm môi trường chứ không chấm code ([DAILY-SYNC](sync/DAILY-SYNC.md)) | test guard của v1.3.2 trên nhánh feature | đỏ 141/142 trên mọi nhánh feature; bảng giờ tự dựng repo riêng và CI chạy cả trên `HEAD` tách rời |
 | Lỗi mà verifier context mới bắt được trên một codebase thật ([bài viết](https://github.com/doxuta/nexus/blob/main/docs/writeup/turning-the-lights-back-on.md#4-lights-on)) | bốn PR tính năng đầu tiên của một codebase công khai ([#15](https://github.com/doxuta/nexus/pull/15), [#16](https://github.com/doxuta/nexus/pull/16), [#20](https://github.com/doxuta/nexus/pull/20), [#21](https://github.com/doxuta/nexus/pull/21)), mỗi PR bị một verifier không có công cụ sửa file cố bác bỏ, đúng mẫu [`tech-lead-review`](harness/agents/tech-lead-review.md) | 0/4 qua vòng đầu; bắt được một leo thang quyền qua trùng tên bảng nháp với bảng đang chạy, một bản sửa làm mất quyền khi rollback, một endpoint cho agent gắn ngoài middleware nên đọc model cũ, một script demo trái với chính prompt của nó mà CI vẫn xanh, và một replay phản hồi đã ghi trả nhầm sang người dùng khác |
 | Tương thích Spec Kit ([Verified](speckit/README.md#verified-on-2026-10-29-specify-cli-125)) | specify-cli 1.2.5 so với 1.2.1 trong repo nháp | mọi kiểm tra có script đều xanh; override resolve giống từng byte |
-| Link | mọi link tương đối trong kit (`python3 bin/check-links.py .`) | 471 link, 0 chết |
+| Cài plugin ([test](bin/plugin.test.sh)) | `claude plugin marketplace add` + `install` từ một `HOME` sạch (Claude Code 2.1.312); một phiên headless có nạp plugin, được yêu cầu force-push `main` trong repo nháp | 4 agent, 5 skill, 1 hook, ~1.040 token luôn tốn (`claude plugin details`); host từ chối lệnh push và `main` trên remote không đổi |
+| Link | mọi link tương đối trong kit (`python3 bin/check-links.py .`) | 480 link, 0 chết |
 
 **Cái gì vẫn chưa ổn hoặc chưa đo.** Bản thân harness chưa được đo: chưa có lần chạy `claude plugin eval` nào so cùng một nhóm việc khi có và khi không có agent và skill của kit ([cách đo](gates/GATES.md#evals-are-gates-grade-the-grader-before-the-score)). Hai lần chạy thật `claude -p` các lệnh Spec Kit chỉ làm một
 lần, trên 1.0.12, chưa chạy lại; model vẫn có thể lệch khỏi template, nên gate kiểm lại ở mỗi
@@ -115,7 +116,7 @@ Riêng Spec Kit (cài bằng uv) cần Python từ 3.11 trở lên.
 ```bash
 mkdir san-pham && cd san-pham && git init -b main         # hoặc cd vào repo sẵn có của bạn
 git submodule add https://github.com/doxuta/ai-factory-kit factory
-git -C factory checkout v1.5.5 && git add .gitmodules factory
+git -C factory checkout v1.6.0 && git add .gitmodules factory
 python3 factory/bin/adopt.py --profile full               # hoặc backend, frontend, cli, library, …
 uv tool install specify-cli==1.2.5
 specify init --here --force --non-interactive --integration claude
@@ -144,6 +145,32 @@ bước để lại, nằm ở [`AI-ONBOARDING.md`](AI-ONBOARDING.md) §2.
   từng bản clone, và bản clone chưa chạy lệnh này sẽ không chặn commit khi chain đỏ (CI vẫn chặn).
 - **Cập nhật kit**: ghim theo tag, nâng cấp bằng `adopt.py --upgrade` —
   [`sync/DAILY-SYNC.md`](sync/DAILY-SYNC.md).
+
+## Chỉ cần agent, skill và guard: cài dạng plugin
+
+```bash
+claude plugin marketplace add doxuta/ai-factory-kit
+claude plugin install ai-factory-kit@ai-factory-kit
+```
+
+Từ phiên kế tiếp, ở mọi project: [4 agent](harness/agents/) và [5 skill](harness/skills/) với tiền tố
+`ai-factory-kit:`, cùng [guard careful](harness/skills/careful/SKILL.md) trên mọi lệnh shell và mọi
+lần sửa file. Giá: khoảng 1.040 token mỗi phiên, trước khi gọi gì
+(`claude plugin details ai-factory-kit`).
+
+Đây là harness chứ chưa phải cả xưởng. Chỉ bản cài đầy đủ ở trên mới có:
+
+- **Gate và luồng Spec Kit.** Các agent và hai skill có nhắc `gates/run-chain.sh`, `specs/` và
+  `/speckit-*`; project không có những thứ đó thì các dòng ấy không có gì để chạy.
+- **Luật guard của riêng bạn.** `careful.json` của plugin là bản rỗng và mỗi lần cập nhật sẽ bị thay;
+  `protected_branches` ngoài `main` và `master`, `extra_deny` và các khoá khác cần
+  `adopt.py --register-guard`, nơi file đó là của bạn.
+- **Link ra ngoài `harness/`.** 56 link tương đối trong 14 file trỏ tới `gates/`, `model/` và các thư
+  mục tương tự mà bản cài không chép theo. Đọc những file đó trên GitHub.
+
+Cài cả hai cũng được: guard chạy hai lần và câu trả lời chặt hơn thắng. Guard từ chối khi agent gọi
+`claude plugin disable`, `uninstall` hay `marketplace remove` plugin này, hoặc sửa bản cài của nó, trong
+giới hạn mà guard đã nói rõ (nó kiểm chuỗi lệnh, không phải sandbox); việc đó bạn làm ở terminal của mình.
 
 ## Bắt đầu nhanh — dành cho AI
 
