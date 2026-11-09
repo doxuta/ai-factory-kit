@@ -103,11 +103,12 @@ Spec Kit has two kinds of extension, and specify-cli 1.0.12 treats them differen
   research → define → shape → decide; "a go verdict hands off to /speckit.specify"; it lives under
   `.specify/assessments/<slug>/`); `bug` (bug triage under `.specify/bugs/<slug>/`); `git`
   (branch creation, sequential or timestamp numbering); and `github` ("create GitHub issues
-  from a feature's task list"). `specify extension add <name>` installs them. `github` does
-  the job of the built-in `/speckit-taskstoissues`: pick one of the two, never both, or a
-  task list becomes two sets of issues. The kit takes no position on which; neither is part of
-  the flow (SPEC-FLOW lists `/speckit-taskstoissues` as optional). From specify-cli 1.2.1 the
-  built-in is deprecated and points to the extension, so new projects pick the extension.
+  from a feature's task list"). `specify extension add <name>` installs them. `github` is
+  now the only way to turn a task list into issues (`/speckit-github-taskstoissues`): the
+  built-in `/speckit-taskstoissues` was deprecated in specify-cli 1.2.1 and removed in 1.3.0.
+  It is not part of the flow (SPEC-FLOW lists it as optional). A project still on 1.2.x that
+  used the built-in and adds the extension must stop using the built-in, or a task list
+  becomes two sets of issues.
 - **Community, discovery only** — 176 entries in `catalog.community.json` when this was
   checked (181 results in all with the five above), tagged by category and effect, browsable on a
   [website](https://speckit-community.github.io/extensions/) that upstream itself calls a
@@ -191,7 +192,8 @@ What this means for the kit:
 
 - **Commands.** The kit writes every Spec Kit command in Claude Code's form, `/speckit-<name>`.
   Read it as `/speckit.<name>` on Gemini CLI and `$speckit-<name>` on Codex.
-  `/speckit-taskstoissues` works only with a GitHub remote and the GitHub MCP server's tools.
+  `/speckit-github-taskstoissues` (the `github` extension) works only with a GitHub remote and
+  the GitHub MCP server's tools.
 - **Context.** On a host that reads `AGENTS.md`, make it the shared file and import it from
   `.claude/CLAUDE.md` (the comment at the top of that file says how). Moving `CLAUDE.md` itself
   to `AGENTS.md` breaks its relative links; `python3 factory/bin/check-links.py <dir>` finds

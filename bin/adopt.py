@@ -61,7 +61,7 @@ KIT = os.path.dirname(HERE)
 # new rendering that hashes differently means the kit changed since then.
 MANIFEST = ".claude/.factory-manifest.json"
 NEW = ".factory-new"
-TESTED_SPECKIT = "1.2.5"
+TESTED_SPECKIT = "1.3.2"
 
 # Rules NOT installed per archetype profile (model/ARCHETYPES.md explains each choice).
 PROFILES = {

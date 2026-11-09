@@ -1,6 +1,6 @@
 {
   "name": "ai-factory-kit",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "description": "Agents, skills and a destructive-command guard for spec-driven work with Claude Code: a reviewer and an acceptance tester that cannot edit, an orchestrator that owns the merge, and a deterministic PreToolUse guard.",
   "author": {
     "name": "Xuan Tai Doan",

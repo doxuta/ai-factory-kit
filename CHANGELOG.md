@@ -3,6 +3,37 @@
 All kit updates land here via the [daily-ship sync](sync/DAILY-SYNC.md) — one entry per sync,
 newest first.
 
+## 2026-11-09 — v1.6.1 (Spec Kit 1.3.2: `/speckit-taskstoissues` is gone from core)
+
+A patch release: the tested Spec Kit moves from 1.2.5 to **1.3.2** (released 2026-11-06, on
+PyPI), and the install line becomes `uv tool install specify-cli==1.3.2`. Upstream 1.3.0
+(2026-11-03) removed the core `/speckit-taskstoissues` command, which three kit files still
+described as working (`model/SPEC-FLOW.md`, `harness/HARNESS.md`, `speckit/README.md`): anyone
+who installed today's specify-cli and followed SPEC-FLOW got a missing command.
+
+- Every scripted check in `speckit/README.md` re-run on 1.3.2 beside 1.2.5: all green, the
+  overrides resolve byte-identical, `adopt.py --check` "39 file(s) match the manifest" before and
+  after `specify init --force`. Init output differs from 1.2.5 in two places: no
+  `speckit-taskstoissues` skill (1 → 0), and `speckit-specify` now writes `spec.md` from
+  `resolve-template.sh spec-template --json` (1.2.6, #5187), whose content is the kit's override
+  byte for byte. New check: `specify extension add github` installs
+  `/speckit-github-taskstoissues` and leaves `adopt.py --check` green. Results in
+  [Verified on 2026-11-09](speckit/README.md#verified-on-2026-11-09-specify-cli-132).
+- SPEC-FLOW's command table now lists `/speckit-github-taskstoissues` (the `github` extension);
+  HARNESS no longer offers a choice between the built-in and the extension.
+- `bin/adopt.py` `TESTED_SPECKIT` is `1.3.2`, so its `Next:` list prints the new install line.
+- Files: `speckit/README.md`, `bin/adopt.py`, `THIRD_PARTY_NOTICES.md` (checked at tag `v1.3.2`),
+  `model/SPEC-FLOW.md`, `model/PHASE-0.md`, `harness/HARNESS.md`, `sync/DAILY-SYNC.md`,
+  `VERSION`, `harness/.claude-plugin/plugin.json`, and the version lines in `README.md`,
+  `README.vi.md`, `AI-ONBOARDING.md`, `constitution/constitution-template.md`.
+- Not repeated: the two live `claude -p` runs from 2026-09-29.
+
+Adopters — action required: only if you used `/speckit-taskstoissues` and move to Spec Kit 1.3.x.
+Run `specify extension add github` and use `/speckit-github-taskstoissues` instead. Moving to
+1.3.2 is otherwise optional (1.2.5 still works with this kit); if you move, follow "Upgrade Spec
+Kit" in [DAILY-SYNC](sync/DAILY-SYNC.md). `adopt.py --upgrade` replaces the constitution
+template, whose only change is its version line.
+
 ## 2026-11-04 — v1.6.0 (the harness installs as a Claude Code plugin)
 
 `claude plugin marketplace add doxuta/ai-factory-kit`, then
