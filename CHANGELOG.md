@@ -3,6 +3,29 @@
 All kit updates land here via the [daily-ship sync](sync/DAILY-SYNC.md) — one entry per sync,
 newest first.
 
+## 2026-11-10 — v1.6.2 (`npx skills add`: four skills, never `careful`)
+
+A docs release. RADAR F1 asked for a second install path, `npx skills add doxuta/ai-factory-kit`.
+It works without moving a file: skills CLI 1.7.6, from a clean `HOME`, finds all five skills
+under `harness/skills/`. Two things it does that the README now warns about:
+
+- **With `careful`** (or `--all`) it copies the matcher into `.claude/skills/careful/hooks/` and
+  registers no hook: the unregistered second copy that F10 was about, next to a skill that
+  describes a guard that is not on. The documented command names the other four skills; the
+  guard comes from the plugin or `adopt.py --register-guard`.
+- **Over a project set up with `adopt.py`** it overwrites the installed skill files with the
+  repository's raw copies, whose links point at `gates/`, `model/` and the like instead of
+  `factory/`: `adopt.py --check` went from OK to 19 problems (18 dead links and the second guard
+  copy) in a scratch project.
+
+Adopters — action required: none, unless you ran `npx skills add` inside an adopted project.
+Then `python3 factory/bin/adopt.py --check` fails; delete `.claude/skills/careful/hooks/` if it is
+there and run `python3 factory/bin/adopt.py --upgrade`.
+
+- Files: `README.md`, `README.vi.md` (new section, Proof row), `VERSION`,
+  `harness/.claude-plugin/plugin.json`, and the version lines in `AI-ONBOARDING.md`,
+  `constitution/constitution-template.md`, `model/SPEC-FLOW.md`, `sync/DAILY-SYNC.md`.
+
 ## 2026-11-09 — v1.6.1 (Spec Kit 1.3.2: `/speckit-taskstoissues` is gone from core)
 
 A patch release: the tested Spec Kit moves from 1.2.5 to **1.3.2** (released 2026-11-06, on

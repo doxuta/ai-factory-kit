@@ -29,7 +29,7 @@ porting by hand. What differs per host and platform: [HARNESS §7](harness/HARNE
 (the system bash 3.2 and BSD tools), as checked out and detached — the first macOS run failed
 on a test fixture, fixed before release; headless Claude Code sessions on Linux, including the
 careful guard's live probes. Nothing has run on WSL or on a Windows host.
-Version 1.6.1 ([VERSION](VERSION)), tested with Spec Kit (specify-cli) 1.3.2.
+Version 1.6.2 ([VERSION](VERSION)), tested with Spec Kit (specify-cli) 1.3.2.
 
 ## Why this exists
 
@@ -58,7 +58,8 @@ holds its method.
 | Defects a fresh-context verifier caught on a real codebase ([write-up](https://github.com/doxuta/nexus/blob/main/docs/writeup/turning-the-lights-back-on.md#4-lights-on)) | the first four feature PRs of a public codebase ([#15](https://github.com/doxuta/nexus/pull/15), [#16](https://github.com/doxuta/nexus/pull/16), [#20](https://github.com/doxuta/nexus/pull/20), [#21](https://github.com/doxuta/nexus/pull/21)), each refuted by a verifier with no edit tools, the pattern of [`tech-lead-review`](harness/agents/tech-lead-review.md) | 0 of 4 passed the first round; caught a privilege escalation through a draft/live name collision, a fix that lost grants on rollback, an agent endpoint mounted outside the middleware that read a stale model, a demo script that contradicted its own prompt while green in CI, and a recorded-response replay that crossed users |
 | Spec Kit compatibility ([Verified](speckit/README.md#verified-on-2026-11-09-specify-cli-132)) | specify-cli 1.3.2 vs 1.2.5 in scratch repositories | every scripted check green; the overrides resolve byte-identical; 1.3.0 removed `/speckit-taskstoissues` from core (0 skills installed) |
 | Plugin install ([test](bin/plugin.test.sh)) | `claude plugin marketplace add` + `install` from a clean `HOME` (Claude Code 2.1.312); a headless session with the plugin loaded, asked to force-push `main` in a scratch repo | 4 agents, 5 skills, 1 hook, ~1,040 tokens always-on (`claude plugin details`); the host refused the push and the remote's `main` did not move |
-| Links | every relative link in the kit (`python3 bin/check-links.py .`) | 480 links, 0 dead |
+| Skills CLI install (`skills@1.7.6`) | `npx skills add doxuta/ai-factory-kit --list` from a clean `HOME`, then the four-skill command with `-a claude-code --copy` in a scratch repo, and again in a project set up with `adopt.py` | the CLI finds all 5 skills; the command writes 4 `SKILL.md` files and `skills-lock.json`, nothing else; with `careful` included it adds `.claude/skills/careful/hooks/` (5 files) and registers no hook; over an adopted project `adopt.py --check` goes from OK to 19 problems |
+| Links | every relative link in the kit (`python3 bin/check-links.py .`) | 485 links, 0 dead |
 
 **What still fails or is unmeasured.** The harness itself is unmeasured: no `claude plugin eval` run yet compares the same tasks with and without the kit's agents and skills ([method](gates/GATES.md#evals-are-gates-grade-the-grader-before-the-score)). The two live `claude -p` runs of the Spec Kit commands
 were done once, on 1.0.12, and not repeated; a model can still drift from a template, which is
@@ -113,7 +114,7 @@ Spec Kit, which uv installs, needs Python 3.11 or later.
 ```bash
 mkdir my-product && cd my-product && git init -b main     # or cd into your existing repository
 git submodule add https://github.com/doxuta/ai-factory-kit factory
-git -C factory checkout v1.6.1 && git add .gitmodules factory
+git -C factory checkout v1.6.2 && git add .gitmodules factory
 python3 factory/bin/adopt.py --profile full               # or backend, frontend, cli, library, …
 uv tool install specify-cli==1.3.2
 specify init --here --force --non-interactive --integration claude
@@ -168,6 +169,28 @@ Both at once is fine: the guard runs twice and the stricter answer wins. The gua
 agent's `claude plugin disable`, `uninstall` or `marketplace remove` of this plugin, and an edit to
 its copy, within the limits it states (a string inspector, not a sandbox); you do those in your own
 terminal.
+
+## Four of the skills, with `npx skills add`
+
+```bash
+npx skills add doxuta/ai-factory-kit --skill caveman ponytail spec-first plan-and-tdd -a claude-code
+```
+
+Copies those four `SKILL.md` files into `.claude/skills/` and writes a `skills-lock.json` beside
+them ([skills CLI](https://github.com/vercel-labs/skills); without `-a` it installs into every
+agent it detects). No agents, no hook, no gates.
+
+- **Not `careful`, and not `--all`.** The guard is a hook; this CLI copies files and registers
+  nothing. With `careful` it puts the matcher under `.claude/skills/careful/hooks/`, an
+  unregistered copy that never runs (the trap behind
+  [F10](harness/skills/careful/SKILL.md)), next to a skill that describes a guard that is not on.
+  Get the guard from the plugin above or from `adopt.py --register-guard`.
+- **Never in a project set up with `adopt.py`.** It overwrites the skill files `adopt.py`
+  installed with the repository's raw copies, whose links point at `gates/`, `model/` and the
+  like instead of `factory/`. Measured on 2026-11-10: `adopt.py --check` went from OK to 19
+  problems (18 dead links and the second guard copy). Upgrade those projects with
+  `adopt.py --upgrade`.
+- **Links out of `harness/`** are dead in the copies, as with the plugin. Read those on GitHub.
 
 ## Quickstart — for an AI
 

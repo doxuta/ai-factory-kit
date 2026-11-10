@@ -8,7 +8,7 @@
 
 Built on [GitHub Spec Kit](https://github.com/github/spec-kit). Everything this file says about
 Spec Kit was checked against **specify-cli 1.2.1** and its scripted parts again against 1.2.5 and 1.3.2, the version
-kit 1.6.1 was tested with; install that version (`uv tool install specify-cli==1.3.2`, then
+kit 1.6.2 was tested with; install that version (`uv tool install specify-cli==1.3.2`, then
 `specify init --here --force --non-interactive --integration claude` — the full order is in
 [PHASE-0](PHASE-0.md) §2). Commands are written in Claude Code's form, `/speckit-<name>`; other
 hosts spell them differently ([HARNESS §7](../harness/HARNESS.md)).
