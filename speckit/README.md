@@ -8,17 +8,18 @@
 
 # Spec Kit template overrides
 
-**Tested with specify-cli 1.3.2** (github/spec-kit tag `v1.3.2`, on PyPI). Every claim below was
+**Tested with specify-cli 1.4.0** (github/spec-kit tag `v1.4.0`, on PyPI). Every claim below was
 checked against 1.0.12 on 2026-09-29, and the scripted ones again against 1.1.0 on 2026-10-07,
 1.2.1 on 2026-10-17 ([Verified on 2026-10-17](#verified-on-2026-10-17-specify-cli-121)), 1.2.5
-on 2026-10-29 ([Verified on 2026-10-29](#verified-on-2026-10-29-specify-cli-125)) and 1.3.2 on
-2026-11-09 ([Verified on 2026-11-09](#verified-on-2026-11-09-specify-cli-132)); the two live
+on 2026-10-29 ([Verified on 2026-10-29](#verified-on-2026-10-29-specify-cli-125)), 1.3.2 on
+2026-11-09 ([Verified on 2026-11-09](#verified-on-2026-11-09-specify-cli-132)) and 1.4.0 on 2026-11-16
+([Verified on 2026-11-16](#verified-on-2026-11-16-specify-cli-140)); the two live
 `claude -p` runs were not repeated. For another version, check them again
 ([Keeping them current](#keeping-them-current)).
 
 ## Why the kit overrides Spec Kit's templates
 
-Spec Kit 1.0.12 through 1.3.2 find each template through a stack, highest first
+Spec Kit 1.0.12 through 1.4.0 find each template through a stack, highest first
 (`.specify/scripts/bash/common.sh`, `resolve_template`):
 
 1. `.specify/templates/overrides/<name>.md` — the project's overrides
@@ -47,7 +48,7 @@ not tried.
 
 ## What each override changes
 
-| Installed as | Kit source | Changes from Spec Kit 1.0.12 (the same text in 1.1.0, 1.2.1, 1.2.5 and 1.3.2) | Why |
+| Installed as | Kit source | Changes from Spec Kit 1.0.12 (the same text in 1.1.0, 1.2.1, 1.2.5, 1.3.2 and 1.4.0) | Why |
 |---|---|---|---|
 | `.specify/templates/overrides/spec-template.md` | [`overrides/spec-template.md`](overrides/spec-template.md) | Frontmatter at line 1: `feature`, `status: draft`, `epic`, `owner`, `approved_by`, `approved_on`, as placeholders. The body line `**Status**: Draft` is removed. One `**Tests**: required …` line under "User Scenarios & Testing". Everything else is upstream text. | The gates read the frontmatter ([SPEC-FLOW](../model/SPEC-FLOW.md)); one status field, not two; `/speckit-tasks` writes test tasks when "explicitly requested in the feature specification", and that line is the request. |
 | `.specify/templates/overrides/tasks-template.md` | [`overrides/tasks-template.md`](overrides/tasks-template.md) | Tests REQUIRED instead of optional: the "Tests" line, the three "Tests for User Story N" headings, the unit-test task in the last phase, the ordering rule and the parallel example. `(test-exempt: <reason>)` for a task with no testable behaviour. The last phase's "Run quickstart.md validation" becomes the acceptance run by someone other than the builder, recorded in `acceptance.md`. Notes add tick-in-the-landing-commit and `(deferred → <where>)`. | Constitution Article VI (tests first, independent acceptance); the gates' task format ([`check-plan-sync.sh`](../gates/check-plan-sync.sh)). |
@@ -215,6 +216,33 @@ adopted with `--profile cli`:
 | `specify init --here --force` again over those specs, then a third feature | the next spec is `003-third`; `check-spec-numbers.sh` "3 sequential"; `adopt.py --check` still 37 files; both overrides still resolve |
 
 No behaviour change the kit depends on. The live `claude -p` runs were not repeated.
+
+## Verified on 2026-11-16 (specify-cli 1.4.0)
+
+Upstream diff `v1.3.2...v1.4.0` (180 files, 41 commits, releases 1.3.3 and 1.4.0) touches nothing
+under `templates/` and one file under `scripts/bash/`: `create-new-feature.sh`, where `echo` becomes
+`printf '%s\n'` so a feature description such as `-n` stays text (#5245/#5247). The blobs of
+`templates/spec-template.md`, `tasks-template.md`, `constitution-template.md` and the LICENSE are
+the same at both tags, so the overrides carry over unchanged. Scratch git repositories, 1.3.2 and
+1.4.0 side by side, each installed under its own `UV_TOOL_DIR`, this kit (1.6.2 content, the
+version bump only) copied in as `factory/` and adopted with `--profile cli`:
+
+| Check | Result |
+|---|---|
+| `specify init --here --force --non-interactive --integration claude`, 1.3.2 vs 1.4.0 | `diff -rq .claude` → identical (15 skills each; 1.3.3's per-step reasoning effort for Claude Code changes no default skill). Outside `.claude/`: `create-new-feature.sh` (the one line above) and five JSON files under `.specify/` (version strings, manifest hashes) |
+| `adopt.py --profile cli`, then init, then `adopt.py --check` | exit 0, 0, 0 on both; "39 file(s) match the manifest" |
+| `resolve-template.sh spec-template`, `tasks-template`, `constitution-template` (`--json`, `TEMPLATE_CONTENT`) compared in Python with the installed overrides; `specify preset resolve spec-template` | equal, byte for byte, on both versions; `(top layer from: project override)` |
+| `create-new-feature.sh --json --short-name monthly-report "Monthly report"` | `001-monthly-report`; its `spec.md` starts with the override's frontmatter at line 1 |
+| `create-new-feature.sh --json "Quản lý khách hàng tiềm năng"` under `LC_ALL=en_US.UTF-8` | `004-quản-lý-khách`, the same shape as 1.2.5 and 1.3.2 |
+| `create-new-feature.sh --json -- "-n"` (the input the upstream fix names) | `002-n` on **both** versions: in this call path the old `echo` did not lose the text, so the fix changes nothing these checks can see |
+| The frontmatter, through PyYAML `safe_load` | parses; `approved_by` and `approved_on` are null |
+| `check-plan-sync.sh` on the unfilled copies | exit 1: placeholders reported |
+| … after filling `feature`, `epic`, `owner` in both specs | `check-plan-sync.sh`, `check-spec-approval.sh`, `check-spec-numbers.sh` exit 0, 2 specs |
+| `specify init --here --force` again over those specs, then another feature | the next number follows on (`003-third`); `adopt.py --check` still 39 files |
+| `specify extension add github` on 1.4.0 | exit 0; installs `.claude/skills/speckit-github-taskstoissues`; `adopt.py --check` exit 0 |
+
+Nothing breaks for the kit; this release only moves the version it names. The live `claude -p`
+runs were not repeated.
 
 ## Verified on 2026-11-09 (specify-cli 1.3.2)
 

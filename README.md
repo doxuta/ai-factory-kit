@@ -29,7 +29,7 @@ porting by hand. What differs per host and platform: [HARNESS §7](harness/HARNE
 (the system bash 3.2 and BSD tools), as checked out and detached — the first macOS run failed
 on a test fixture, fixed before release; headless Claude Code sessions on Linux, including the
 careful guard's live probes. Nothing has run on WSL or on a Windows host.
-Version 1.6.2 ([VERSION](VERSION)), tested with Spec Kit (specify-cli) 1.3.2.
+Version 1.6.3 ([VERSION](VERSION)), tested with Spec Kit (specify-cli) 1.4.0.
 
 ## Why this exists
 
@@ -56,7 +56,7 @@ holds its method.
 | The kit's own tests ([CI](.github/workflows/ci.yml)) | 9 `*.test.sh` suites, Linux and macOS `/bin/bash` 3.2, branch and detached `HEAD` | 1,492 checks, 0 failed on 2026-11-04 (macOS run; CI covers Linux, without the 2 that need `claude`); the guard table alone is 747 rows |
 | A test that graded its environment, not the code ([DAILY-SYNC](sync/DAILY-SYNC.md)) | v1.3.2's guard test on a feature branch | failed 141 of 142 on every feature branch; the table is now hermetic and CI runs it on a detached `HEAD` |
 | Defects a fresh-context verifier caught on a real codebase ([write-up](https://github.com/doxuta/nexus/blob/main/docs/writeup/turning-the-lights-back-on.md#4-lights-on)) | the first four feature PRs of a public codebase ([#15](https://github.com/doxuta/nexus/pull/15), [#16](https://github.com/doxuta/nexus/pull/16), [#20](https://github.com/doxuta/nexus/pull/20), [#21](https://github.com/doxuta/nexus/pull/21)), each refuted by a verifier with no edit tools, the pattern of [`tech-lead-review`](harness/agents/tech-lead-review.md) | 0 of 4 passed the first round; caught a privilege escalation through a draft/live name collision, a fix that lost grants on rollback, an agent endpoint mounted outside the middleware that read a stale model, a demo script that contradicted its own prompt while green in CI, and a recorded-response replay that crossed users |
-| Spec Kit compatibility ([Verified](speckit/README.md#verified-on-2026-11-09-specify-cli-132)) | specify-cli 1.3.2 vs 1.2.5 in scratch repositories | every scripted check green; the overrides resolve byte-identical; 1.3.0 removed `/speckit-taskstoissues` from core (0 skills installed) |
+| Spec Kit compatibility ([Verified](speckit/README.md#verified-on-2026-11-16-specify-cli-140)) | specify-cli 1.4.0 vs 1.3.2 in scratch repositories | every scripted check green; the overrides resolve byte-identical; `.claude/` identical between the two; one script line differs. (1.3.0 had removed `/speckit-taskstoissues` from core.) |
 | Plugin install ([test](bin/plugin.test.sh)) | `claude plugin marketplace add` + `install` from a clean `HOME` (Claude Code 2.1.312); a headless session with the plugin loaded, asked to force-push `main` in a scratch repo | 4 agents, 5 skills, 1 hook, ~1,040 tokens always-on (`claude plugin details`); the host refused the push and the remote's `main` did not move |
 | Skills CLI install (`skills@1.7.6`) | `npx skills add doxuta/ai-factory-kit --list` from a clean `HOME`, then the four-skill command with `-a claude-code --copy` in a scratch repo, and again in a project set up with `adopt.py` | the CLI finds all 5 skills; the command writes 4 `SKILL.md` files and `skills-lock.json`, nothing else; with `careful` included it adds `.claude/skills/careful/hooks/` (5 files) and registers no hook; over an adopted project `adopt.py --check` goes from OK to 19 problems |
 | Links | every relative link in the kit (`python3 bin/check-links.py .`) | 485 links, 0 dead |
@@ -114,9 +114,9 @@ Spec Kit, which uv installs, needs Python 3.11 or later.
 ```bash
 mkdir my-product && cd my-product && git init -b main     # or cd into your existing repository
 git submodule add https://github.com/doxuta/ai-factory-kit factory
-git -C factory checkout v1.6.2 && git add .gitmodules factory
+git -C factory checkout v1.6.3 && git add .gitmodules factory
 python3 factory/bin/adopt.py --profile full               # or backend, frontend, cli, library, …
-uv tool install specify-cli==1.3.2
+uv tool install specify-cli==1.4.0
 specify init --here --force --non-interactive --integration claude
 ```
 

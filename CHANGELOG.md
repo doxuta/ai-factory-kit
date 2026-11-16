@@ -3,6 +3,33 @@
 All kit updates land here via the [daily-ship sync](sync/DAILY-SYNC.md) — one entry per sync,
 newest first.
 
+## 2026-11-16 — v1.6.3 (Spec Kit 1.4.0)
+
+A patch release: the tested Spec Kit moves from 1.3.2 to **1.4.0** (released 2026-11-10, on
+PyPI; 1.3.3 came out on 2026-11-09), and the install line becomes
+`uv tool install specify-cli==1.4.0`. Nothing the kit installs or overrides changed upstream.
+
+- Every scripted check in `speckit/README.md` re-run on 1.4.0 beside 1.3.2 in scratch
+  repositories: all green. `specify init` writes an identical `.claude/` (15 skills) on both;
+  outside it, one line of `create-new-feature.sh` differs (`echo` → `printf '%s\n'`,
+  #5245/#5247) plus version strings and hashes in five `.specify/*.json` files. The three
+  overrides resolve byte-identical; `adopt.py --check` "39 file(s) match the manifest" before
+  and after `specify init --force`; the `github` extension still installs
+  `/speckit-github-taskstoissues` with `--check` green. Results in
+  [Verified on 2026-11-16](speckit/README.md#verified-on-2026-11-16-specify-cli-140).
+- The upstream fix for a description such as `-n` was probed too: `002-n` on both versions, so it
+  changes nothing these checks can see. Recorded, not claimed as a fix.
+- `bin/adopt.py` `TESTED_SPECKIT` is `1.4.0`, so its `Next:` list prints the new install line.
+- Files: `speckit/README.md`, `bin/adopt.py`, `THIRD_PARTY_NOTICES.md` (checked at tag `v1.4.0`;
+  templates and LICENSE have the same blobs as at `v1.3.2`), `model/SPEC-FLOW.md`,
+  `model/PHASE-0.md`, `sync/DAILY-SYNC.md`, `AI-ONBOARDING.md`, `constitution/constitution-template.md`,
+  `VERSION`, `harness/.claude-plugin/plugin.json`, and the version lines and Proof row in
+  `README.md` and `README.vi.md`.
+- Not repeated: the two live `claude -p` runs from 2026-09-29.
+
+Adopters — action required: none. Moving to 1.4.0 is optional (1.3.2 still works with this kit);
+if you move, follow "Upgrade Spec Kit" in [DAILY-SYNC](sync/DAILY-SYNC.md).
+
 ## 2026-11-10 — v1.6.2 (`npx skills add`: four skills, never `careful`)
 
 A docs release. RADAR F1 asked for a second install path, `npx skills add doxuta/ai-factory-kit`.
