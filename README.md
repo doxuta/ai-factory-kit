@@ -224,7 +224,7 @@ ai-factory-kit/
 ├── sync/                     ← how this kit stays current, and how an adopter does
 ├── examples/todo-api/        ← worked example: multi-tenant web app, skeleton accepted + a feature mid-flight
 ├── examples/budget-cli/      ← worked example: single-user CLI, one feature accepted end to end
-├── VERSION                   ← the kit release (1.4.0)
+├── VERSION                   ← the kit release
 └── THIRD_PARTY_NOTICES.md    ← what was adapted from which MIT project, with their notices
 ```
 

@@ -27,6 +27,8 @@ unlike the last bumps, the skills Spec Kit writes did.
   `model/PHASE-0.md`, `sync/DAILY-SYNC.md`, `AI-ONBOARDING.md`, `constitution/constitution-template.md`,
   `VERSION`, `harness/.claude-plugin/plugin.json`, and the version lines and Proof row in
   `README.md` and `README.vi.md`.
+- The README file map said `VERSION ← the kit release (1.4.0)` through seven releases; the
+  number is gone, so it cannot go stale again.
 - Not repeated: the two live `claude -p` runs from 2026-09-29.
 
 Adopters — action required: none. Moving to 1.4.3 is optional (1.4.0 still works with this kit);

@@ -226,7 +226,7 @@ ai-factory-kit/
 ├── sync/                     ← cách kit luôn được cập nhật, và cách dự án dùng kit theo kịp
 ├── examples/todo-api/        ← ví dụ: web app đa tổ chức, bộ xương đã nghiệm thu + một feature đang làm
 ├── examples/budget-cli/      ← ví dụ: CLI một người dùng, một feature nghiệm thu trọn vẹn
-├── VERSION                   ← phiên bản kit (1.4.0)
+├── VERSION                   ← phiên bản kit
 └── THIRD_PARTY_NOTICES.md    ← phần nào lấy từ dự án MIT nào, kèm thông báo bản quyền của họ
 ```
 
