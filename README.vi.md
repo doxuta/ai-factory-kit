@@ -30,7 +30,7 @@ macOS (bash 3.2 có sẵn của hệ thống và bộ công cụ BSD), cả khi 
 lần chạy macOS đầu tiên hỏng ở một fixture test, đã sửa trước khi phát hành; các phiên Claude Code
 headless trên Linux, gồm cả hai phép thử trực tiếp của guard `careful`. Chưa có gì chạy trên WSL
 hay trên máy Windows.
-Phiên bản 1.6.3 ([VERSION](VERSION)), kiểm thử với Spec Kit (specify-cli) 1.4.0.
+Phiên bản 1.6.4 ([VERSION](VERSION)), kiểm thử với Spec Kit (specify-cli) 1.4.3.
 
 ---
 
@@ -59,10 +59,10 @@ ghi cách đo (tiếng Anh).
 | Test của chính kit ([CI](.github/workflows/ci.yml)) | 9 bộ `*.test.sh`, Linux và macOS `/bin/bash` 3.2, trên nhánh và `HEAD` tách rời | 1.492 kiểm tra, 0 lỗi ngày 2026-11-04 (chạy trên macOS; CI chạy Linux, thiếu 2 kiểm tra cần `claude`); riêng bảng guard có 747 dòng |
 | Một test chấm môi trường chứ không chấm code ([DAILY-SYNC](sync/DAILY-SYNC.md)) | test guard của v1.3.2 trên nhánh feature | đỏ 141/142 trên mọi nhánh feature; bảng giờ tự dựng repo riêng và CI chạy cả trên `HEAD` tách rời |
 | Lỗi mà verifier context mới bắt được trên một codebase thật ([bài viết](https://github.com/doxuta/nexus/blob/main/docs/writeup/turning-the-lights-back-on.md#4-lights-on)) | bốn PR tính năng đầu tiên của một codebase công khai ([#15](https://github.com/doxuta/nexus/pull/15), [#16](https://github.com/doxuta/nexus/pull/16), [#20](https://github.com/doxuta/nexus/pull/20), [#21](https://github.com/doxuta/nexus/pull/21)), mỗi PR bị một verifier không có công cụ sửa file cố bác bỏ, đúng mẫu [`tech-lead-review`](harness/agents/tech-lead-review.md) | 0/4 qua vòng đầu; bắt được một leo thang quyền qua trùng tên bảng nháp với bảng đang chạy, một bản sửa làm mất quyền khi rollback, một endpoint cho agent gắn ngoài middleware nên đọc model cũ, một script demo trái với chính prompt của nó mà CI vẫn xanh, và một replay phản hồi đã ghi trả nhầm sang người dùng khác |
-| Tương thích Spec Kit ([Verified](speckit/README.md#verified-on-2026-11-16-specify-cli-140)) | specify-cli 1.4.0 so với 1.3.2 trong repo nháp | mọi kiểm tra có script đều xanh; override resolve giống từng byte; `.claude/` giống hệt giữa hai bản; khác đúng một dòng script. (1.3.0 đã gỡ `/speckit-taskstoissues` khỏi lõi.) |
+| Tương thích Spec Kit ([Verified](speckit/README.md#verified-on-2026-11-23-specify-cli-143)) | specify-cli 1.4.3 so với 1.4.0 trong repo nháp | mọi kiểm tra có script đều xanh; override resolve giống từng byte; lần này `.claude/` **không** giống hệt: cả 9 skill của Spec Kit có thêm dòng `version:`, và `/speckit-tasks`, `/speckit-analyze` nay muốn task trích dẫn `data-model.md` `Entity.field` thay vì chép lại ràng buộc. (1.3.0 đã gỡ `/speckit-taskstoissues` khỏi lõi.) |
 | Cài plugin ([test](bin/plugin.test.sh)) | `claude plugin marketplace add` + `install` từ một `HOME` sạch (Claude Code 2.1.312); một phiên headless có nạp plugin, được yêu cầu force-push `main` trong repo nháp | 4 agent, 5 skill, 1 hook, ~1.040 token luôn tốn (`claude plugin details`); host từ chối lệnh push và `main` trên remote không đổi |
 | Cài bằng skills CLI (`skills@1.7.6`) | `npx skills add doxuta/ai-factory-kit --list` từ một `HOME` sạch, rồi lệnh bốn skill với `-a claude-code --copy` trong repo nháp, và lần nữa trong project đã dựng bằng `adopt.py` | CLI thấy đủ 5 skill; lệnh ghi 4 file `SKILL.md` và `skills-lock.json`, không gì khác; nếu kèm `careful` thì thêm `.claude/skills/careful/hooks/` (5 file) và không đăng ký hook nào; trên project đã adopt, `adopt.py --check` từ OK thành 19 lỗi |
-| Link | mọi link tương đối trong kit (`python3 bin/check-links.py .`) | 485 link, 0 chết |
+| Link | mọi link tương đối trong kit (`python3 bin/check-links.py .`) | 489 link, 0 chết (2026-11-23) |
 
 **Cái gì vẫn chưa ổn hoặc chưa đo.** Bản thân harness chưa được đo: chưa có lần chạy `claude plugin eval` nào so cùng một nhóm việc khi có và khi không có agent và skill của kit ([cách đo](gates/GATES.md#evals-are-gates-grade-the-grader-before-the-score)). Hai lần chạy thật `claude -p` các lệnh Spec Kit chỉ làm một
 lần, trên 1.0.12, chưa chạy lại; model vẫn có thể lệch khỏi template, nên gate kiểm lại ở mỗi
@@ -119,7 +119,7 @@ mkdir san-pham && cd san-pham && git init -b main         # hoặc cd vào repo 
 git submodule add https://github.com/doxuta/ai-factory-kit factory
 git -C factory checkout v1.6.3 && git add .gitmodules factory
 python3 factory/bin/adopt.py --profile full               # hoặc backend, frontend, cli, library, …
-uv tool install specify-cli==1.4.0
+uv tool install specify-cli==1.4.3
 specify init --here --force --non-interactive --integration claude
 ```
 

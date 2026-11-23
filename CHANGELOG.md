@@ -3,6 +3,36 @@
 All kit updates land here via the [daily-ship sync](sync/DAILY-SYNC.md) — one entry per sync,
 newest first.
 
+## 2026-11-23 — v1.6.4 (Spec Kit 1.4.3)
+
+A patch release: the tested Spec Kit moves from 1.4.0 to **1.4.3** (released 2026-11-19, on
+PyPI; 1.4.1 and 1.4.2 came out on 2026-11-16 and 11-17), and the install line becomes
+`uv tool install specify-cli==1.4.3`. Nothing the kit installs or overrides changed upstream, but
+unlike the last bumps, the skills Spec Kit writes did.
+
+- Every scripted check in `speckit/README.md` re-run on 1.4.3 beside 1.4.0 in scratch
+  repositories: all green. The three overrides resolve byte-identical; `adopt.py --check` "39
+  file(s) match the manifest" before and after `specify init --force`; the `github` extension
+  still installs `/speckit-github-taskstoissues` with `--check` green. Results in
+  [Verified on 2026-11-23](speckit/README.md#verified-on-2026-11-23-specify-cli-143).
+- `.claude/` is **not** identical between the two versions: all 9 `speckit-*` skills gain a
+  `version:` line, and `/speckit-tasks` now cites `data-model.md` `Entity.field` instead of
+  quoting constraints verbatim (#5458), with `/speckit-analyze` checking those citations. The
+  kit depends on neither; `examples/todo-api` T001 still restates its constraints the old way.
+- `speckit/README.md` "Why the kit overrides" mentions 1.4.3's preset `replace-section` strategy,
+  which an override cannot do.
+- `bin/adopt.py` `TESTED_SPECKIT` is `1.4.3`, so its `Next:` list prints the new install line.
+- Files: `speckit/README.md`, `bin/adopt.py`, `THIRD_PARTY_NOTICES.md` (checked at tag `v1.4.3`;
+  templates and LICENSE have the same blobs as at `v1.4.0`), `model/SPEC-FLOW.md`,
+  `model/PHASE-0.md`, `sync/DAILY-SYNC.md`, `AI-ONBOARDING.md`, `constitution/constitution-template.md`,
+  `VERSION`, `harness/.claude-plugin/plugin.json`, and the version lines and Proof row in
+  `README.md` and `README.vi.md`.
+- Not repeated: the two live `claude -p` runs from 2026-09-29.
+
+Adopters — action required: none. Moving to 1.4.3 is optional (1.4.0 still works with this kit);
+if you move, follow "Upgrade Spec Kit" in [DAILY-SYNC](sync/DAILY-SYNC.md), and expect
+`/speckit-tasks` to write citations where it used to copy constraints.
+
 ## 2026-11-16 — v1.6.3 (Spec Kit 1.4.0)
 
 A patch release: the tested Spec Kit moves from 1.3.2 to **1.4.0** (released 2026-11-10, on
